@@ -257,19 +257,18 @@
 料理名・材料・簡単な作り方・おおよそのコストを含めて提案してください。
 日本語で、温かみのある口調で答えてください。`;
 
-        const response = await fetch('https://api.anthropic.com/v1/messages', {
+        const session = await getSession();
+        const response = await fetch('https://sfhtvtcmgueystyuhzvd.supabase.co/functions/v1/tavera-suggest', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            model: 'claude-sonnet-4-20250514',
-            max_tokens: 1000,
-            system: systemPrompt,
-            messages: messages,
-          }),
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${session?.access_token}`,
+          },
+          body: JSON.stringify({ messages, likedDishes: liked }),
         });
 
         const data = await response.json();
-        const reply = data.content?.[0]?.text || '提案の取得に失敗しました。';
+        const reply = data.reply || '提案の取得に失敗しました。';
 
         loadingBubble.remove();
         messages.push({ role: 'assistant', content: reply });
