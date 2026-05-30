@@ -1,0 +1,166 @@
+// =====================
+// menu-log.js - 献立ログ CRUD
+// =====================
+
+// 日付フォーマット (YYYY-MM-DD)
+function toDateStr(date = new Date()) {
+  return date.toISOString().split('T')[0];
+}
+
+// 今日の献立ログを取得
+async function getTodayLogs(householdId) {
+  const today = toDateStr();
+  const { data, error } = await db
+    .from('menu_logs')
+    .select('*')
+    .eq('household_id', householdId)
+    .eq('date', today)
+    .order('meal_type');
+  if (error) { console.error(error); return []; }
+  return data;
+}
+
+// 指定日の献立ログを取得
+async function getLogsByDate(householdId, dateStr) {
+  const { data, error } = await db
+    .from('menu_logs')
+    .select('*')
+    .eq('household_id', householdId)
+    .eq('date', dateStr)
+    .order('meal_type');
+  if (error) { console.error(error); return []; }
+  return data;
+}
+
+// 月間ログ取得（カレンダー表示用）
+async function getLogsForMonth(householdId, year, month) {
+  const from = `${year}-${String(month).padStart(2,'0')}-01`;
+  const to   = `${year}-${String(month).padStart(2,'0')}-31`;
+  const { data, error } = await db
+    .from('menu_logs')
+    .select('date')
+    .eq('household_id', householdId)
+    .gte('date', from)
+    .lte('date', to);
+  if (error) { console.error(error); return []; }
+  // ログがある日付のSetを返す
+  return new Set(data.map(d => d.date));
+}
+
+// 献立ログを保存（upsert）
+async function saveLog({ householdId, date, mealType, dishName, memo, ingredients, rating }) {
+  const user = await getUser();
+  if (!user) return null;
+
+  // 既存レコードを確認
+  const { data: existing } = await db
+    .from('menu_logs')
+    .select('id')
+    .eq('household_id', householdId)
+    .eq('date', date)
+    .eq('meal_type', mealType)
+    .single();
+
+  if (existing) {
+    // 更新
+    const { data, error } = await db
+      .from('menu_logs')
+      .update({ dish_name: dishName, memo, ingredients, rating })
+      .eq('id', existing.id)
+      .select()
+      .single();
+    if (error) { console.error(error); return null; }
+    return data;
+  } else {
+    // 新規
+    const { data, error } = await db
+      .from('menu_logs')
+      .insert({
+        household_id: householdId,
+        date,
+        meal_type: mealType,
+        dish_name: dishName,
+        memo,
+        ingredients,
+        rating,
+        created_by: user.id,
+      })
+      .select()
+      .single();
+    if (error) { console.error(error); return null; }
+    return data;
+  }
+}
+
+// 献立ログを削除
+async function deleteLog(logId) {
+  const { error } = await db
+    .from('menu_logs')
+    .delete()
+    .eq('id', logId);
+  return !error;
+}
+
+// 過去ログを検索
+async function searchLogs(householdId, keyword) {
+  const { data, error } = await db
+    .from('menu_logs')
+    .select('*')
+    .eq('household_id', householdId)
+    .ilike('dish_name', `%${keyword}%`)
+    .order('date', { ascending: false })
+    .limit(50);
+  if (error) { console.error(error); return []; }
+  return data;
+}
+
+// 高評価メニューを取得（AI提案用）
+async function getLikedDishes(householdId, limit = 10) {
+  const { data, error } = await db
+    .from('menu_logs')
+    .select('dish_name, rating, date')
+    .eq('household_id', householdId)
+    .gte('rating', 4)
+    .order('rating', { ascending: false })
+    .limit(limit);
+  if (error) { console.error(error); return []; }
+  return data;
+}
+
+// ユーザーのhousehold_idを取得（なければ作成）
+async function getOrCreateHousehold(userId) {
+  // まず既存のhousehold確認
+  const { data: member } = await db
+    .from('menu_members')
+    .select('household_id')
+    .eq('id', userId)
+    .single();
+
+  if (member?.household_id) return member.household_id;
+
+  // なければ世帯を新規作成
+  const { data: household, error: hErr } = await db
+    .from('menu_households')
+    .insert({ created_by: userId, name: 'わが家' })
+    .select()
+    .single();
+
+  if (hErr) { console.error(hErr); return null; }
+
+  // メンバーとして登録
+  await db.from('menu_members').insert({
+    id: userId,
+    household_id: household.id,
+    name: 'オーナー',
+    role: 'owner',
+  });
+
+  return household.id;
+}
+
+// meal_typeの表示名
+const MEAL_LABELS = {
+  breakfast: '朝',
+  lunch:     '昼',
+  dinner:    '夜',
+};

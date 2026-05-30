@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+  <title>ホーム - Tavera</title>
+  <link rel="icon" href="assets/logo.png">
+  <link rel="stylesheet" href="css/style.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="js/supabase.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/menu-log.js"></script>
+  <style>
+    .date-strip {
+      display: flex;
+      gap: 6px;
+      padding: 16px 16px 8px;
+      overflow-x: auto;
+      scrollbar-width: none;
+    }
+    .date-strip::-webkit-scrollbar { display: none; }
+
+    .date-chip {
+      flex-shrink: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 8px 12px;
+      border-radius: var(--radius-sm);
+      border: 1.5px solid var(--border);
+      background: var(--white);
+      cursor: pointer;
+      transition: all var(--transition);
+      min-width: 44px;
+    }
+    .date-chip.active {
+      background: var(--terra);
+      border-color: var(--terra);
+      color: var(--white);
+    }
+    .date-chip.has-log { border-color: var(--amber); }
+    .date-chip .chip-day { font-size: 0.65rem; color: inherit; opacity: 0.7; }
+    .date-chip .chip-date { font-size: 1rem; font-weight: 700; }
+    .date-chip.active .chip-day { opacity: 0.8; }
+
+    .today-section { padding: 16px 20px 0; }
+    .today-date {
+      font-family: var(--font-display);
+      font-size: 1.3rem;
+      color: var(--brown);
+      margin-bottom: 14px;
+    }
+
+    .liked-section { padding: 0 20px; }
+    .liked-list { display: flex; flex-direction: column; gap: 8px; }
+    .liked-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 14px;
+      background: var(--surface);
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border);
+    }
+    .liked-rank {
+      font-family: var(--font-display);
+      font-size: 1.1rem;
+      color: var(--amber);
+      width: 24px;
+      text-align: center;
+    }
+    .liked-name { font-size: 0.9rem; font-weight: 500; flex: 1; }
+    .liked-stars { font-size: 0.75rem; color: var(--amber); }
+
+    .fab {
+      position: fixed;
+      bottom: 90px;
+      right: calc(50% - 230px);
+      width: 52px;
+      height: 52px;
+      border-radius: 50%;
+      background: var(--terra);
+      color: var(--white);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 4px 16px rgba(200,82,42,0.40);
+      transition: all var(--transition);
+      z-index: 50;
+      font-size: 1.5rem;
+      text-decoration: none;
+    }
+    .fab:hover { transform: scale(1.08); background: #b8451f; }
+
+    @media (max-width: 480px) {
+      .fab { right: 20px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app-container">
+    <!-- Header -->
+    <header class="app-header">
+      <div class="logo">
+        <img src="assets/logo.png" alt="Tavera">
+        <span class="logo-text">Tavera</span>
+      </div>
+      <div id="userAvatar" style="cursor:pointer" onclick="signOut()"></div>
+    </header>
+
+    <div class="page">
+      <!-- 日付スクロールバー -->
+      <div class="date-strip" id="dateStrip"></div>
+
+      <!-- 今日の献立 -->
+      <div class="today-section">
+        <div class="today-date" id="todayLabel">今日の献立</div>
+        <div class="meal-grid" id="mealGrid">
+          <div class="meal-cell">
+            <div class="meal-type">朝</div>
+            <div class="meal-empty">未登録</div>
+          </div>
+          <div class="meal-cell">
+            <div class="meal-type">昼</div>
+            <div class="meal-empty">未登録</div>
+          </div>
+          <div class="meal-cell">
+            <div class="meal-type">夜</div>
+            <div class="meal-empty">未登録</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 区切り -->
+      <div class="divider" style="margin:20px 20px 0;"></div>
+
+      <!-- また食べたいランキング -->
+      <div class="section-header">
+        <span class="section-title">⭐ また食べたいランキング</span>
+      </div>
+      <div class="liked-section">
+        <div class="liked-list" id="likedList">
+          <div class="empty-state" style="padding:24px 0;">
+            <p class="text-sm text-muted">献立を記録すると<br>ランキングが表示されます</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- FAB：献立を記録 -->
+    <a href="log.html" class="fab" title="献立を記録">＋</a>
+
+    <!-- Bottom Nav -->
+    <nav class="bottom-nav">
+      <a href="home.html" class="active">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+        ホーム
+      </a>
+      <a href="log.html">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        記録
+      </a>
+      <a href="history.html">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+        履歴
+      </a>
+      <a href="suggest.html">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
+        AI提案
+      </a>
+      <a href="settings.html">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+        設定
+      </a>
+    </nav>
+  </div>
+
+  <script>
+    const DAY_LABELS = ['日','月','火','水','木','金','土'];
+    let selectedDate = toDateStr();
+    let householdId = null;
+
+    async function init() {
+      const user = await requireAuth();
+      if (!user) return;
+
+      renderUserInfo('userAvatar');
+      householdId = await getOrCreateHousehold(user.id);
+      currentHousehold = householdId;
+
+      renderDateStrip();
+      await renderMealGrid(selectedDate);
+      await renderLikedList();
+    }
+
+    function renderDateStrip() {
+      const strip = document.getElementById('dateStrip');
+      strip.innerHTML = '';
+      const today = new Date();
+
+      // 前後3日 + 今日 = 7日表示
+      for (let i = -3; i <= 3; i++) {
+        const d = new Date(today);
+        d.setDate(today.getDate() + i);
+        const dateStr = toDateStr(d);
+
+        const chip = document.createElement('div');
+        chip.className = 'date-chip' + (dateStr === selectedDate ? ' active' : '');
+        chip.innerHTML = `
+          <span class="chip-day">${DAY_LABELS[d.getDay()]}</span>
+          <span class="chip-date">${d.getDate()}</span>
+        `;
+        chip.addEventListener('click', () => selectDate(dateStr, chip));
+        strip.appendChild(chip);
+      }
+    }
+
+    async function selectDate(dateStr, chipEl) {
+      selectedDate = dateStr;
+      document.querySelectorAll('.date-chip').forEach(c => c.classList.remove('active'));
+      chipEl.classList.add('active');
+
+      const d = new Date(dateStr);
+      const label = dateStr === toDateStr()
+        ? '今日の献立'
+        : `${d.getMonth()+1}月${d.getDate()}日（${DAY_LABELS[d.getDay()]}）の献立`;
+      document.getElementById('todayLabel').textContent = label;
+
+      await renderMealGrid(dateStr);
+    }
+
+    async function renderMealGrid(dateStr) {
+      const grid = document.getElementById('mealGrid');
+      if (!householdId) return;
+
+      const logs = await getLogsByDate(householdId, dateStr);
+      const logMap = {};
+      logs.forEach(l => logMap[l.meal_type] = l);
+
+      const meals = ['breakfast','lunch','dinner'];
+      const labels = { breakfast:'朝', lunch:'昼', dinner:'夜' };
+
+      grid.innerHTML = meals.map(type => {
+        const log = logMap[type];
+        return `
+          <div class="meal-cell ${log ? 'has-entry' : ''}"
+               onclick="location.href='log.html?date=${dateStr}&meal=${type}'">
+            <div class="meal-type">${labels[type]}</div>
+            ${log
+              ? `<div class="meal-name">${log.dish_name}</div>`
+              : `<div class="meal-empty">タップして登録</div>`
+            }
+          </div>
+        `;
+      }).join('');
+    }
+
+    async function renderLikedList() {
+      const list = document.getElementById('likedList');
+      if (!householdId) return;
+
+      const dishes = await getLikedDishes(householdId, 5);
+      if (!dishes.length) return;
+
+      const medals = ['🥇','🥈','🥉','4','5'];
+      list.innerHTML = dishes.map((d, i) => `
+        <div class="liked-item fade-in" style="animation-delay:${i*0.08}s">
+          <div class="liked-rank">${medals[i]}</div>
+          <div class="liked-name">${d.dish_name}</div>
+          <div class="liked-stars">${'★'.repeat(d.rating)}${'☆'.repeat(5-d.rating)}</div>
+        </div>
+      `).join('');
+    }
+
+    init();
+  </script>
+</body>
+</html>
