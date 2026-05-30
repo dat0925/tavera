@@ -1,9 +1,8 @@
 // =====================
 // Supabase 設定
-// ここにSupabaseのURL・ANON KEYを設定してください
 // =====================
-const SUPABASE_URL = 'YOUR_SUPABASE_URL';
-const SUPABASE_ANON_KEY = 'YOUR_SUPABASE_ANON_KEY';
+const SUPABASE_URL = 'https://sfhtvtcmgueystyuhzvd.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNmaHR2dGNtZ3VleXN0eXVoenZkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ3Nzg0MDYsImV4cCI6MjA5MDM1NDQwNn0.qsON2xYdDf22LtU-jGd96Ubaif0xzzswC9KnzWndKNw';
 
 const { createClient } = supabase;
 const db = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
@@ -28,7 +27,7 @@ async function getUser() {
 async function requireAuth() {
   const user = await getUser();
   if (!user) {
-    window.location.href = '/tavera/index.html';
+    window.location.href = 'https://tavera.taskra.jp/';
     return null;
   }
   return user;
@@ -38,6 +37,6 @@ async function requireAuth() {
 async function redirectIfAuthed() {
   const user = await getUser();
   if (user) {
-    window.location.href = '/tavera/home.html';
+    window.location.href = 'https://tavera.taskra.jp/home.html';
   }
 }
