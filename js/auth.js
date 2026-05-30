@@ -6,7 +6,7 @@ async function signInWithGoogle() {
   const { error } = await db.auth.signInWithOAuth({
     provider: 'google',
     options: {
-      redirectTo: window.location.origin + '/tavera/home.html'
+      redirectTo: 'https://tavera.taskra.jp/home.html'
     }
   });
   if (error) {
