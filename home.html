@@ -178,6 +178,40 @@
       padding: 0 2px;
     }
 
+    .fridge-date-row {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-top: 8px;
+      padding: 0 2px;
+    }
+    .fridge-date-label {
+      font-size: 0.75rem;
+      color: var(--muted);
+      white-space: nowrap;
+    }
+    .fridge-date-input {
+      flex: 1;
+      border: 1.5px solid var(--border);
+      border-radius: 8px;
+      padding: 6px 10px;
+      font-size: 0.82rem;
+      outline: none;
+      background: var(--white);
+      font-family: var(--font-body);
+      color: var(--brown);
+      transition: border-color var(--transition);
+    }
+    .fridge-date-input:focus { border-color: var(--olive); }
+    .fridge-date-clear {
+      background: none;
+      border: none;
+      color: var(--muted);
+      font-size: 0.85rem;
+      cursor: pointer;
+      padding: 2px 4px;
+    }
+
     .fridge-empty {
       font-size: 0.82rem;
       color: var(--muted);
@@ -238,6 +272,11 @@
                  placeholder="早めに使いたい食材を登録（Enterで追加）"
                  maxlength="20"
                  onkeydown="if(event.key==='Enter')addFridgeItemUI()">
+        </div>
+        <div class="fridge-date-row">
+          <span class="fridge-date-label">消費期限（任意）</span>
+          <input type="date" id="fridgeExpires" class="fridge-date-input">
+          <button class="fridge-date-clear" onclick="document.getElementById('fridgeExpires').value=''" title="クリア">✕</button>
         </div>
         <div id="fridgeGuide" class="fridge-guide hidden"></div>
       </div>
@@ -385,9 +424,11 @@
         if (item.expires_on) {
           const diffDays = Math.ceil((new Date(item.expires_on) - new Date(today)) / 86400000);
           expiringSoon = diffDays <= 3;
-          expiresLabel = expiringSoon
-            ? ` <small>(${diffDays <= 0 ? '期限切れ' : diffDays + '日'})</small>`
-            : '';
+          expiresLabel = diffDays <= 0
+            ? ' <small>(期限切れ)</small>'
+            : expiringSoon
+              ? ` <small>(あと${diffDays}日)</small>`
+              : ` <small style="opacity:.7">(${item.expires_on.slice(5).replace('-','/')})</small>`;
         }
         return `
           <span class="fridge-chip ${expiringSoon ? 'expiring-soon' : ''}">
@@ -414,11 +455,13 @@
         return;
       }
 
+      const expiresOn = document.getElementById('fridgeExpires').value || null;
       input.value = '';
+      document.getElementById('fridgeExpires').value = '';
       const guide = document.getElementById('fridgeGuide');
       guide.classList.add('hidden');
 
-      const result = await addFridgeItem(householdId, name);
+      const result = await addFridgeItem(householdId, name, expiresOn);
       if (result) {
         await renderFridgeItems();
         // 上限近づいたらガイド表示
