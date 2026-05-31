@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>お問い合わせ – Tavera</title>
+<link rel="icon" href="assets/logo.png">
+
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --terra: #C8522A; --amber: #E8932A; --cream: #FDF6EC;
+  --olive: #6B7A3A; --brown: #4A2E1A; --muted: #9B8878;
+  --white: #FFFFFF; --surface: #FFF9F2; --border: #EAD9C8;
+  --font-display: 'Kaisei Decol', serif;
+  --font-body: 'Zen Kaku Gothic New', sans-serif;
+}
+body { font-family: var(--font-body); color: var(--brown); background: var(--white); line-height: 1.6; }
+a { text-decoration: none; color: inherit; }
+header {
+  position: sticky; top: 0; z-index: 100;
+  background: rgba(255,255,255,0.95); backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--border);
+}
+.header-inner {
+  max-width: 1000px; margin: 0 auto;
+  display: flex; align-items: center; padding: 0 24px; height: 60px;
+}
+.logo { display: flex; align-items: center; gap: 8px; font-family: var(--font-display); font-size: 1.2rem; color: var(--terra); }
+.logo img { width: 28px; height: 28px; object-fit: contain; }
+.legal-page { max-width: 720px; margin: 0 auto; padding: 64px 24px 96px; }
+.legal-page h1 { font-family: var(--font-display); font-size: 2rem; margin-bottom: 8px; }
+.updated { font-size: 0.82rem; color: var(--muted); margin-bottom: 32px; }
+.legal-page h2 { font-size: 1.1rem; font-weight: 700; margin: 36px 0 12px; padding-bottom: 8px; border-bottom: 1px solid var(--border); }
+.legal-page p { font-size: 0.9rem; line-height: 1.9; margin-bottom: 12px; color: var(--brown); }
+.legal-page ul { padding-left: 20px; margin-bottom: 12px; }
+.legal-page ul li { font-size: 0.9rem; line-height: 1.9; }
+.legal-table { width: 100%; border-collapse: collapse; margin-top: 16px; }
+.legal-table th, .legal-table td { padding: 14px 16px; text-align: left; font-size: 0.875rem; border-bottom: 1px solid var(--border); }
+.legal-table th { font-weight: 700; color: var(--muted); width: 140px; vertical-align: top; }
+.legal-table a { color: var(--terra); }
+footer { background: var(--brown); color: rgba(255,255,255,0.7); }
+.footer-inner { max-width: 1000px; margin: 0 auto; padding: 28px 24px; }
+.footer-bottom { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; }
+.footer-bottom p { font-size: 0.75rem; }
+.footer-bottom-links { display: flex; gap: 18px; }
+.footer-bottom-links a { color: rgba(255,255,255,0.5); font-size: 0.75rem; }
+.footer-bottom-links a:hover { color: #fff; }
+@import url('https://fonts.googleapis.com/css2?family=Kaisei+Decol:wght@400;700&family=Zen+Kaku+Gothic+New:wght@300;400;500;700&display=swap');
+</style>
+
+<style>
+.contact-page { max-width: 600px; margin: 0 auto; padding: 64px 24px 96px; }
+.contact-form { margin-top: 40px; display: flex; flex-direction: column; gap: 20px; }
+.form-group { display: flex; flex-direction: column; gap: 6px; }
+.form-group label { font-size: 0.875rem; font-weight: 700; color: var(--brown); }
+.form-group input, .form-group textarea, .form-group select {
+  padding: 12px 14px; border: 1.5px solid var(--border);
+  border-radius: 8px; font-size: 0.95rem; font-family: inherit;
+  color: var(--brown); background: var(--white);
+  transition: border-color .2s; outline: none;
+}
+.form-group input:focus, .form-group textarea:focus, .form-group select:focus {
+  border-color: var(--terra); box-shadow: 0 0 0 3px rgba(200,82,42,0.08);
+}
+.form-group textarea { resize: vertical; min-height: 140px; }
+.required { color: var(--terra); margin-left: 4px; }
+.submit-btn {
+  padding: 14px; background: var(--terra); color: #fff;
+  border: none; border-radius: 99px; font-size: 1rem; font-weight: 700;
+  cursor: pointer; transition: all .2s; font-family: inherit;
+}
+.submit-btn:hover { background: #b8451f; transform: translateY(-1px); }
+.form-note { font-size: 0.78rem; color: var(--muted); line-height: 1.6; }
+</style>
+</head>
+<body>
+<header>
+  <div class="header-inner">
+    <a href="/" class="logo">
+      <img src="assets/logo.png" alt="Tavera">
+      Tavera
+    </a>
+  </div>
+</header>
+<main class="contact-page">
+  <div style="display:inline-flex;align-items:center;gap:6px;background:#FEF3EC;color:var(--terra);padding:5px 14px;border-radius:99px;font-size:0.78rem;font-weight:700;margin-bottom:16px;">Contact</div>
+  <h1 style="font-family:var(--font-display);font-size:2rem;font-weight:700;margin-bottom:8px;">お問い合わせ</h1>
+  <p style="color:var(--muted);font-size:0.9rem;line-height:1.7;">
+    ご質問・ご要望・不具合のご報告などお気軽にどうぞ。<br>
+    通常3営業日以内にご返答いたします。
+  </p>
+  <form class="contact-form" action="https://formspree.io/f/xpqbkdea" method="POST">
+    <div class="form-group">
+      <label>お名前<span class="required">*</span></label>
+      <input type="text" name="name" placeholder="山田 花子" required>
+    </div>
+    <div class="form-group">
+      <label>メールアドレス<span class="required">*</span></label>
+      <input type="email" name="email" placeholder="example@email.com" required>
+    </div>
+    <div class="form-group">
+      <label>お問い合わせ種別</label>
+      <select name="category">
+        <option value="">選択してください</option>
+        <option value="機能について">機能について</option>
+        <option value="不具合の報告">不具合の報告</option>
+        <option value="アカウントについて">アカウントについて</option>
+        <option value="ご要望・ご提案">ご要望・ご提案</option>
+        <option value="その他">その他</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label>お問い合わせ内容<span class="required">*</span></label>
+      <textarea name="message" placeholder="お問い合わせ内容をご記入ください" required></textarea>
+    </div>
+    <p class="form-note">
+      送信いただいた個人情報は、お問い合わせへの返答にのみ使用します。<br>
+      <a href="privacy.html" style="color:var(--terra);">プライバシーポリシー</a>をご確認ください。
+    </p>
+    <button type="submit" class="submit-btn">送信する</button>
+  </form>
+</main>
+<footer>
+  <div class="footer-inner">
+    <div class="footer-bottom">
+      <p>© 2026 Tavera（運営：Taskra）. All rights reserved.</p>
+      <div class="footer-bottom-links">
+        <a href="terms.html">利用規約</a>
+        <a href="privacy.html">プライバシーポリシー</a>
+        <a href="contact.html">お問い合わせ</a>
+      </div>
+    </div>
+  </div>
+</footer>
+</body>
+</html>
