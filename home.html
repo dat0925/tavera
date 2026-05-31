@@ -120,44 +120,59 @@
     .fridge-chip {
       display: inline-flex;
       align-items: center;
-      gap: 5px;
-      padding: 5px 12px;
+      gap: 4px;
+      padding: 5px 10px;
       border-radius: 99px;
       background: #EEF3E2;
       border: 1.5px solid var(--olive);
       color: var(--olive);
       font-size: 0.8rem;
       font-weight: 500;
-      cursor: pointer;
       transition: all var(--transition);
-      position: relative;
     }
-    .fridge-chip:hover { background: #e2ebd3; }
 
     .fridge-chip.expiring-soon {
       background: #FEF3EC;
       border-color: var(--terra);
       color: var(--terra);
     }
-    .fridge-chip.expiring-soon:hover { background: #fde8d8; }
 
-    .fridge-chip .chip-del {
+    /* チップ内ボタン共通 */
+    .fridge-chip button {
       background: none;
       border: none;
       color: inherit;
-      font-size: 0.75rem;
       cursor: pointer;
-      padding: 0;
-      opacity: 0.6;
+      padding: 0 2px;
       line-height: 1;
-      margin-left: 2px;
+      font-family: var(--font-body);
     }
-    .fridge-chip .chip-del:hover { opacity: 1; }
 
-    /* インライン期限ピッカー */
-    .chip-expiry-row {
+    /* 📅 / ✏️ アフォーダンスボタン */
+    .chip-date-btn {
+      font-size: 0.72rem;
+      opacity: 0.55;
+      transition: opacity 0.15s;
+    }
+    .chip-date-btn:hover { opacity: 1; }
+    .chip-date-btn.has-date {
+      opacity: 0.8;
+      font-size: 0.7rem;
+      font-weight: 600;
+    }
+
+    /* 削除ボタン */
+    .chip-del {
+      font-size: 0.72rem;
+      opacity: 0.5;
+      margin-left: 1px;
+    }
+    .chip-del:hover { opacity: 1; }
+
+    /* 期限ピッカーパネル（チップと独立した行） */
+    .chip-expiry-panel {
       width: 100%;
-      margin-top: 8px;
+      margin-top: 6px;
       padding: 10px 14px;
       background: var(--white);
       border: 1.5px solid var(--olive);
@@ -167,12 +182,12 @@
       gap: 8px;
       animation: fadeIn 0.15s ease;
     }
-    .chip-expiry-label {
+    .chip-expiry-panel label {
       font-size: 0.78rem;
       color: var(--muted);
       white-space: nowrap;
     }
-    .chip-expiry-input {
+    .chip-expiry-panel input[type=date] {
       flex: 1;
       border: 1.5px solid var(--border);
       border-radius: 8px;
@@ -182,8 +197,8 @@
       font-family: var(--font-body);
       color: var(--brown);
     }
-    .chip-expiry-input:focus { border-color: var(--olive); }
-    .chip-expiry-save {
+    .chip-expiry-panel input[type=date]:focus { border-color: var(--olive); }
+    .chip-expiry-panel .btn-save {
       background: var(--olive);
       color: white;
       border: none;
@@ -192,12 +207,13 @@
       font-size: 0.8rem;
       cursor: pointer;
       font-family: var(--font-body);
+      white-space: nowrap;
     }
-    .chip-expiry-clear {
+    .chip-expiry-panel .btn-cancel {
       background: none;
       border: none;
       color: var(--muted);
-      font-size: 0.8rem;
+      font-size: 0.85rem;
       cursor: pointer;
       padding: 2px 4px;
     }
@@ -427,12 +443,12 @@
     // ---- 冷蔵庫食材 ----
     let openExpiryId = null; // 現在期限ピッカーが開いているチップのID
 
-    function buildExpiryLabel(item, today) {
-      if (!item.expires_on) return '';
+    function buildExpiryText(item, today) {
+      if (!item.expires_on) return null;
       const diffDays = Math.ceil((new Date(item.expires_on) - new Date(today)) / 86400000);
-      if (diffDays <= 0) return ' <small>(期限切れ)</small>';
-      if (diffDays <= 3) return ` <small>(あと${diffDays}日)</small>`;
-      return ` <small style="opacity:.7">(${item.expires_on.slice(5).replace('-','/')})</small>`;
+      if (diffDays <= 0) return { label: '期限切れ', soon: true };
+      if (diffDays <= 3) return { label: 'あと' + diffDays + '日', soon: true };
+      return { label: item.expires_on.slice(5).replace('-', '/'), soon: false };
     }
 
     async function renderFridgeItems() {
@@ -448,58 +464,68 @@
 
       const today = toDateStr();
       const html = items.map(item => {
-        const expiringSoon = item.expires_on &&
-          Math.ceil((new Date(item.expires_on) - new Date(today)) / 86400000) <= 3;
-        const expiresLabel = buildExpiryLabel(item, today);
-        const chipClass = expiringSoon ? 'fridge-chip expiring-soon' : 'fridge-chip';
+        const expiry = buildExpiryText(item, today);
+        const soon = expiry && expiry.soon;
+        const chipClass = 'fridge-chip' + (soon ? ' expiring-soon' : '');
 
-        let pickerHtml = '';
-        if (openExpiryId === item.id) {
-          pickerHtml = `
-            <div class="chip-expiry-row" onclick="event.stopPropagation()">
-              <span class="chip-expiry-label">消費期限</span>
-              <input type="date" class="chip-expiry-input" id="expiryInput_${item.id}"
-                     value="${item.expires_on || ''}">
-              <button class="chip-expiry-save" onclick="saveExpiry('${item.id}')">保存</button>
-              <button class="chip-expiry-clear" onclick="clearExpiry('${item.id}')" title="期限を削除">✕</button>
-            </div>`;
-        }
+        // 期限ボタン: 設定済みは日付+✏️、未設定は📅
+        const dateBtn = expiry
+          ? `<button class="chip-date-btn has-date" data-id="${item.id}" title="期限を変更">${expiry.label} ✏️</button>`
+          : `<button class="chip-date-btn" data-id="${item.id}" title="消費期限を設定">📅</button>`;
 
-        return `
-          <span class="${chipClass}" onclick="toggleExpiry('${item.id}', event)">
-            ${item.name}${expiresLabel}
-            <button class="chip-del" onclick="event.stopPropagation(); removeFridgeItem('${item.id}')" title="削除">✕</button>
-          </span>${pickerHtml}`;
+        // ピッカーパネル（chipの外・独立要素）
+        const panel = (openExpiryId === item.id) ? `
+          <div class="chip-expiry-panel" id="panel_${item.id}">
+            <label>消費期限</label>
+            <input type="date" id="expiryInput_${item.id}" value="${item.expires_on || ''}">
+            <button class="btn-save" id="saveBtn_${item.id}">保存</button>
+            <button class="btn-cancel" id="cancelBtn_${item.id}">✕</button>
+          </div>` : '';
+
+        return `<span class="${chipClass}" data-chip="${item.id}">${item.name}${dateBtn}<button class="chip-del" data-del="${item.id}" title="削除">✕</button></span>${panel}`;
       }).join('');
 
       container.innerHTML = html;
+
+      // イベントをDOMに直接バインド（onclick属性を使わない）
+      items.forEach(item => {
+        const dateBtn = container.querySelector('[data-id="' + item.id + '"]');
+        if (dateBtn) dateBtn.addEventListener('click', e => {
+          e.stopPropagation();
+          openExpiryId = (openExpiryId === item.id) ? null : item.id;
+          renderFridgeItems();
+        });
+
+        const delBtn = container.querySelector('[data-del="' + item.id + '"]');
+        if (delBtn) delBtn.addEventListener('click', e => {
+          e.stopPropagation();
+          removeFridgeItemUI(item.id);
+        });
+
+        if (openExpiryId === item.id) {
+          const saveBtn = document.getElementById('saveBtn_' + item.id);
+          const cancelBtn = document.getElementById('cancelBtn_' + item.id);
+          if (saveBtn) saveBtn.addEventListener('click', e => {
+            e.stopPropagation();
+            const input = document.getElementById('expiryInput_' + item.id);
+            saveExpiry(item.id, input ? input.value : '');
+          });
+          if (cancelBtn) cancelBtn.addEventListener('click', e => {
+            e.stopPropagation();
+            openExpiryId = null;
+            renderFridgeItems();
+          });
+        }
+      });
     }
 
-    function toggleExpiry(itemId, event) {
-      event.stopPropagation();
-      openExpiryId = (openExpiryId === itemId) ? null : itemId;
-      renderFridgeItems();
-    }
-
-    async function saveExpiry(itemId) {
-      const input = document.getElementById('expiryInput_' + itemId);
-      const val = input ? input.value || null : null;
+    async function saveExpiry(itemId, dateVal) {
+      const val = dateVal || null;
       const ok = await updateFridgeExpiry(itemId, val);
       if (ok) {
         openExpiryId = null;
         await renderFridgeItems();
         showToast(val ? '期限を設定しました' : '期限を削除しました');
-      } else {
-        showToast('更新に失敗しました', 'error');
-      }
-    }
-
-    async function clearExpiry(itemId) {
-      const ok = await updateFridgeExpiry(itemId, null);
-      if (ok) {
-        openExpiryId = null;
-        await renderFridgeItems();
-        showToast('期限を削除しました');
       } else {
         showToast('更新に失敗しました', 'error');
       }
@@ -537,7 +563,7 @@
       }
     }
 
-    async function removeFridgeItem(itemId) {
+    async function removeFridgeItemUI(itemId) {
       if (openExpiryId === itemId) openExpiryId = null;
       const ok = await deleteFridgeItem(itemId);
       if (ok) {
