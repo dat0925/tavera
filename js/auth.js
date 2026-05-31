@@ -18,7 +18,7 @@ async function signInWithGoogle() {
 async function signOut() {
   const { error } = await db.auth.signOut();
   if (!error) {
-    window.location.href = '/tavera/index.html';
+    window.location.href = 'https://tavera.taskra.jp/';
   }
 }
 
