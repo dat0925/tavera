@@ -247,15 +247,9 @@
       const loadingBubble = addLoadingBubble();
 
       try {
-        // 高評価メニューを取得してプロンプトに組み込む
-        const liked = await getLikedDishes(householdId, 5);
-        const likedNames = liked.map(d => d.dish_name).join('、') || 'なし';
-
-        const systemPrompt = `あなたは家庭料理の献立提案アシスタントです。
-家族の好きなメニュー（過去の高評価）: ${likedNames}
-ユーザーの要望に応じて、具体的で作りやすい献立を提案してください。
-料理名・材料・簡単な作り方・おおよそのコストを含めて提案してください。
-日本語で、温かみのある口調で答えてください。`;
+        // 高評価メニューを取得（失敗しても続行）
+        let liked = [];
+        try { if (householdId) liked = await getLikedDishes(householdId, 5); } catch (_) {}
 
         const session = await getSession();
         const response = await fetch('https://sfhtvtcmgueystyuhzvd.supabase.co/functions/v1/tavera-suggest', {
@@ -305,3 +299,4 @@
   </script>
 </body>
 </html>
+
