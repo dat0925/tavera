@@ -1,6 +1,6 @@
 # Tavera 設計書・引き継ぎ書
 
-**バージョン**: 0.5.0
+**バージョン**: 0.5.1
 **最終更新**: 2026-05-31
 **ステータス**: MVP稼働中・Phase 2開発中
 
@@ -242,6 +242,13 @@
   - 参加時は`menu_members`の`household_id`をUPDATEして世帯切り替え
   - 世帯メンバー一覧を設定画面に表示
   - Supabase RLSに`households_select_for_invite`ポリシーを追加済み（認証済みユーザーは全世帯をSELECT可能）
+  - 世帯名の変更機能を追加（オーナーのみUPDATE可、`households_owner_update`ポリシー追加済み）
+  - 世帯を離れる機能を追加（複数メンバー在籍時のみ表示）
+    - 離脱後は新しい個人世帯（'わが家'）を作成してhousehold_idを移行
+    - 元の世帯のログは元の世帯に残る
+    - 再度招待コードで別の世帯に参加可能
+  - 招待コード検索はRPC（`find_household_by_code`）経由で実装（UUID→text変換のため）
+  - 追加済みSupabase SQL: `members_self_update`, `households_owner_update`, `find_household_by_code`関数
 
 ### Phase 3 アレルギー・給食対応
 - 家族メンバー管理（名前・アレルギー設定）
