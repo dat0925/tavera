@@ -197,41 +197,43 @@
         var trimmed = line.trim();
         if (!trimmed) return;
 
-        // 料理名行: ① ② ③ or 1. 2. 3. で始まる行
-        var dishMatch = trimmed.match(/^[①②③\d][\.．\s。]?\s*[*＊]{0,2}([^*＊
-（(【]{2,25})[*＊]{0,2}/);
-        if (dishMatch) {
+        // 料理名行: 番号で始まる行（①②③ or 1. 2. 3.）
+        var nameCandidate = null;
+        if (/^[①②③]/.test(trimmed)) {
+          nameCandidate = trimmed.slice(1).replace(/^\s*\**\s*/, '').replace(/\**\s*$/, '').trim();
+        } else if (/^\d+[.\s]/.test(trimmed)) {
+          nameCandidate = trimmed.replace(/^\d+[.\s]\s*/, '').replace(/^\**\s*/, '').replace(/\**\s*$/, '').trim();
+        }
+        if (nameCandidate && nameCandidate.length >= 2 && nameCandidate.length <= 25) {
           if (currentDish) results.push(currentDish);
-          currentDish = { name: dishMatch[1].trim(), ingredients: [] };
+          currentDish = { name: nameCandidate, ingredients: [] };
           return;
         }
 
         if (!currentDish) return;
 
-        // 食材行: 「食材：」「材料：」「主な食材：」などに続くもの
-        var ingLine = trimmed.match(/^[食材材料主な食材]+[：:]\s*(.+)/);
-        if (ingLine) {
-          var ings = ingLine[1].split(/[、,，・\s]+/).map(function(s){ return s.trim(); }).filter(Boolean);
+        // 食材行: 「食材：」「材料：」に続く行
+        if (/[食材材料][：:]/.test(trimmed)) {
+          var afterColon = trimmed.replace(/^.+[：:]/, '').trim();
+          var ings = afterColon.split(/[、,・\s]+/).map(function(s){ return s.trim(); }).filter(function(s){ return s.length > 0 && s.length <= 15; });
           currentDish.ingredients = currentDish.ingredients.concat(ings);
           return;
         }
 
-        // 箇条書きの食材: 「・鶏もも肉」「- 醤油」など
-        var bulletIng = trimmed.match(/^[・\-\*●▶︎]\s*(.+)/);
-        if (bulletIng) {
-          var ing = bulletIng[1].trim();
-          // 食材らしい短さ（20文字以内）のもの
-          if (ing.length <= 20 && !ing.match(/[。！？]/)) {
+        // 箇条書き食材: 「・鶏もも肉」「- 醤油」
+        if (/^[・\-]/.test(trimmed)) {
+          var ing = trimmed.slice(1).trim();
+          if (ing.length >= 1 && ing.length <= 15 && !/[。！？]/.test(ing)) {
             currentDish.ingredients.push(ing);
           }
         }
       });
 
       if (currentDish) results.push(currentDish);
-      return results.filter(function(d){ return d.name.length >= 2; });
+      return results;
     }
 
-    function handleKey(e) { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); } }
+        function handleKey(e) { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); } }
     function autoResize(el) { el.style.height = 'auto'; el.style.height = Math.min(el.scrollHeight, 100) + 'px'; }
     function sendQuick(text) { document.getElementById('chatInput').value = text; sendMessage(); }
 
