@@ -254,12 +254,11 @@
 
   <script>
     let householdId = null;
-    let currentUser = null;
 
     async function init() {
       const user = await requireAuth();
       if (!user) return;
-      currentUser = user;
+      currentUser = user;  // supabase.jsで宣言済みのグローバル変数を使用
       householdId = await getOrCreateHousehold(user.id);
 
       // プロフィール表示
