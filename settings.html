@@ -22,31 +22,18 @@
   <style>
     .settings-section { padding: 20px 20px 0; }
     .settings-section + .settings-section { padding-top: 8px; }
-
     .settings-label {
-      font-size: 0.72rem;
-      font-weight: 700;
-      color: var(--muted);
-      letter-spacing: 0.08em;
-      text-transform: uppercase;
-      margin-bottom: 8px;
+      font-size: 0.72rem; font-weight: 700; color: var(--muted);
+      letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 8px;
     }
-
     .settings-list {
-      background: var(--white);
-      border: 1px solid var(--border);
-      border-radius: var(--radius-md);
-      overflow: hidden;
+      background: var(--white); border: 1px solid var(--border);
+      border-radius: var(--radius-md); overflow: hidden;
     }
-
     .settings-item {
-      display: flex;
-      align-items: center;
-      padding: 14px 16px;
-      gap: 12px;
-      border-bottom: 1px solid var(--border);
-      cursor: pointer;
-      transition: background var(--transition);
+      display: flex; align-items: center; padding: 14px 16px;
+      gap: 12px; border-bottom: 1px solid var(--border);
+      cursor: pointer; transition: background var(--transition);
     }
     .settings-item:last-child { border-bottom: none; }
     .settings-item:hover { background: var(--surface); }
@@ -56,79 +43,101 @@
     .settings-item .arrow { color: var(--border); font-size: 0.8rem; }
 
     .profile-card {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: var(--radius-md);
-      padding: 16px;
-      display: flex;
-      align-items: center;
-      gap: 14px;
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius-md); padding: 16px;
+      display: flex; align-items: center; gap: 14px;
     }
-    .profile-avatar {
-      width: 52px;
-      height: 52px;
-      border-radius: 50%;
-      object-fit: cover;
-      border: 2px solid var(--border);
-    }
+    .profile-avatar { width: 52px; height: 52px; border-radius: 50%; object-fit: cover; border: 2px solid var(--border); }
     .profile-info h3 { font-size: 1rem; font-weight: 700; margin-bottom: 2px; }
-    .profile-info p { font-size: 0.8rem; color: var(--muted); }
+    .profile-info p  { font-size: 0.8rem; color: var(--muted); }
 
     .invite-box {
-      background: #FEF3EC;
-      border: 1.5px dashed var(--terra);
-      border-radius: var(--radius-md);
-      padding: 16px;
-      text-align: center;
+      background: #FEF3EC; border: 1.5px dashed var(--terra);
+      border-radius: var(--radius-md); padding: 16px; text-align: center;
     }
     .invite-box p { font-size: 0.85rem; color: var(--brown); margin-bottom: 10px; }
 
     .join-box {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: var(--radius-md);
-      padding: 16px;
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius-md); padding: 16px;
     }
     .join-box p { font-size: 0.85rem; color: var(--brown); margin-bottom: 10px; }
-    .join-input-row {
-      display: flex;
-      gap: 8px;
-    }
-    .join-input-row input {
-      flex: 1;
-      font-family: monospace;
-      font-size: 1rem;
-      letter-spacing: 0.1em;
-      text-transform: uppercase;
-    }
+    .join-input-row { display: flex; gap: 8px; }
+    .join-input-row input { flex: 1; font-family: monospace; font-size: 1rem; letter-spacing: 0.1em; text-transform: uppercase; }
 
-    .member-list {
-      display: flex;
-      flex-direction: column;
-      gap: 6px;
-      margin-top: 8px;
-    }
-    .member-item {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      font-size: 0.85rem;
-      color: var(--brown);
-    }
-    .member-role {
-      font-size: 0.7rem;
-      color: var(--muted);
-      background: var(--border);
-      padding: 1px 7px;
-      border-radius: 99px;
-    }
+    .member-list { display: flex; flex-direction: column; gap: 6px; margin-top: 8px; }
+    .member-item { display: flex; align-items: center; gap: 8px; font-size: 0.85rem; color: var(--brown); }
+    .member-role { font-size: 0.7rem; color: var(--muted); background: var(--border); padding: 1px 7px; border-radius: 99px; }
 
-    .version-note {
-      text-align: center;
-      font-size: 0.72rem;
-      color: var(--muted);
-      padding: 24px;
+    /* ---- 家族メンバー管理 ---- */
+    .fam-list { display: flex; flex-direction: column; gap: 10px; }
+    .fam-card {
+      background: var(--white); border: 1px solid var(--border);
+      border-radius: var(--radius-md); padding: 14px 16px;
     }
+    .fam-card-head {
+      display: flex; align-items: center; gap: 10px; margin-bottom: 10px;
+    }
+    .fam-avatar {
+      width: 36px; height: 36px; border-radius: 50%;
+      background: var(--cream); border: 1.5px solid var(--border);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.1rem; flex-shrink: 0;
+    }
+    .fam-name { font-size: 0.95rem; font-weight: 700; color: var(--brown); flex: 1; }
+    .fam-edit-btn {
+      background: none; border: 1px solid var(--border); border-radius: var(--radius-sm);
+      padding: 4px 10px; font-size: 0.75rem; color: var(--muted); cursor: pointer;
+      transition: all var(--transition);
+    }
+    .fam-edit-btn:hover { border-color: var(--terra); color: var(--terra); }
+    .fam-del-btn {
+      background: none; border: none; color: var(--muted); font-size: 1rem;
+      cursor: pointer; padding: 2px 6px;
+    }
+    .fam-del-btn:hover { color: var(--terra); }
+
+    .allergy-chips { display: flex; flex-wrap: wrap; gap: 6px; min-height: 24px; }
+    .allergy-chip {
+      display: inline-flex; align-items: center; gap: 4px;
+      padding: 3px 10px; border-radius: 99px;
+      background: #FEF3EC; border: 1.5px solid var(--terra);
+      color: var(--terra); font-size: 0.75rem; font-weight: 600;
+    }
+    .allergy-chip .chip-del {
+      background: none; border: none; color: var(--terra);
+      font-size: 0.65rem; cursor: pointer; padding: 0; opacity: 0.7; line-height: 1;
+    }
+    .allergy-chip .chip-del:hover { opacity: 1; }
+    .allergy-none { font-size: 0.78rem; color: var(--muted); }
+
+    /* メンバー編集フォーム */
+    .fam-form {
+      background: var(--surface); border: 1.5px solid var(--amber);
+      border-radius: var(--radius-md); padding: 16px; margin-bottom: 10px;
+    }
+    .fam-form-title {
+      font-size: 0.8rem; font-weight: 700; color: var(--brown);
+      margin-bottom: 12px;
+    }
+    .fam-form-label { font-size: 0.72rem; color: var(--muted); margin-bottom: 4px; font-weight: 600; }
+    .fam-form-row { margin-bottom: 12px; }
+    .allergy-input-row { display: flex; gap: 6px; }
+    .allergy-input-row input { flex: 1; }
+    .fam-form-actions { display: flex; gap: 8px; margin-top: 4px; }
+    .fam-form-actions .btn { flex: 1; padding: 10px; font-size: 0.85rem; }
+
+    /* 新規追加ボタン */
+    .fam-add-btn {
+      display: flex; align-items: center; justify-content: center; gap: 6px;
+      width: 100%; padding: 12px;
+      background: none; border: 1.5px dashed var(--border);
+      border-radius: var(--radius-md); color: var(--muted);
+      font-size: 0.85rem; cursor: pointer; transition: all var(--transition);
+    }
+    .fam-add-btn:hover { border-color: var(--terra); color: var(--terra); }
+
+    .version-note { text-align: center; font-size: 0.72rem; color: var(--muted); padding: 24px; }
   </style>
 </head>
 <body>
@@ -141,7 +150,8 @@
       <span class="header-title">設定</span>
     </header>
 
-    <div class="page">
+    <div class="page" style="padding-bottom:80px">
+
       <!-- プロフィール -->
       <div class="settings-section">
         <div class="settings-label">プロフィール</div>
@@ -150,32 +160,67 @@
         </div>
       </div>
 
+      <!-- 家族メンバー管理 -->
+      <div class="settings-section">
+        <div class="settings-label">家族メンバー</div>
+        <!-- 新規追加フォーム -->
+        <div class="fam-form hidden" id="famNewForm">
+          <div class="fam-form-title">&#43; 新しいメンバーを追加</div>
+          <div class="fam-form-row">
+            <div class="fam-form-label">名前（ニックネーム）</div>
+            <input type="text" id="famNewName" class="form-input" placeholder="例：ママ・太郎・パパ" maxlength="20">
+          </div>
+          <div class="fam-form-row">
+            <div class="fam-form-label">アレルギー食材</div>
+            <div class="allergy-chips" id="famNewAllergyChips"></div>
+            <div class="allergy-input-row" style="margin-top:8px">
+              <input type="text" id="famNewAllergyInput" class="form-input"
+                     placeholder="例：卵・小麦・乳（Enterで追加）" maxlength="20"
+                     onkeydown="if(event.key==='Enter'){addAllergyChip('famNewAllergyChips','famNewAllergyInput');event.preventDefault();}">
+              <button class="btn btn-secondary" onclick="addAllergyChip('famNewAllergyChips','famNewAllergyInput')" style="padding:8px 14px;font-size:0.82rem">追加</button>
+            </div>
+          </div>
+          <div class="fam-form-actions">
+            <button class="btn btn-secondary" onclick="cancelNewMember()">キャンセル</button>
+            <button class="btn btn-primary" onclick="saveNewMember()">保存</button>
+          </div>
+        </div>
+        <!-- メンバー一覧 -->
+        <div class="fam-list" id="famList">
+          <div class="loading-dots" style="padding:16px 0;justify-content:center"><span></span><span></span><span></span></div>
+        </div>
+        <!-- 追加ボタン -->
+        <button class="fam-add-btn" id="famAddBtn" style="margin-top:10px" onclick="showNewMemberForm()">
+          &#43; メンバーを追加
+        </button>
+      </div>
+
       <!-- 世帯設定 -->
       <div class="settings-section">
         <div class="settings-label">世帯・共有</div>
         <div class="settings-list">
           <div class="settings-item" onclick="toggleSection('inviteSection')">
-            <span class="icon">📤</span>
+            <span class="icon">&#128228;</span>
             <span class="label">家族を招待する</span>
-            <span class="arrow" id="inviteArrow">›</span>
+            <span class="arrow" id="inviteArrow">&#8250;</span>
           </div>
           <div class="settings-item" onclick="toggleSection('joinSection')">
-            <span class="icon">📥</span>
+            <span class="icon">&#128229;</span>
             <span class="label">招待コードで参加する</span>
-            <span class="arrow" id="joinArrow">›</span>
+            <span class="arrow" id="joinArrow">&#8250;</span>
           </div>
           <div class="settings-item" id="householdNameItem" onclick="toggleSection('householdNameSection')">
-            <span class="icon">🏠</span>
+            <span class="icon">&#127968;</span>
             <span class="label">世帯名</span>
             <span class="value" id="householdName">読込中...</span>
-            <span class="arrow" id="householdNameArrow">›</span>
+            <span class="arrow" id="householdNameArrow">&#8250;</span>
           </div>
         </div>
 
-        <!-- メンバー一覧 -->
+        <!-- Taveraアカウントメンバー一覧 -->
         <div id="memberSection" class="hidden" style="margin-top:4px;padding:8px 0 0;">
           <div style="font-size:0.72rem;font-weight:700;color:var(--muted);letter-spacing:0.08em;padding:0 2px 6px;">
-            メンバー（<span id="memberCount">0</span>人）
+            参加中のアカウント（<span id="memberCount">0</span>人）
           </div>
           <div class="member-list" id="memberList"></div>
         </div>
@@ -189,7 +234,7 @@
         </div>
       </div>
 
-      <!-- 招待コード発行（非表示→表示） -->
+      <!-- 招待コード発行 -->
       <div class="settings-section hidden" id="inviteSection">
         <div class="invite-box">
           <p>招待コードをコピーして<br>家族のTaveraアカウントで入力してもらってください</p>
@@ -198,66 +243,46 @@
         </div>
       </div>
 
-      <!-- 世帯名編集（非表示→表示） -->
+      <!-- 世帯名編集 -->
       <div class="settings-section hidden" id="householdNameSection">
         <div class="join-box">
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
             <p style="margin:0;">世帯名を変更する</p>
             <button onclick="toggleSection('householdNameSection')"
-                    style="background:none;border:none;color:var(--muted);font-size:1.2rem;cursor:pointer;padding:0 4px;">✕</button>
+                    style="background:none;border:none;color:var(--muted);font-size:1.2rem;cursor:pointer;padding:0 4px;">&#10005;</button>
           </div>
           <div class="join-input-row">
-            <input type="text" id="householdNameInput" class="form-input"
-                   placeholder="例：田中家" maxlength="20">
+            <input type="text" id="householdNameInput" class="form-input" placeholder="例：田中家" maxlength="20">
             <button class="btn btn-primary" onclick="saveHouseholdName()">保存</button>
           </div>
         </div>
       </div>
 
-      <!-- 招待コードで参加（非表示→表示） -->
+      <!-- 招待コードで参加 -->
       <div class="settings-section hidden" id="joinSection">
         <div class="join-box">
           <p>家族から受け取った8桁の招待コードを入力してください</p>
           <div class="join-input-row">
             <input type="text" id="joinCodeInput" class="form-input"
                    placeholder="XXXXXXXX" maxlength="8"
-                   autocomplete="off" autocorrect="off"
-                   autocapitalize="characters" spellcheck="false"
-                   style="text-transform:uppercase;letter-spacing:0.1em;font-family:monospace;font-size:1rem;">
+                   oninput="this.value=this.value.toUpperCase()">
             <button class="btn btn-primary" onclick="joinHousehold()">参加する</button>
           </div>
         </div>
       </div>
 
-      <!-- アプリ設定 -->
+      <!-- その他 -->
       <div class="settings-section">
-        <div class="settings-label">アプリ</div>
+        <div class="settings-label">その他</div>
         <div class="settings-list">
-          <div class="settings-item">
-            <span class="icon">🔔</span>
-            <span class="label">通知設定</span>
-            <span class="value">準備中</span>
-          </div>
-          <div class="settings-item">
-            <span class="icon">📊</span>
-            <span class="label">データエクスポート</span>
-            <span class="value">準備中</span>
-          </div>
-        </div>
-      </div>
-
-      <!-- アカウント -->
-      <div class="settings-section">
-        <div class="settings-label">アカウント</div>
-        <div class="settings-list">
-          <div class="settings-item" onclick="signOut()" style="color:var(--terra)">
-            <span class="icon">🚪</span>
+          <div class="settings-item" onclick="signOut()">
+            <span class="icon">&#128682;</span>
             <span class="label" style="color:var(--terra)">ログアウト</span>
           </div>
         </div>
       </div>
 
-      <div class="version-note">Tavera v0.1.0</div>
+      <div class="version-note">Tavera v1.0.1</div>
     </div>
 
     <nav class="bottom-nav">
@@ -286,14 +311,19 @@
 
   <script>
     let householdId = null;
+    let famMembers  = [];   // { id, nickname, allergies[] }
+    let editingId   = null; // 編集中のメンバーID
 
+    // =====================
+    //  初期化
+    // =====================
     async function init() {
       const user = await requireAuth();
       if (!user) return;
-      currentUser = user;  // supabase.jsで宣言済みのグローバル変数を使用
+      currentUser = user;
       householdId = await getOrCreateHousehold(user.id);
 
-      // プロフィール表示
+      // プロフィール
       const card = document.getElementById('profileCard');
       const meta = user.user_metadata;
       card.innerHTML = `
@@ -301,29 +331,197 @@
         <div class="profile-info">
           <h3>${meta.full_name || 'ユーザー'}</h3>
           <p>${user.email}</p>
-        </div>
-      `;
+        </div>`;
 
-      // 招待コード（世帯IDの先頭8文字）
+      // 招待コード
       document.getElementById('inviteCode').textContent = householdId?.slice(0,8).toUpperCase() || '-';
 
-      // メンバー名をGoogle表示名で更新（毎回上書きして最新に保つ）
+      // 自分の名前を更新
       await db.from('menu_members')
         .update({ name: meta.full_name || 'ユーザー' })
         .eq('id', user.id);
 
-      // 世帯名・メンバー表示
       await renderHousehold();
+      await renderFamMembers();
     }
 
+    // =====================
+    //  家族メンバー
+    // =====================
+    async function renderFamMembers() {
+      const list = document.getElementById('famList');
+      const { data, error } = await db
+        .from('menu_family_members')
+        .select('*')
+        .eq('household_id', householdId)
+        .order('created_at');
+      famMembers = data || [];
+
+      if (!famMembers.length) {
+        list.innerHTML = '<div style="font-size:0.82rem;color:var(--muted);padding:4px 2px">まだメンバーが登録されていません</div>';
+        return;
+      }
+
+      list.innerHTML = famMembers.map(m => buildFamCard(m)).join('');
+    }
+
+    function buildFamCard(m) {
+      const allergies = (m.allergies || []);
+      const allergyHtml = allergies.length
+        ? allergies.map(a => `<span class="allergy-chip">${a}</span>`).join('')
+        : '<span class="allergy-none">アレルギーなし</span>';
+
+      // 編集中はフォームを展開
+      if (editingId === m.id) {
+        return `<div class="fam-card" id="fam-${m.id}">
+          <div class="fam-card-head">
+            <div class="fam-avatar">&#128100;</div>
+            <span class="fam-name">${m.nickname}</span>
+          </div>
+          <div class="fam-form" style="margin:0;border-color:var(--olive)">
+            <div class="fam-form-row">
+              <div class="fam-form-label">名前</div>
+              <input type="text" id="famEditName" class="form-input" value="${m.nickname}" maxlength="20">
+            </div>
+            <div class="fam-form-row">
+              <div class="fam-form-label">アレルギー食材</div>
+              <div class="allergy-chips" id="famEditAllergyChips">
+                ${allergies.map(a => `<span class="allergy-chip">${a}<button class="chip-del" onclick="removeAllergyChip(this)">&#10005;</button></span>`).join('')}
+              </div>
+              <div class="allergy-input-row" style="margin-top:8px">
+                <input type="text" id="famEditAllergyInput" class="form-input"
+                       placeholder="食材名を入力（Enterで追加）" maxlength="20"
+                       onkeydown="if(event.key==='Enter'){addAllergyChip('famEditAllergyChips','famEditAllergyInput');event.preventDefault();}">
+                <button class="btn btn-secondary" onclick="addAllergyChip('famEditAllergyChips','famEditAllergyInput')" style="padding:8px 14px;font-size:0.82rem">追加</button>
+              </div>
+            </div>
+            <div class="fam-form-actions">
+              <button class="btn btn-secondary" onclick="cancelEdit()">キャンセル</button>
+              <button class="btn btn-primary"   onclick="saveEditMember('${m.id}')">保存</button>
+            </div>
+          </div>
+        </div>`;
+      }
+
+      return `<div class="fam-card" id="fam-${m.id}">
+        <div class="fam-card-head">
+          <div class="fam-avatar">&#128100;</div>
+          <span class="fam-name">${m.nickname}</span>
+          <button class="fam-edit-btn" onclick="startEdit('${m.id}')">編集</button>
+          <button class="fam-del-btn"  onclick="deleteMember('${m.id}', '${m.nickname}')" title="削除">&#128465;</button>
+        </div>
+        <div class="allergy-chips">${allergyHtml}</div>
+      </div>`;
+    }
+
+    // ---- 新規追加 ----
+    function showNewMemberForm() {
+      cancelEdit();
+      document.getElementById('famNewAllergyChips').innerHTML = '';
+      document.getElementById('famNewName').value = '';
+      document.getElementById('famNewForm').classList.remove('hidden');
+      document.getElementById('famAddBtn').classList.add('hidden');
+      setTimeout(() => document.getElementById('famNewName').focus(), 100);
+    }
+    function cancelNewMember() {
+      document.getElementById('famNewForm').classList.add('hidden');
+      document.getElementById('famAddBtn').classList.remove('hidden');
+    }
+    async function saveNewMember() {
+      const nickname = document.getElementById('famNewName').value.trim();
+      if (!nickname) { showToast('名前を入力してください', 'error'); return; }
+      const allergies = getChipValues('famNewAllergyChips');
+
+      const { data, error } = await db.from('menu_family_members').insert({
+        household_id: householdId,
+        nickname,
+        allergies,
+        created_by: currentUser.id,
+      }).select().single();
+
+      if (error) { showToast('保存に失敗しました', 'error'); return; }
+      showToast(`${nickname} を追加しました`, 'success');
+      cancelNewMember();
+      await renderFamMembers();
+    }
+
+    // ---- 編集 ----
+    function startEdit(id) {
+      cancelNewMember();
+      editingId = id;
+      renderFamMembersSync();
+    }
+    function cancelEdit() {
+      editingId = null;
+      renderFamMembersSync();
+    }
+    function renderFamMembersSync() {
+      const list = document.getElementById('famList');
+      if (!famMembers.length) {
+        list.innerHTML = '<div style="font-size:0.82rem;color:var(--muted);padding:4px 2px">まだメンバーが登録されていません</div>';
+        return;
+      }
+      list.innerHTML = famMembers.map(m => buildFamCard(m)).join('');
+    }
+    async function saveEditMember(id) {
+      const nickname = document.getElementById('famEditName').value.trim();
+      if (!nickname) { showToast('名前を入力してください', 'error'); return; }
+      const allergies = getChipValues('famEditAllergyChips');
+
+      const { error } = await db.from('menu_family_members')
+        .update({ nickname, allergies })
+        .eq('id', id);
+
+      if (error) { showToast('保存に失敗しました', 'error'); return; }
+      showToast('更新しました', 'success');
+      editingId = null;
+      await renderFamMembers();
+    }
+
+    // ---- 削除 ----
+    async function deleteMember(id, nickname) {
+      if (!confirm(`「${nickname}」を削除しますか？`)) return;
+      const { error } = await db.from('menu_family_members').delete().eq('id', id);
+      if (error) { showToast('削除に失敗しました', 'error'); return; }
+      showToast(`${nickname} を削除しました`, 'info');
+      await renderFamMembers();
+    }
+
+    // =====================
+    //  アレルギーチップ操作
+    // =====================
+    function addAllergyChip(chipsId, inputId) {
+      const input = document.getElementById(inputId);
+      const val = input.value.trim();
+      if (!val) return;
+      const chips = document.getElementById(chipsId);
+      // 重複チェック
+      const existing = getChipValues(chipsId);
+      if (existing.includes(val)) { showToast('すでに追加されています', 'info'); input.value = ''; return; }
+      const chip = document.createElement('span');
+      chip.className = 'allergy-chip';
+      chip.innerHTML = `${val}<button class="chip-del" onclick="removeAllergyChip(this)">&#10005;</button>`;
+      chips.appendChild(chip);
+      input.value = '';
+      input.focus();
+    }
+    function removeAllergyChip(btn) {
+      btn.closest('.allergy-chip').remove();
+    }
+    function getChipValues(chipsId) {
+      return Array.from(document.querySelectorAll(`#${chipsId} .allergy-chip`))
+        .map(c => c.childNodes[0].textContent.trim())
+        .filter(Boolean);
+    }
+
+    // =====================
+    //  世帯・その他
+    // =====================
     async function renderHousehold() {
       if (!householdId) return;
-
-      // 世帯名
       const { data: hh } = await db.from('menu_households').select('name').eq('id', householdId).single();
       document.getElementById('householdName').textContent = hh?.name || 'わが家';
 
-      // メンバー一覧
       const members = await getHouseholdMembers(householdId);
       const memberSection = document.getElementById('memberSection');
       const list = document.getElementById('memberList');
@@ -331,11 +529,10 @@
         document.getElementById('memberCount').textContent = members.length;
         list.innerHTML = members.map(m => `
           <div class="member-item">
-            <span>👤</span>
+            <span>&#128100;</span>
             <span>${m.name || 'メンバー'}</span>
             <span class="member-role">${m.role === 'owner' ? 'オーナー' : 'メンバー'}</span>
-          </div>
-        `).join('');
+          </div>`).join('');
         memberSection.classList.remove('hidden');
       } else {
         memberSection.classList.add('hidden');
@@ -343,17 +540,13 @@
 
       const myRecord = members.find(m => m.id === currentUser.id);
       const isOwner = myRecord?.role === 'owner';
-
-      // 非オーナーは世帯名編集を非表示
-      const householdNameItem = document.getElementById('householdNameItem');
+      const householdNameItem  = document.getElementById('householdNameItem');
       const householdNameArrow = document.getElementById('householdNameArrow');
       if (!isOwner) {
         householdNameItem.style.cursor = 'default';
         householdNameItem.onclick = null;
         householdNameArrow.style.display = 'none';
       }
-
-      // 複数メンバーかつ非オーナーのみ「離れる」ボタンを表示
       const leaveSection = document.getElementById('leaveSection');
       if (members.length > 1 && !isOwner) {
         leaveSection.classList.remove('hidden');
@@ -365,13 +558,9 @@
     function toggleSection(id) {
       const section = document.getElementById(id);
       const isHidden = section.classList.toggle('hidden');
-
-      // 矢印の向きを切り替え（世帯名編集は矢印なし）
       const arrowMap = { inviteSection: 'inviteArrow', joinSection: 'joinArrow' };
       const arrowId = arrowMap[id];
-      if (arrowId) document.getElementById(arrowId).textContent = isHidden ? '›' : '∨';
-
-      // 世帯名編集を開く時は現在の名前をセット
+      if (arrowId) document.getElementById(arrowId).textContent = isHidden ? '&#8250;' : '&#8964;';
       if (id === 'householdNameSection' && !isHidden) {
         const currentName = document.getElementById('householdName').textContent;
         const input = document.getElementById('householdNameInput');
@@ -382,48 +571,21 @@
 
     function copyInviteCode() {
       const code = document.getElementById('inviteCode').textContent;
-      navigator.clipboard.writeText(code).then(() => {
-        showToast('招待コードをコピーしました！', 'success');
-      }).catch(() => {
-        // fallback for older browsers
-        showToast('コード: ' + code, 'info');
-      });
+      navigator.clipboard.writeText(code)
+        .then(() => showToast('招待コードをコピーしました！', 'success'))
+        .catch(() => showToast('コード: ' + code, 'info'));
     }
 
     async function leaveHousehold() {
-      if (!confirm('この世帯を離れますか？\n\n・あなたのアカウントに新しい個人世帯が作られます\n・元の世帯の記録はそのまま残ります\n・再度招待コードで別の世帯に参加できます')) return;
-
+      if (!confirm('この世帯を離れますか？\n\n・あなたのアカウントに新しい個人世帯が作られます\n・元の世帯の記録はそのまま残ります')) return;
       const btn = event.target;
-      btn.textContent = '処理中...';
-      btn.disabled = true;
-
-      // 新しい個人世帯を作成
+      btn.textContent = '処理中...'; btn.disabled = true;
       const { data: newHousehold, error: hErr } = await db
-        .from('menu_households')
-        .insert({ created_by: currentUser.id, name: 'わが家' })
-        .select()
-        .single();
-
-      if (hErr) {
-        showToast('エラーが発生しました', 'error');
-        btn.textContent = 'この世帯を離れる';
-        btn.disabled = false;
-        return;
-      }
-
-      // 自分のメンバーレコードを新世帯に移行
-      const { error: mErr } = await db
-        .from('menu_members')
-        .update({ household_id: newHousehold.id, role: 'owner' })
-        .eq('id', currentUser.id);
-
-      if (mErr) {
-        showToast('エラーが発生しました', 'error');
-        btn.textContent = 'この世帯を離れる';
-        btn.disabled = false;
-        return;
-      }
-
+        .from('menu_households').insert({ created_by: currentUser.id, name: 'わが家' }).select().single();
+      if (hErr) { showToast('エラーが発生しました', 'error'); btn.textContent = 'この世帯を離れる'; btn.disabled = false; return; }
+      const { error: mErr } = await db.from('menu_members')
+        .update({ household_id: newHousehold.id, role: 'owner' }).eq('id', currentUser.id);
+      if (mErr) { showToast('エラーが発生しました', 'error'); btn.textContent = 'この世帯を離れる'; btn.disabled = false; return; }
       showToast('世帯を離れました', 'info');
       setTimeout(() => location.reload(), 1200);
     }
@@ -431,57 +593,36 @@
     async function saveHouseholdName() {
       const name = document.getElementById('householdNameInput').value.trim();
       if (!name) { showToast('世帯名を入力してください', 'error'); return; }
-
       const btn = event.target;
-      btn.textContent = '保存中...';
-      btn.disabled = true;
-
-      const { error } = await db
-        .from('menu_households')
-        .update({ name })
-        .eq('id', householdId);
-
-      btn.textContent = '保存';
-      btn.disabled = false;
-
+      btn.textContent = '保存中...'; btn.disabled = true;
+      const { error } = await db.from('menu_households').update({ name }).eq('id', householdId);
+      btn.textContent = '保存'; btn.disabled = false;
       if (!error) {
         document.getElementById('householdName').textContent = name;
         document.getElementById('householdNameInput').value = '';
         document.getElementById('householdNameSection').classList.add('hidden');
-        document.getElementById('householdNameArrow').textContent = '›';
+        document.getElementById('householdNameArrow').textContent = '&#8250;';
         showToast('世帯名を変更しました', 'success');
-      } else {
-        showToast('保存に失敗しました', 'error');
-      }
+      } else { showToast('保存に失敗しました', 'error'); }
     }
 
     async function joinHousehold() {
       const code = document.getElementById('joinCodeInput').value.trim().toUpperCase();
-      if (code.length < 4) {
-        showToast('招待コードを入力してください', 'error');
-        return;
-      }
-
+      if (code.length < 4) { showToast('招待コードを入力してください', 'error'); return; }
       const btn = event.target;
-      btn.textContent = '確認中...';
-      btn.disabled = true;
-
+      btn.textContent = '確認中...'; btn.disabled = true;
       const result = await joinHouseholdByCode(currentUser.id, code);
-
-      btn.textContent = '参加する';
-      btn.disabled = false;
-
+      btn.textContent = '参加する'; btn.disabled = false;
       if (result.ok) {
         showToast(`「${result.householdName}」に参加しました！`, 'success');
         householdId = await getOrCreateHousehold(currentUser.id);
         document.getElementById('inviteCode').textContent = householdId?.slice(0,8).toUpperCase() || '-';
         document.getElementById('joinCodeInput').value = '';
         document.getElementById('joinSection').classList.add('hidden');
-        document.getElementById('joinArrow').textContent = '›';
+        document.getElementById('joinArrow').textContent = '&#8250;';
         await renderHousehold();
-      } else {
-        showToast(result.message, 'error');
-      }
+        await renderFamMembers();
+      } else { showToast(result.message, 'error'); }
     }
 
     init();
