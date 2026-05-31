@@ -274,12 +274,39 @@
         replyBubble.style.lineHeight = '1.7';
         replyBubble.textContent = reply;
 
-        // 「記録する」ボタンを追加
-        const adoptBtn = document.createElement('button');
-        adoptBtn.className = 'adopt-btn';
-        adoptBtn.textContent = '📝 この献立を記録する';
-        adoptBtn.style.cssText = 'display:block;margin-top:12px;padding:8px 16px;border-radius:99px;background:var(--terra);color:#fff;border:none;cursor:pointer;font-size:0.8rem;font-family:inherit;';
-        adoptBtn.onclick = () => location.href = 'log.html';
+        // AIの返答から料理名候補を抽出してボタンを生成
+        const lines = reply.split('\n').filter(l => l.trim());
+        // 「①」「1.」「**料理名**」などのパターンから料理名を抽出
+        const dishCandidates = [];
+        lines.forEach(line => {
+          const m = line.match(/^[①②③\d]+[\.．\s。]?\s*\*{0,2}([^\*
+（(]{2,20})\*{0,2}/);
+          if (m) dishCandidates.push(m[1].trim());
+        });
+
+        // 提案ごとにボタンを生成（最大3つ）、なければ汎用ボタン
+        const btnWrap = document.createElement('div');
+        btnWrap.style.cssText = 'margin-top:12px;display:flex;flex-direction:column;gap:6px;';
+
+        if (dishCandidates.length > 0) {
+          dishCandidates.slice(0, 3).forEach(dish => {
+            const btn = document.createElement('button');
+            btn.textContent = '📝 ' + dish + ' を記録する';
+            btn.style.cssText = 'display:block;padding:8px 16px;border-radius:99px;background:var(--terra);color:#fff;border:none;cursor:pointer;font-size:0.8rem;font-family:inherit;text-align:left;';
+            btn.onclick = () => {
+              const today = new Date().toISOString().split('T')[0];
+              location.href = 'log.html?date=' + today + '&dish=' + encodeURIComponent(dish);
+            };
+            btnWrap.appendChild(btn);
+          });
+        } else {
+          const btn = document.createElement('button');
+          btn.textContent = '📝 この献立を記録する';
+          btn.style.cssText = 'display:block;padding:8px 16px;border-radius:99px;background:var(--terra);color:#fff;border:none;cursor:pointer;font-size:0.8rem;font-family:inherit;';
+          btn.onclick = () => location.href = 'log.html';
+          btnWrap.appendChild(btn);
+        }
+        const adoptBtn = btnWrap;
 
         replyBubble.appendChild(adoptBtn);
         document.getElementById('chatMessages').appendChild(replyBubble);
