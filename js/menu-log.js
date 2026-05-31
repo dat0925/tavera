@@ -164,3 +164,48 @@ const MEAL_LABELS = {
   lunch:     '昼',
   dinner:    '夜',
 };
+
+// 世帯メンバー一覧を取得
+async function getHouseholdMembers(householdId) {
+  const { data, error } = await db
+    .from('menu_members')
+    .select('id, name, role')
+    .eq('household_id', householdId);
+  if (error) { console.error(error); return []; }
+  return data || [];
+}
+
+// 招待コードで世帯に参加（UPDATEで自分のhousehold_idを切り替え）
+async function joinHouseholdByCode(userId, code) {
+  // 招待コード（8文字）で世帯を検索
+  const { data: households, error: searchErr } = await db
+    .from('menu_households')
+    .select('id, name')
+    .ilike('id', code + '%');
+
+  if (searchErr) { console.error(searchErr); return { ok: false, message: 'エラーが発生しました' }; }
+  if (!households || households.length === 0) return { ok: false, message: '招待コードが見つかりません' };
+  if (households.length > 1) return { ok: false, message: 'コードが一致する世帯が複数あります。もう一度お試しください' };
+
+  const targetHousehold = households[0];
+
+  // すでにこの世帯のメンバーかチェック
+  const { data: existing } = await db
+    .from('menu_members')
+    .select('household_id')
+    .eq('id', userId)
+    .single();
+
+  if (existing?.household_id === targetHousehold.id) {
+    return { ok: false, message: 'すでにこの世帯のメンバーです' };
+  }
+
+  // 自分のhousehold_idを更新
+  const { error: updateErr } = await db
+    .from('menu_members')
+    .update({ household_id: targetHousehold.id })
+    .eq('id', userId);
+
+  if (updateErr) { console.error(updateErr); return { ok: false, message: '参加に失敗しました' }; }
+  return { ok: true, householdName: targetHousehold.name };
+}

@@ -83,6 +83,46 @@
     }
     .invite-box p { font-size: 0.85rem; color: var(--brown); margin-bottom: 10px; }
 
+    .join-box {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: 16px;
+    }
+    .join-box p { font-size: 0.85rem; color: var(--brown); margin-bottom: 10px; }
+    .join-input-row {
+      display: flex;
+      gap: 8px;
+    }
+    .join-input-row input {
+      flex: 1;
+      font-family: monospace;
+      font-size: 1rem;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+    }
+
+    .member-list {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      margin-top: 8px;
+    }
+    .member-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.85rem;
+      color: var(--brown);
+    }
+    .member-role {
+      font-size: 0.7rem;
+      color: var(--muted);
+      background: var(--border);
+      padding: 1px 7px;
+      border-radius: 99px;
+    }
+
     .version-note {
       text-align: center;
       font-size: 0.72rem;
@@ -114,26 +154,46 @@
       <div class="settings-section">
         <div class="settings-label">世帯・共有</div>
         <div class="settings-list">
-          <div class="settings-item" onclick="showInvite()">
-            <span class="icon">👨‍👩‍👧</span>
+          <div class="settings-item" onclick="toggleSection('inviteSection')">
+            <span class="icon">📤</span>
             <span class="label">家族を招待する</span>
-            <span class="arrow">›</span>
+            <span class="arrow" id="inviteArrow">›</span>
+          </div>
+          <div class="settings-item" onclick="toggleSection('joinSection')">
+            <span class="icon">📥</span>
+            <span class="label">招待コードで参加する</span>
+            <span class="arrow" id="joinArrow">›</span>
           </div>
           <div class="settings-item">
             <span class="icon">🏠</span>
             <span class="label">世帯名</span>
-            <span class="value" id="householdName">わが家</span>
-            <span class="arrow">›</span>
+            <span class="value" id="householdName">読込中...</span>
           </div>
         </div>
+
+        <!-- メンバー一覧 -->
+        <div class="member-list" id="memberList"></div>
       </div>
 
-      <!-- 招待ボックス（非表示→表示） -->
+      <!-- 招待コード発行（非表示→表示） -->
       <div class="settings-section hidden" id="inviteSection">
         <div class="invite-box">
           <p>招待コードをコピーして<br>家族のTaveraアカウントで入力してもらってください</p>
-          <div style="font-family:monospace;font-size:1.1rem;font-weight:700;color:var(--terra);margin-bottom:10px;" id="inviteCode">-</div>
+          <div style="font-family:monospace;font-size:1.4rem;font-weight:700;color:var(--terra);letter-spacing:0.15em;margin-bottom:12px;" id="inviteCode">-</div>
           <button class="btn btn-primary" onclick="copyInviteCode()">コードをコピー</button>
+        </div>
+      </div>
+
+      <!-- 招待コードで参加（非表示→表示） -->
+      <div class="settings-section hidden" id="joinSection">
+        <div class="join-box">
+          <p>家族から受け取った8桁の招待コードを入力してください</p>
+          <div class="join-input-row">
+            <input type="text" id="joinCodeInput" class="form-input"
+                   placeholder="XXXXXXXX" maxlength="8"
+                   oninput="this.value=this.value.toUpperCase()">
+            <button class="btn btn-primary" onclick="joinHousehold()">参加する</button>
+          </div>
         </div>
       </div>
 
@@ -194,10 +254,12 @@
 
   <script>
     let householdId = null;
+    let currentUser = null;
 
     async function init() {
       const user = await requireAuth();
       if (!user) return;
+      currentUser = user;
       householdId = await getOrCreateHousehold(user.id);
 
       // プロフィール表示
@@ -213,18 +275,79 @@
 
       // 招待コード（世帯IDの先頭8文字）
       document.getElementById('inviteCode').textContent = householdId?.slice(0,8).toUpperCase() || '-';
+
+      // 世帯名・メンバー表示
+      await renderHousehold();
     }
 
-    function showInvite() {
-      const section = document.getElementById('inviteSection');
-      section.classList.toggle('hidden');
+    async function renderHousehold() {
+      if (!householdId) return;
+
+      // 世帯名
+      const { data: hh } = await db.from('menu_households').select('name').eq('id', householdId).single();
+      document.getElementById('householdName').textContent = hh?.name || 'わが家';
+
+      // メンバー一覧
+      const members = await getHouseholdMembers(householdId);
+      const list = document.getElementById('memberList');
+      if (members.length > 0) {
+        list.innerHTML = members.map(m => `
+          <div class="member-item">
+            <span>👤</span>
+            <span>${m.name || 'メンバー'}</span>
+            <span class="member-role">${m.role === 'owner' ? 'オーナー' : 'メンバー'}</span>
+          </div>
+        `).join('');
+      } else {
+        list.innerHTML = '';
+      }
+    }
+
+    function toggleSection(id) {
+      const section = document.getElementById(id);
+      const isHidden = section.classList.toggle('hidden');
+      // 矢印の向きを切り替え
+      const arrowId = id === 'inviteSection' ? 'inviteArrow' : 'joinArrow';
+      document.getElementById(arrowId).textContent = isHidden ? '›' : '∨';
     }
 
     function copyInviteCode() {
       const code = document.getElementById('inviteCode').textContent;
       navigator.clipboard.writeText(code).then(() => {
-        showToast('招待コードをコピーしました', 'success');
+        showToast('招待コードをコピーしました！', 'success');
+      }).catch(() => {
+        // fallback for older browsers
+        showToast('コード: ' + code, 'info');
       });
+    }
+
+    async function joinHousehold() {
+      const code = document.getElementById('joinCodeInput').value.trim().toUpperCase();
+      if (code.length < 4) {
+        showToast('招待コードを入力してください', 'error');
+        return;
+      }
+
+      const btn = event.target;
+      btn.textContent = '確認中...';
+      btn.disabled = true;
+
+      const result = await joinHouseholdByCode(currentUser.id, code);
+
+      btn.textContent = '参加する';
+      btn.disabled = false;
+
+      if (result.ok) {
+        showToast(`「${result.householdName}」に参加しました！`, 'success');
+        householdId = await getOrCreateHousehold(currentUser.id);
+        document.getElementById('inviteCode').textContent = householdId?.slice(0,8).toUpperCase() || '-';
+        document.getElementById('joinCodeInput').value = '';
+        document.getElementById('joinSection').classList.add('hidden');
+        document.getElementById('joinArrow').textContent = '›';
+        await renderHousehold();
+      } else {
+        showToast(result.message, 'error');
+      }
     }
 
     init();
