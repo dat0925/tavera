@@ -48,31 +48,6 @@
       font-size: 0.8rem;
       color: var(--brown);
       cursor: pointer;
-      transition: all var(--transition);
-    }
-    .quick-chip:hover {
-      border-color: var(--terra);
-      color: var(--terra);
-      background: #FEF3EC;
-    }
-    .fridge-banner {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      background: #EEF3E2;
-      border: 1.5px solid var(--olive);
-      border-radius: var(--radius-sm);
-      padding: 8px 12px;
-      margin-bottom: 4px;
-      font-size: 0.8rem;
-      color: var(--olive);
-      font-weight: 500;
-    }
-    .fridge-banner-items {
-      flex: 1;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
     }
     .chat-input-wrap {
       border-top: 1px solid var(--border);
@@ -91,28 +66,22 @@
       resize: none;
       outline: none;
       max-height: 100px;
-      overflow-y: auto;
       font-family: var(--font-body);
-      line-height: 1.5;
     }
-    .chat-input-wrap textarea:focus { border-color: var(--terra); }
     .send-btn {
-      width: 42px;
-      height: 42px;
+      width: 42px; height: 42px;
       border-radius: 50%;
       background: var(--terra);
       color: var(--white);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      flex-shrink: 0;
-      border: none;
-      cursor: pointer;
-      transition: background var(--transition);
-      font-size: 1.1rem;
+      display: flex; align-items: center; justify-content: center;
+      border: none; cursor: pointer; font-size: 1.1rem;
     }
-    .send-btn:hover { background: #b8451f; }
-    .send-btn:disabled { background: var(--border); cursor: default; }
+    .send-btn:disabled { background: var(--border); }
+    #debugLog {
+      font-size: 0.7rem; color: red;
+      padding: 4px 16px;
+      white-space: pre-wrap;
+    }
   </style>
 </head>
 <body>
@@ -126,6 +95,7 @@
     </header>
 
     <div class="chat-page">
+      <div id="debugLog"></div>
       <div class="chat-messages" id="chatMessages">
         <div class="chat-bubble ai">
           <div class="loading-dots" style="padding:8px 0"><span></span><span></span><span></span></div>
@@ -133,8 +103,7 @@
       </div>
       <div class="chat-input-wrap">
         <textarea id="chatInput" rows="1" placeholder="食材・気分・予算など..."
-                  onkeydown="handleKey(event)"
-                  oninput="autoResize(this)"></textarea>
+                  onkeydown="handleKey(event)" oninput="autoResize(this)"></textarea>
         <button class="send-btn" id="sendBtn" onclick="sendMessage()">➤</button>
       </div>
     </div>
@@ -171,147 +140,97 @@
     let fridgeItemsCache = [];
     const messages = [];
 
+    function dbg(msg) {
+      const el = document.getElementById('debugLog');
+      if (el) el.textContent += msg + '
+';
+      console.log('[DBG]', msg);
+    }
+
     async function init() {
+      dbg('init開始');
       try {
         const user = await requireAuth();
+        dbg('user: ' + (user ? user.email : 'null'));
         if (!user) return;
 
+        dbg('getOrCreateHousehold...');
         householdId = await getOrCreateHousehold(user.id);
+        dbg('householdId: ' + householdId);
 
-        // 各データを個別取得（どれかが失敗しても先へ進む）
-        try { recentDishes = await getLogsForWeek(householdId); } catch(e) { console.warn('recentDishes失敗', e); }
-        try { likedDishesCache = await getLikedDishes(householdId, 5); } catch(e) { console.warn('likedDishes失敗', e); }
+        try { recentDishes = await getLogsForWeek(householdId); dbg('recentDishes: ' + recentDishes.length); } catch(e) { dbg('recentDishes失敗: '+e); }
+        try { likedDishesCache = await getLikedDishes(householdId, 5); dbg('likedDishes: ' + likedDishesCache.length); } catch(e) { dbg('likedDishes失敗: '+e); }
         try {
-          // getFridgeItemsが存在しない場合も考慮
           if (typeof getFridgeItems === 'function') {
             fridgeItemsCache = await getFridgeItems(householdId);
+            dbg('fridgeItems: ' + fridgeItemsCache.length);
+          } else {
+            dbg('getFridgeItems未定義');
           }
-        } catch(e) { console.warn('fridgeItems失敗', e); fridgeItemsCache = []; }
+        } catch(e) { dbg('fridgeItems失敗: '+e); fridgeItemsCache = []; }
 
+        dbg('renderWelcome呼び出し');
         renderWelcome();
+        dbg('renderWelcome完了');
       } catch(e) {
-        console.error('init失敗:', e);
-        // エラーでも挨拶だけ出す
+        dbg('init例外: ' + e);
         renderWelcome();
       }
     }
 
     function renderWelcome() {
-      try {
-        const container = document.getElementById('chatMessages');
-        container.innerHTML = '';
-
-        const weekNames = [...new Set((recentDishes || []).map(l => l.dish_name))];
-
-        // 冷蔵庫バナー
-        let fridgeBannerHtml = '';
-        if (fridgeItemsCache && fridgeItemsCache.length > 0) {
-          const names = fridgeItemsCache.map(i => i.name).join('・');
-          fridgeBannerHtml = `
-            <div class="fridge-banner">
-              <span>🧊</span>
-              <span class="fridge-banner-items">${names}</span>
-            </div>
-          `;
-        }
-
-        // 挨拶文
-        let greeting;
-        if (fridgeItemsCache && fridgeItemsCache.length > 0) {
-          const fridgeNames = fridgeItemsCache.slice(0, 3).map(i => i.name).join('・');
-          greeting = `こんにちは！🍳
-冷蔵庫に${fridgeNames}${fridgeItemsCache.length > 3 ? 'など' : ''}がありますね。
-これを使った献立を提案できます！`;
-        } else if (weekNames.length === 0) {
-          greeting = 'こんにちは！今日の献立をお手伝いします🍳
-まだ今週の記録がないですね。どんなメニューにしますか？';
-        } else {
-          const preview = weekNames.slice(0, 3).join('・');
-          const suffix = weekNames.length > 3 ? `など${weekNames.length}品` : '';
-          greeting = `こんにちは！🍳
-今週は${preview}${suffix}を食べましたね。
-明日の夕食はどうしますか？`;
-        }
-
-        const chips = buildChips(weekNames);
-
-        const bubble = document.createElement('div');
-        bubble.className = 'chat-bubble ai';
-        bubble.innerHTML = `
-          ${fridgeBannerHtml}
-          <div class="card-surface" style="padding:14px;white-space:pre-wrap;font-size:0.88rem;line-height:1.7;">${greeting}</div>
-          <div class="quick-chips" id="quickChips">
-            ${chips.map(c => `<button class="quick-chip" onclick="sendQuick(${JSON.stringify(c.message)})">${c.label}</button>`).join('')}
-          </div>
-        `;
-        container.appendChild(bubble);
-      } catch(e) {
-        console.error('renderWelcome失敗:', e);
-        document.getElementById('chatMessages').innerHTML =
-          '<div class="chat-bubble ai"><div style="padding:14px;font-size:0.88rem;">こんにちは！今日の献立をお手伝いします🍳</div></div>';
+      const container = document.getElementById('chatMessages');
+      container.innerHTML = '';
+      const weekNames = [...new Set((recentDishes || []).map(l => l.dish_name))];
+      let greeting = 'こんにちは！今日の献立をお手伝いします🍳
+どんなメニューにしますか？';
+      if (fridgeItemsCache && fridgeItemsCache.length > 0) {
+        const n = fridgeItemsCache.slice(0,3).map(i=>i.name).join('・');
+        greeting = `こんにちは！🍳
+冷蔵庫に${n}がありますね。これを使った献立を提案できます！`;
+      } else if (weekNames.length > 0) {
+        const preview = weekNames.slice(0,3).join('・');
+        greeting = `こんにちは！🍳
+今週は${preview}を食べましたね。明日の夕食はどうしますか？`;
       }
+      const chips = buildChips(weekNames);
+      const bubble = document.createElement('div');
+      bubble.className = 'chat-bubble ai';
+      bubble.innerHTML = `
+        <div class="card-surface" style="padding:14px;white-space:pre-wrap;font-size:0.88rem;line-height:1.7;">${greeting}</div>
+        <div class="quick-chips">${chips.map(c=>`<button class="quick-chip" onclick="sendQuick(${JSON.stringify(c.message)})">${c.label}</button>`).join('')}</div>
+      `;
+      container.appendChild(bubble);
     }
 
     function buildChips(weekNames) {
       const chips = [];
       if (fridgeItemsCache && fridgeItemsCache.length > 0) {
-        const fridgeNames = fridgeItemsCache.map(i => i.name).join('・');
-        chips.push({
-          label: '🧊 冷蔵庫の食材を使いたい',
-          message: `冷蔵庫に${fridgeNames}があります。これらを使った献立を3つ提案してください。`,
-        });
+        const n = fridgeItemsCache.map(i=>i.name).join('・');
+        chips.push({ label:'🧊 冷蔵庫の食材を使いたい', message:`冷蔵庫に${n}があります。これらを使った献立を3つ提案してください。` });
       }
-      if (weekNames.length > 0) {
-        chips.push({
-          label: '今週と違うものがいい',
-          message: `今週は${weekNames.slice(0,3).join('・')}を食べました。かぶらない別ジャンルのメニューを3つ提案してください。`,
-        });
-      }
-      if (likedDishesCache && likedDishesCache.length > 0) {
-        const liked = likedDishesCache.slice(0,3).map(d => d.dish_name).join('・');
-        chips.push({
-          label: '好評メニューに近いものがいい',
-          message: `家族に好評だったのは${liked}です。これに近いテイストのメニューを3つ提案してください。`,
-        });
-      }
-      chips.push({ label: '簡単に作れるものがいい', message: '30分以内で作れる簡単なメニューを3つ提案してください。' });
-      chips.push({
-        label: 'お任せで！',
-        message: weekNames.length > 0
-          ? `今週は${weekNames.slice(0,3).join('・')}を食べました。明日の夕食にぴったりのメニューを3つ提案してください。`
-          : '今日の夕食にいいメニューを3つ提案してください。',
-      });
+      if (weekNames.length > 0) chips.push({ label:'今週と違うものがいい', message:`今週は${weekNames.slice(0,3).join('・')}を食べました。かぶらない別ジャンルのメニューを3つ提案してください。` });
+      chips.push({ label:'簡単に作れるものがいい', message:'30分以内で作れる簡単なメニューを3つ提案してください。' });
+      chips.push({ label:'お任せで！', message:'今日の夕食にいいメニューを3つ提案してください。' });
       return chips;
     }
 
-    function handleKey(e) {
-      if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
-    }
-    function autoResize(el) {
-      el.style.height = 'auto';
-      el.style.height = Math.min(el.scrollHeight, 100) + 'px';
-    }
-    function sendQuick(text) {
-      document.getElementById('chatInput').value = text;
-      sendMessage();
-    }
+    function handleKey(e) { if (e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendMessage();} }
+    function autoResize(el) { el.style.height='auto'; el.style.height=Math.min(el.scrollHeight,100)+'px'; }
+    function sendQuick(text) { document.getElementById('chatInput').value=text; sendMessage(); }
+
     function addBubble(text, role) {
-      const container = document.getElementById('chatMessages');
-      const bubble = document.createElement('div');
-      bubble.className = `chat-bubble ${role}`;
-      bubble.textContent = text;
-      container.appendChild(bubble);
-      container.scrollTop = container.scrollHeight;
-      return bubble;
+      const c = document.getElementById('chatMessages');
+      const b = document.createElement('div');
+      b.className=`chat-bubble ${role}`; b.textContent=text;
+      c.appendChild(b); c.scrollTop=c.scrollHeight; return b;
     }
     function addLoadingBubble() {
-      const container = document.getElementById('chatMessages');
-      const bubble = document.createElement('div');
-      bubble.className = 'chat-bubble ai';
-      bubble.innerHTML = '<div class="loading-dots"><span></span><span></span><span></span></div>';
-      container.appendChild(bubble);
-      container.scrollTop = container.scrollHeight;
-      return bubble;
+      const c = document.getElementById('chatMessages');
+      const b = document.createElement('div');
+      b.className='chat-bubble ai';
+      b.innerHTML='<div class="loading-dots"><span></span><span></span><span></span></div>';
+      c.appendChild(b); c.scrollTop=c.scrollHeight; return b;
     }
 
     async function sendMessage() {
@@ -319,88 +238,48 @@
       const input = document.getElementById('chatInput');
       const text = input.value.trim();
       if (!text) return;
-
-      input.value = '';
-      input.style.height = 'auto';
-      addBubble(text, 'user');
-      messages.push({ role: 'user', content: text });
-
-      isLoading = true;
-      document.getElementById('sendBtn').disabled = true;
-      const loadingBubble = addLoadingBubble();
-
+      input.value=''; input.style.height='auto';
+      addBubble(text,'user');
+      messages.push({role:'user',content:text});
+      isLoading=true;
+      document.getElementById('sendBtn').disabled=true;
+      const lb = addLoadingBubble();
       try {
         const session = await getSession();
-        const response = await fetch('https://sfhtvtcmgueystyuhzvd.supabase.co/functions/v1/tavera-suggest', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${session?.access_token}`,
-          },
-          body: JSON.stringify({
-            messages,
-            likedDishes: likedDishesCache,
-            recentDishes: recentDishes.slice(0, 10),
-            fridgeItems: (fridgeItemsCache || []).map(i => i.name),
-          }),
+        const res = await fetch('https://sfhtvtcmgueystyuhzvd.supabase.co/functions/v1/tavera-suggest',{
+          method:'POST',
+          headers:{'Content-Type':'application/json','Authorization':`Bearer ${session?.access_token}`},
+          body:JSON.stringify({messages,likedDishes:likedDishesCache,recentDishes:recentDishes.slice(0,10),fridgeItems:(fridgeItemsCache||[]).map(i=>i.name)}),
         });
-
-        const data = await response.json();
-        const reply = data.reply || '提案の取得に失敗しました。';
-
-        loadingBubble.remove();
-        messages.push({ role: 'assistant', content: reply });
-
-        const replyBubble = document.createElement('div');
-        replyBubble.className = 'chat-bubble ai';
-        replyBubble.style.whiteSpace = 'pre-wrap';
-        replyBubble.style.fontSize = '0.88rem';
-        replyBubble.style.lineHeight = '1.7';
-        replyBubble.textContent = reply;
-
-        const lines = reply.split('
-').filter(l => l.trim());
-        const dishCandidates = [];
-        lines.forEach(line => {
-          const m = line.match(/^[①②③\d]+[\.．\s。]?\s*\*{0,2}([^\*
-（(]{2,20})\*{0,2}/);
-          if (m) dishCandidates.push(m[1].trim());
+        const data = await res.json();
+        const reply = data.reply||'提案の取得に失敗しました。';
+        lb.remove();
+        messages.push({role:'assistant',content:reply});
+        const rb = document.createElement('div');
+        rb.className='chat-bubble ai';
+        rb.style.cssText='white-space:pre-wrap;font-size:0.88rem;line-height:1.7;';
+        rb.textContent=reply;
+        const lines=reply.split('
+').filter(l=>l.trim());
+        const dishes=[];
+        lines.forEach(l=>{const m=l.match(/^[①②③\d]+[\.．\s。]?\s*\*{0,2}([^\*
+（(]{2,20})\*{0,2}/);if(m)dishes.push(m[1].trim());});
+        const bw=document.createElement('div');
+        bw.style.cssText='margin-top:12px;display:flex;flex-direction:column;gap:6px;';
+        (dishes.length>0?dishes.slice(0,3):['この献立']).forEach((d,i)=>{
+          const btn=document.createElement('button');
+          btn.textContent='📝 '+(dishes.length>0?d:'この献立')+' を記録する';
+          btn.style.cssText='display:block;padding:8px 16px;border-radius:99px;background:var(--terra);color:#fff;border:none;cursor:pointer;font-size:0.8rem;font-family:inherit;text-align:left;';
+          btn.onclick=()=>{const t=new Date().toISOString().split('T')[0];location.href='log.html?date='+t+'&dish='+encodeURIComponent(d);};
+          bw.appendChild(btn);
         });
-
-        const btnWrap = document.createElement('div');
-        btnWrap.style.cssText = 'margin-top:12px;display:flex;flex-direction:column;gap:6px;';
-
-        if (dishCandidates.length > 0) {
-          dishCandidates.slice(0, 3).forEach(dish => {
-            const btn = document.createElement('button');
-            btn.textContent = '📝 ' + dish + ' を記録する';
-            btn.style.cssText = 'display:block;padding:8px 16px;border-radius:99px;background:var(--terra);color:#fff;border:none;cursor:pointer;font-size:0.8rem;font-family:inherit;text-align:left;';
-            btn.onclick = () => {
-              const today = new Date().toISOString().split('T')[0];
-              location.href = 'log.html?date=' + today + '&dish=' + encodeURIComponent(dish);
-            };
-            btnWrap.appendChild(btn);
-          });
-        } else {
-          const btn = document.createElement('button');
-          btn.textContent = '📝 この献立を記録する';
-          btn.style.cssText = 'display:block;padding:8px 16px;border-radius:99px;background:var(--terra);color:#fff;border:none;cursor:pointer;font-size:0.8rem;font-family:inherit;';
-          btn.onclick = () => location.href = 'log.html';
-          btnWrap.appendChild(btn);
-        }
-
-        replyBubble.appendChild(btnWrap);
-        document.getElementById('chatMessages').appendChild(replyBubble);
-        document.getElementById('chatMessages').scrollTop = 999999;
-
-      } catch (e) {
-        loadingBubble.remove();
-        addBubble('エラーが発生しました。もう一度お試しください。', 'ai');
-        console.error(e);
+        rb.appendChild(bw);
+        document.getElementById('chatMessages').appendChild(rb);
+        document.getElementById('chatMessages').scrollTop=999999;
+      } catch(e) {
+        lb.remove(); addBubble('エラーが発生しました。もう一度お試しください。','ai'); console.error(e);
       }
-
-      isLoading = false;
-      document.getElementById('sendBtn').disabled = false;
+      isLoading=false; document.getElementById('sendBtn').disabled=false;
     }
 
     init();
