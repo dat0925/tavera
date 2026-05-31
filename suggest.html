@@ -60,6 +60,27 @@
       background: #FEF3EC;
     }
 
+    /* 冷蔵庫バナー */
+    .fridge-banner {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: #EEF3E2;
+      border: 1.5px solid var(--olive);
+      border-radius: var(--radius-sm);
+      padding: 8px 12px;
+      margin-bottom: 4px;
+      font-size: 0.8rem;
+      color: var(--olive);
+      font-weight: 500;
+    }
+    .fridge-banner-items {
+      flex: 1;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
     .suggest-card {
       background: var(--white);
       border: 1.5px solid var(--amber);
@@ -78,15 +99,6 @@
       color: var(--brown);
       line-height: 1.6;
       margin-bottom: 10px;
-    }
-    .suggest-card .adopt-btn {
-      font-size: 0.8rem;
-      padding: 6px 14px;
-      border-radius: 99px;
-      background: var(--terra);
-      color: var(--white);
-      border: none;
-      cursor: pointer;
     }
 
     .chat-input-wrap {
@@ -143,13 +155,11 @@
 
     <div class="chat-page">
       <div class="chat-messages" id="chatMessages">
-        <!-- init()でパーソナライズされた挨拶・チップを動的生成 -->
         <div class="chat-bubble ai">
           <div class="loading-dots" style="padding:8px 0"><span></span><span></span><span></span></div>
         </div>
       </div>
 
-      <!-- 入力エリア -->
       <div class="chat-input-wrap">
         <textarea id="chatInput" rows="1" placeholder="食材・気分・予算など..."
                   onkeydown="handleKey(event)"
@@ -187,6 +197,7 @@
     let isLoading = false;
     let recentDishes = [];
     let likedDishesCache = [];
+    let fridgeItemsCache = [];
     const messages = [];
 
     async function init() {
@@ -194,41 +205,59 @@
       if (!user) return;
       householdId = await getOrCreateHousehold(user.id);
 
-      // 今週のログと高評価メニューを並行取得
       try {
-        [recentDishes, likedDishesCache] = await Promise.all([
+        [recentDishes, likedDishesCache, fridgeItemsCache] = await Promise.all([
           getLogsForWeek(householdId),
           getLikedDishes(householdId, 5),
+          getFridgeItems(householdId),
         ]);
       } catch (_) {}
 
       renderWelcome();
     }
 
-    // ---- パーソナライズされた初期画面を生成 ----
     function renderWelcome() {
       const container = document.getElementById('chatMessages');
       container.innerHTML = '';
 
-      // 今週食べたもの（重複除去）
       const weekNames = [...new Set(recentDishes.map(l => l.dish_name))];
+
+      // 冷蔵庫バナー
+      let fridgeBannerHtml = '';
+      if (fridgeItemsCache.length > 0) {
+        const names = fridgeItemsCache.map(i => i.name).join('・');
+        fridgeBannerHtml = `
+          <div class="fridge-banner">
+            <span>🧊</span>
+            <span class="fridge-banner-items">${names}</span>
+          </div>
+        `;
+      }
 
       // 挨拶文
       let greeting;
-      if (weekNames.length === 0) {
-        greeting = 'こんにちは！今日の献立をお手伝いします🍳\nまだ今週の記録がないですね。どんなメニューにしますか？';
+      if (fridgeItemsCache.length > 0) {
+        const fridgeNames = fridgeItemsCache.slice(0, 3).map(i => i.name).join('・');
+        greeting = `こんにちは！🍳
+冷蔵庫に${fridgeNames}${fridgeItemsCache.length > 3 ? 'など' : ''}がありますね。
+これを使った献立を提案できます！`;
+      } else if (weekNames.length === 0) {
+        greeting = 'こんにちは！今日の献立をお手伝いします🍳
+まだ今週の記録がないですね。どんなメニューにしますか？';
       } else {
         const preview = weekNames.slice(0, 3).join('・');
         const suffix = weekNames.length > 3 ? `など${weekNames.length}品` : '';
-        greeting = `こんにちは！🍳\n今週は${preview}${suffix}を食べましたね。\n明日の夕食はどうしますか？`;
+        greeting = `こんにちは！🍳
+今週は${preview}${suffix}を食べましたね。
+明日の夕食はどうしますか？`;
       }
 
-      // 動的クイックチップを生成
       const chips = buildChips(weekNames);
 
       const bubble = document.createElement('div');
       bubble.className = 'chat-bubble ai';
       bubble.innerHTML = `
+        ${fridgeBannerHtml}
         <div class="card-surface" style="padding:14px;white-space:pre-wrap;font-size:0.88rem;line-height:1.7;">${greeting}</div>
         <div class="quick-chips" id="quickChips">
           ${chips.map(c => `<button class="quick-chip" onclick="sendQuick(${JSON.stringify(c.message)})">${c.label}</button>`).join('')}
@@ -239,6 +268,15 @@
 
     function buildChips(weekNames) {
       const chips = [];
+
+      // 冷蔵庫食材があれば最優先チップ
+      if (fridgeItemsCache.length > 0) {
+        const fridgeNames = fridgeItemsCache.map(i => i.name).join('・');
+        chips.push({
+          label: '🧊 冷蔵庫の食材を使いたい',
+          message: `冷蔵庫に${fridgeNames}があります。これらを使った献立を3つ提案してください。`,
+        });
+      }
 
       if (weekNames.length > 0) {
         chips.push({
@@ -270,7 +308,6 @@
       return chips;
     }
 
-    // ---- チャット関連 ----
     function handleKey(e) {
       if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
     }
@@ -333,6 +370,7 @@
             messages,
             likedDishes: likedDishesCache,
             recentDishes: recentDishes.slice(0, 10),
+            fridgeItems: fridgeItemsCache.map(i => i.name),  // 冷蔵庫食材を追加
           }),
         });
 
@@ -349,11 +387,12 @@
         replyBubble.style.lineHeight = '1.7';
         replyBubble.textContent = reply;
 
-        // 料理名を抽出してボタン生成
-        const lines = reply.split('\n').filter(l => l.trim());
+        const lines = reply.split('
+').filter(l => l.trim());
         const dishCandidates = [];
         lines.forEach(line => {
-          const m = line.match(/^[①②③\d]+[\.．\s。]?\s*\*{0,2}([^\*\n（(]{2,20})\*{0,2}/);
+          const m = line.match(/^[①②③\d]+[\.．\s。]?\s*\*{0,2}([^\*
+（(]{2,20})\*{0,2}/);
           if (m) dishCandidates.push(m[1].trim());
         });
 
@@ -397,4 +436,3 @@
   </script>
 </body>
 </html>
-
