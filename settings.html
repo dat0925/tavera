@@ -201,7 +201,11 @@
       <!-- 世帯名編集（非表示→表示） -->
       <div class="settings-section hidden" id="householdNameSection">
         <div class="join-box">
-          <p>新しい世帯名を入力してください</p>
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+            <p style="margin:0;">世帯名を変更する</p>
+            <button onclick="toggleSection('householdNameSection')"
+                    style="background:none;border:none;color:var(--muted);font-size:1.2rem;cursor:pointer;padding:0 4px;">✕</button>
+          </div>
           <div class="join-input-row">
             <input type="text" id="householdNameInput" class="form-input"
                    placeholder="例：田中家" maxlength="20">
@@ -361,9 +365,19 @@
     function toggleSection(id) {
       const section = document.getElementById(id);
       const isHidden = section.classList.toggle('hidden');
-      // 矢印の向きを切り替え
-      const arrowId = id === 'inviteSection' ? 'inviteArrow' : 'joinArrow';
-      document.getElementById(arrowId).textContent = isHidden ? '›' : '∨';
+
+      // 矢印の向きを切り替え（世帯名編集は矢印なし）
+      const arrowMap = { inviteSection: 'inviteArrow', joinSection: 'joinArrow' };
+      const arrowId = arrowMap[id];
+      if (arrowId) document.getElementById(arrowId).textContent = isHidden ? '›' : '∨';
+
+      // 世帯名編集を開く時は現在の名前をセット
+      if (id === 'householdNameSection' && !isHidden) {
+        const currentName = document.getElementById('householdName').textContent;
+        const input = document.getElementById('householdNameInput');
+        input.value = currentName;
+        setTimeout(() => input.focus(), 100);
+      }
     }
 
     function copyInviteCode() {
