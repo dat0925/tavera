@@ -1,8 +1,8 @@
 # Tavera 設計書・引き継ぎ書
 
-**バージョン**: 0.5.2
+**バージョン**: 0.6.0
 **最終更新**: 2026-05-31
-**ステータス**: MVP稼働中・Phase 2開発中
+**ステータス**: MVP稼働中・Phase 2完了・本番運用準備中
 
 ---
 
@@ -10,11 +10,11 @@
 
 ### ブランド
 - **アプリ名**: Tavera（タベラ）
-- **語源**: 「食べる」から自然に派生。taberu.co.jpが既存企業のため綴りをTaveraに変更。
+- **語源**: 「食べる」から派生。taberu.co.jpが既存企業のため綴り変更。
 - **シリーズ**: Taskra（タスク管理）・Flowra（家計管理）と同じ「ra」シリーズ
 - **公開URL**: https://tavera.taskra.jp
 - **GitHubリポジトリ**: https://github.com/dat0925/tavera
-- **ロゴ**: テラコッタ×アンバー×オリーブグリーン。鍋・フォーク・葉のモチーフ。GPT生成。
+- **ロゴ**: テラコッタ×アンバー×オリーブグリーン。GPT生成。
 
 ### コンセプト
 「冷蔵庫の前で悩む時間をゼロにする」献立管理Webアプリ。
@@ -62,7 +62,7 @@
 |--------|-----|------|
 | id | uuid PK | |
 | name | text | 世帯名 |
-| created_by | uuid | オーナーuser_id |
+| created_by | uuid | 作成者のuser_id（権限判定には使わない。role=ownerで判断） |
 | created_at | timestamptz | |
 
 ### menu_members（メンバー）
@@ -70,7 +70,7 @@
 |--------|-----|------|
 | id | uuid PK | auth.users.idと一致 |
 | household_id | uuid FK | |
-| name | text | |
+| name | text | Google表示名（設定画面ロード時に自動更新） |
 | role | text | owner / member |
 | allergies | text[] | Phase 3で使用 |
 
@@ -98,11 +98,37 @@
 | used | boolean | 採用したか |
 | created_at | timestamptz | |
 
-### RLSポリシー（設定済み）
-- households: created_by = auth.uid()
-- members: id = auth.uid()
-- logs: household_idがmenu_membersのhousehold_idに含まれる
-- ai_history: 同上
+### RLSポリシー（現在の正確な設定）
+
+**menu_households**
+| ポリシー名 | 操作 | 条件 |
+|---|---|---|
+| households_select | SELECT | auth.uid() IS NOT NULL（全認証ユーザーが検索可能・招待用） |
+| households_insert | INSERT | created_by = auth.uid() |
+| households_update | UPDATE | menu_members.role = 'owner'（roleベース判定。created_byは使わない） |
+| households_delete | DELETE | created_by = auth.uid() |
+
+**menu_members**
+| ポリシー名 | 操作 | 条件 |
+|---|---|---|
+| （元の自動生成ポリシー） | SELECT | id = auth.uid() |
+| members_household_select | SELECT | household_id = get_my_household_id()（同世帯メンバー全員を表示） |
+| members_self_update | UPDATE | id = auth.uid() |
+
+**SECURITY DEFINER関数（再帰RLS回避）**
+```sql
+-- 自分のhousehold_idを取得（RLSポリシー内のサブクエリ再帰を回避）
+CREATE OR REPLACE FUNCTION get_my_household_id()
+RETURNS UUID LANGUAGE sql SECURITY DEFINER AS $$
+  SELECT household_id FROM menu_members WHERE id = auth.uid() LIMIT 1;
+$$;
+
+-- 招待コード（UUIDの先頭8文字）で世帯を検索
+CREATE OR REPLACE FUNCTION find_household_by_code(code TEXT)
+RETURNS TABLE(id UUID, name TEXT) LANGUAGE sql SECURITY DEFINER AS $$
+  SELECT id, name FROM menu_households WHERE id::text ILIKE code || '%' LIMIT 2;
+$$;
+```
 
 ---
 
@@ -112,19 +138,27 @@
 |----------|------|---------|
 | index.html | ログイン | Google OAuth |
 | home.html | ホーム | 7日間日付ストリップ・朝昼夜グリッド・また食べたいランキング |
-| log.html | 献立記録 | 朝昼夜タブ・料理名・食材タグ・評価・削除。記録後はホームへ自動遷移。URLパラメータでdish/date/meal受取可 |
+| log.html | 献立記録/編集 | URLパラメータで動作が変わる（下記参照） |
 | history.html | 履歴 | 全件一覧・キーワード検索・タップで詳細モーダル |
-| suggest.html | AI提案 | チャット形式・クイック選択肢・料理名引き継ぎボタン |
-| settings.html | 設定 | プロフィール・世帯名・招待コード・ログアウト |
+| suggest.html | AI提案 | チャット形式・今週の履歴から動的クイックチップ |
+| settings.html | 設定 | プロフィール・世帯管理・招待・ログアウト |
+
+### log.htmlのURLパラメータ仕様
+| パターン | モード | 説明 |
+|---|---|---|
+| `/log.html` | 新規記録 | 今日の夕食がデフォルト |
+| `?date=X&meal=Y` | 新規記録 | 日付・食事タイプ指定 |
+| `?date=X&meal=Y&dish=Z` | 新規記録（料理名プリセット） | AI提案・今日も作る経由 |
+| `?date=X&meal=Y&edit=1` | **編集モード** | 履歴「編集する」経由。タブ非表示・ヘッダー変更 |
 
 ---
 
 ## 6. 履歴詳細モーダルの仕様
 
-- 履歴アイテムをタップ → 下からシート表示
+- 履歴アイテムをタップ → 下からシート表示（`allLogs[i]`で参照）
 - 表示内容: 料理名・日付・食事タイプ・食材・メモ・評価
-- **「編集する」**: log.html?date=元の日付&meal=元の食事タイプ に遷移
-- **「今日も作る」**: log.html?date=今日&meal=dinner&dish=料理名 に遷移（料理名引き継ぎ）
+- **「編集する」**: `log.html?date=X&meal=Y&edit=1` に遷移
+- **「今日も作る」**: `log.html?date=今日&meal=dinner&dish=料理名` に遷移
 - オーバーレイタップで閉じる
 
 ---
@@ -133,15 +167,13 @@
 
 1. suggest.htmlが起動時に今週のログ（直近7日）と高評価メニューを取得
 2. 今週の履歴をもとにパーソナライズされた挨拶文・動的クイックチップを表示
-3. ユーザーがメッセージ送信 → `{ messages, likedDishes, recentDishes }` をEdge Functionに送信
-4. tavera-suggestがsystemPromptに「今週食べたもの」「好評メニュー」を組み込んでClaude APIを呼び出し
-5. 返答から料理名を正規表現で抽出（①②③や1. などのパターン）
-6. 料理名ごとに「この料理を記録する」ボタンを生成（最大3つ）
-7. タップ → log.html?dish=料理名&date=今日&meal=dinner に遷移
-8. log.htmlがURLパラメータから料理名を受け取り入力欄にセット
+3. メッセージ送信 → `{ messages, likedDishes, recentDishes }` をEdge Functionに送信
+4. tavera-suggestがsystemPromptに「今週食べたもの」「好評メニュー」を組み込みClaude APIを呼び出し
+5. 返答から料理名を正規表現で抽出（`/^[①②③\d]+[\.．\s。]?\s*\*{0,2}([^\*\n（(]{2,20})\*{0,2}/`）
+6. 料理名ごとに「この料理を記録する」ボタン生成（最大3つ）→ log.htmlへ遷移
 
 ### 動的クイックチップのロジック
-- 今週の記録あり → 「今週と違うものがいい」（今週のメニューを含む文章を送信）
+- 今週の記録あり → 「今週と違うものがいい」
 - 高評価メニューあり → 「好評メニューに近いものがいい」
 - 常時 → 「簡単に作れるものがいい」「お任せで！」
 
@@ -153,11 +185,34 @@
 - 履歴画面の🤍ボタンをタップ → rating を5に更新 → ❤️に変化
 - ❤️をタップ → rating を3に戻す
 - ホームのランキングは rating >= 4 のメニューを表示
-- rating = 5 のメニューは「❤️ また食べたい」と表示
 
 ---
 
-## 9. ファイル構成
+## 9. 家族共有の仕組み
+
+### 招待フロー
+1. オーナーが設定画面「📤 家族を招待する」→ 8桁コードをコピー
+2. 招待される側が設定画面「📥 招待コードで参加する」→ コード入力
+3. RPC `find_household_by_code` でUUID前方一致検索
+4. `menu_members`の`household_id`と`role`をUPDATE（role = 'member'に）
+5. ページリロードで世帯が切り替わる
+
+### 世帯を離れる
+- 複数メンバー在籍時かつ非オーナーのみ「この世帯を離れる」ボタンが表示
+- 離脱後は新しい個人世帯「わが家」を作成してhousehold_idを移行
+- 元の世帯のログは元の世帯に残る
+- 離脱後に招待コードで別の世帯に再参加可能
+
+### 権限設計
+| 操作 | オーナー | メンバー |
+|---|---|---|
+| 世帯名の変更 | ✅ | ✗（UIも非表示） |
+| 家族を招待 | ✅ | ✅ |
+| 世帯を離れる | ✗ | ✅ |
+
+---
+
+## 10. ファイル構成
 
 ```
 /
@@ -179,15 +234,15 @@
 ├── css/
 │   └── style.css
 └── js/
-    ├── supabase.js
-    ├── auth.js
-    ├── menu-log.js
-    └── suggest.js      # 現在未使用（Edge Function直呼び）
+    ├── supabase.js     # Supabase初期化・getSession/getUser/requireAuth
+    ├── auth.js         # Google OAuth・signOut・showToast
+    ├── menu-log.js     # 献立CRUD・世帯管理・招待参加ロジック
+    └── suggest.js      # 未使用（Edge Function直呼びのため）
 ```
 
 ---
 
-## 10. デザインシステム
+## 11. デザインシステム
 
 | 変数 | 値 | 用途 |
 |------|-----|------|
@@ -203,84 +258,50 @@
 
 ---
 
-## 11. 開発ロードマップ
+## 12. 開発ロードマップ
 
 ### Phase 1（完了）MVP
-- Google認証・献立ログCRUD（朝昼夜・食材タグ・評価）
-- ホーム（7日間ストリップ・朝昼夜グリッド・また食べたいランキング）
-- 履歴・キーワード検索
-- AI献立提案チャット（Edge Function経由）
-- PWA対応・カスタムドメイン（tavera.taskra.jp）
+- Google認証・献立ログCRUD・ホーム・履歴・AI提案・PWA・カスタムドメイン
 
-### Phase 2（対応中）使い勝手の向上
+### Phase 2（完了）使い勝手の向上
 - 記録後ホーム自動遷移 ✅
 - また食べたいボタン（履歴の🤍） ✅
 - 履歴詳細モーダル（編集・今日も作る） ✅
-- キャッシュ無効化（全HTML） ✅
-- **バグ修正: 履歴アイテムのonclickがmodalを開かずlocation.hrefで直遷移していた問題を修正（2026-05-31）** ✅
-  - `allLogs`配列でデータを保持し`openModal(allLogs[i])`で呼び出すよう変更
-  - ハートボタン（🤍/❤️）も各アイテムに描画されていなかった問題も合わせて修正
-- **バグ修正: log.htmlの編集モード対応（2026-05-31）** ✅
-  - 編集モード時はヘッダー「献立を編集」・朝昼夜タブ非表示・ボタン「変更を保存する」に切り替え
-  - 編集モードの判定をデータの有無ではなくURLパラメータ `edit=1` ベースに変更
-  - 履歴モーダルの「編集する」ボタンのURLに `&edit=1` を付与
-  - 「今日も作る」「AI提案からの記録」は `edit=1` なし → 新規記録モードのまま正しく動作
-- **バグ修正: AI提案画面が一切動かない問題を修正（2026-05-31）** ✅
-  - suggest.html内の正規表現リテラルに生の改行文字が混入しSyntaxErrorが発生していた
-  - `\n` エスケープに置き換えて修正
-- **AI提案のパーソナライズ（2026-05-31）** ✅
-  - 初期表示を静的チップ → 今週の履歴・高評価メニューから動的生成に変更
-  - 挨拶文も「今週は〇〇・△△を食べましたね」と文脈を持った内容に
-  - クイックチップは「今週と違うものがいい」「好評メニューに近いものがいい」など履歴連動
-  - Edge Function（tavera-suggest）のsystemPromptに今週のメニューを追加し「かぶらない提案」を指示
-  - フロントから`recentDishes`（直近7日）を送信、Edge Functionで受け取り反映
+- log.htmlの編集モード対応（edit=1パラメータ） ✅
+- AI提案のパーソナライズ（今週の履歴から動的クイックチップ） ✅
+- 家族招待フロー（招待コード発行・参加・離脱・世帯名変更） ✅
+
+### Phase 2 残タスク
 - 冷蔵庫食材メモ（常備食材登録・AI提案に自動反映）
 - 月間カレンダービュー
-- **家族招待フロー（招待コードで世帯参加）** ✅
-  - 設定画面に「招待コードを発行」「招待コードで参加する」の2つのUIを追加
-  - 招待コード = 世帯IDの先頭8文字（大文字）
-  - 参加時は`menu_members`の`household_id`をUPDATEして世帯切り替え
-  - 世帯メンバー一覧を設定画面に表示
-  - Supabase RLSに`households_select_for_invite`ポリシーを追加済み（認証済みユーザーは全世帯をSELECT可能）
-  - 世帯名の変更機能を追加（オーナーのみUPDATE可、`households_owner_update`ポリシー追加済み）
-  - 世帯を離れる機能を追加（複数メンバー在籍時のみ表示）
-    - 離脱後は新しい個人世帯（'わが家'）を作成してhousehold_idを移行
-    - 元の世帯のログは元の世帯に残る
-    - 再度招待コードで別の世帯に参加可能
-  - 招待コード検索はRPC（`find_household_by_code`）経由で実装（UUID→text変換のため）
-  - 追加済みSupabase SQL（累計）:
-    - `members_self_update`: メンバーが自分のhousehold_idを更新可能
-    - `members_household_select`: 同じ世帯のメンバー全員を表示（SECURITY DEFINER関数`get_my_household_id()`で再帰回避）
-    - `find_household_by_code`: 招待コード検索用RPC関数
-    - `menu_households`ポリシーを全面整理（households_select / insert / update / delete）
-    - `households_update`はroleベース判定に変更（`created_by`ではなく`menu_members.role = 'owner'`で判断）
-  - **既知の問題**: テスト繰り返しにより`わが家`世帯が大量に作成されている。本番運用前にクリーンアップ推奨
-    ```sql
-    -- 不要な世帯を削除（menu_membersに使われていないもの）
-    DELETE FROM menu_households
-    WHERE id NOT IN (SELECT household_id FROM menu_members);
-    ```
 
 ### Phase 3 アレルギー・給食対応
 - 家族メンバー管理（名前・アレルギー設定）
 - 給食献立インポート（PDF・画像テキスト変換）
 - アレルギー照合・NGアラート
-- 代替メニュー提案
 
 ### Phase 4 連携・マネタイズ
-- Flowra連携（食費予算の参照）
-- LINE連携（外出先から献立登録・AI相談）
-- Stripeサブスク（AI機能の有料プラン化）
-- iOSアプリ（PWA→ネイティブ）
+- Flowra連携・LINE連携・Stripeサブスク・iOSアプリ
 
 ---
 
-## 12. 開発運用
+## 13. 本番運用前にやること
 
-- **開発スタイル**: Claudeとのチャットで開発・デバッグ。PATを渡してpushまで完結。
-- **引き継ぎ**: 本DESIGN.md＋README.mdを新しいClaudeセッションに共有する。
+```sql
+-- テスト中に大量作成された不要な「わが家」世帯を削除
+DELETE FROM menu_households
+WHERE id NOT IN (SELECT household_id FROM menu_members);
+```
+
+---
+
+## 14. 開発運用
+
+- **開発スタイル**: Claudeとのチャットで開発。GitHubのPATを渡してpushまで完結。
+- **引き継ぎ**: 本DESIGN.mdを新しいClaudeセッションに共有する。
 - **Supabase SQL**: 管理コンソールのSQLエディタで手動実行（スマホ・iPad可）。
 - **Edge Function**: Supabaseコンソールから編集・デプロイ（iPad可）。
+- **別アカウントでのテスト**: シークレット/プライベートウィンドウを使う（`prompt:select_account`はSupabaseのPKCEフローと干渉するため使用不可）。
 - **キャッシュ問題**: 全HTMLにno-cacheメタタグ追加済み。それでも残る場合はSafari設定からWebデータ削除。
 
 ---
