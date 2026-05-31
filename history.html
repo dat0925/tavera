@@ -237,6 +237,7 @@
   <script>
     let householdId = null;
     let searchTimer = null;
+    let allLogs = [];  // モーダル参照用
 
     const MEAL_BADGE = {
       breakfast: ['朝食', 'badge-breakfast'],
@@ -275,6 +276,8 @@
         data = d || [];
       }
 
+      allLogs = data;
+
       if (!data.length) {
         list.innerHTML = `
           <div class="empty-state">
@@ -288,9 +291,10 @@
       list.innerHTML = data.map((log, i) => {
         const d = new Date(log.date);
         const [label, badgeClass] = MEAL_BADGE[log.meal_type] || ['?', ''];
+        const isLoved = log.rating === 5;
         return `
           <div class="history-item fade-in" style="animation-delay:${i*0.04}s"
-               onclick="location.href='log.html?date=${log.date}&meal=${log.meal_type}'">
+               onclick="openModal(allLogs[${i}])">
             <div class="history-date-badge">
               <div class="month">${d.getMonth()+1}月</div>
               <div class="day">${d.getDate()}</div>
@@ -298,6 +302,10 @@
             <span class="history-meal-badge ${badgeClass}">${label}</span>
             <div class="history-dish">${log.dish_name}</div>
             ${log.rating ? `<div class="history-rating">${'★'.repeat(log.rating)}</div>` : ''}
+            <button class="heart-btn ${isLoved ? 'loved' : ''}"
+              onclick="event.stopPropagation(); toggleLove('${log.id}', ${isLoved}, this)">
+              ${isLoved ? '❤️' : '🤍'}
+            </button>
           </div>`;
       }).join('');
     }
@@ -367,10 +375,12 @@
         const loved = !isLoved;
         btn.textContent = loved ? '❤️' : '🤍';
         btn.classList.toggle('loved', loved);
-        // アニメーション
         btn.style.transform = 'scale(1.5)';
         setTimeout(() => btn.style.transform = '', 200);
         showToast(loved ? 'また食べたいに追加！' : 'また食べたいを解除', loved ? 'success' : 'info');
+        // allLogs内のratingも更新（モーダルで再表示したときに反映）
+        const idx = allLogs.findIndex(l => l.id === logId);
+        if (idx !== -1) allLogs[idx].rating = newRating;
       }
     }
 
