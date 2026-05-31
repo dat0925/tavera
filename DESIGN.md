@@ -1,8 +1,8 @@
 # Tavera 設計書・引き継ぎ書
 
-**バージョン**: 0.2.0
+**バージョン**: 0.3.0
 **最終更新**: 2026-05-31
-**ステータス**: MVP稼働中
+**ステータス**: MVP稼働中・Phase 2開発中
 
 ---
 
@@ -39,7 +39,7 @@
 
 - **プロジェクト名**: Taskra（既存と共有）
 - **URL**: https://sfhtvtcmgueystyuhzvd.supabase.co
-- **Anon Key**: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNmaHR2dGNtZ3VleXN0eXVoenZkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ3Nzg0MDYsImV4cCI6MjA5MDM1NDQwNn0.qsON2xYdDf22LtU-jGd96Ubaif0xzzswC9KnzWndKNw
+- **Anon Key**: js/supabase.js に記載
 - **Site URL**: https://app.taskra.jp（Taskraと共有のため変更不可）
 - **Redirect URLs追加済み**: https://tavera.taskra.jp/home.html
 - **Google OAuth**: 有効
@@ -83,7 +83,7 @@
 | meal_type | text | breakfast / lunch / dinner |
 | dish_name | text | 料理名 |
 | memo | text | |
-| rating | int | 1〜5 |
+| rating | int | 1〜5（5=また食べたい） |
 | ingredients | text[] | 使用食材 |
 | created_by | uuid | |
 | created_at | timestamptz | |
@@ -98,6 +98,12 @@
 | used | boolean | 採用したか |
 | created_at | timestamptz | |
 
+### RLSポリシー（設定済み）
+- households: created_by = auth.uid()
+- members: id = auth.uid()
+- logs: household_idがmenu_membersのhousehold_idに含まれる
+- ai_history: 同上
+
 ---
 
 ## 5. 画面構成
@@ -106,14 +112,24 @@
 |----------|------|---------|
 | index.html | ログイン | Google OAuth |
 | home.html | ホーム | 7日間日付ストリップ・朝昼夜グリッド・また食べたいランキング |
-| log.html | 献立記録 | 朝昼夜タブ・料理名・食材タグ・評価・削除。URLパラメータでdish/date/meal受取可 |
-| history.html | 履歴 | 全件一覧・キーワード検索 |
+| log.html | 献立記録 | 朝昼夜タブ・料理名・食材タグ・評価・削除。記録後はホームへ自動遷移。URLパラメータでdish/date/meal受取可 |
+| history.html | 履歴 | 全件一覧・キーワード検索・タップで詳細モーダル |
 | suggest.html | AI提案 | チャット形式・クイック選択肢・料理名引き継ぎボタン |
 | settings.html | 設定 | プロフィール・世帯名・招待コード・ログアウト |
 
 ---
 
-## 6. AI提案の仕組み
+## 6. 履歴詳細モーダルの仕様
+
+- 履歴アイテムをタップ → 下からシート表示
+- 表示内容: 料理名・日付・食事タイプ・食材・メモ・評価
+- **「編集する」**: log.html?date=元の日付&meal=元の食事タイプ に遷移
+- **「今日も作る」**: log.html?date=今日&meal=dinner&dish=料理名 に遷移（料理名引き継ぎ）
+- オーバーレイタップで閉じる
+
+---
+
+## 7. AI提案の仕組み
 
 1. suggest.htmlがメッセージ履歴＋高評価メニューをEdge Functionに送信
 2. tavera-suggestがClaude APIを呼び出し
@@ -124,7 +140,17 @@
 
 ---
 
-## 7. ファイル構成
+## 8. また食べたいの仕組み
+
+- rating = 5 を「また食べたい」として扱う
+- 履歴画面の🤍ボタンをタップ → rating を5に更新 → ❤️に変化
+- ❤️をタップ → rating を3に戻す
+- ホームのランキングは rating >= 4 のメニューを表示
+- rating = 5 のメニューは「❤️ また食べたい」と表示
+
+---
+
+## 9. ファイル構成
 
 ```
 /
@@ -154,7 +180,7 @@
 
 ---
 
-## 8. デザインシステム
+## 10. デザインシステム
 
 | 変数 | 値 | 用途 |
 |------|-----|------|
@@ -170,7 +196,7 @@
 
 ---
 
-## 9. 開発ロードマップ
+## 11. 開発ロードマップ
 
 ### Phase 1（完了）MVP
 - Google認証・献立ログCRUD（朝昼夜・食材タグ・評価）
@@ -179,13 +205,15 @@
 - AI献立提案チャット（Edge Function経由）
 - PWA対応・カスタムドメイン（tavera.taskra.jp）
 
-### Phase 2（次期）使い勝手の向上
+### Phase 2（対応中）使い勝手の向上
+- 記録後ホーム自動遷移 ✅
+- また食べたいボタン（履歴の🤍） ✅
+- 履歴詳細モーダル（編集・今日も作る） ✅
+- キャッシュ無効化（全HTML） ✅
 - 冷蔵庫食材メモ（常備食材登録・AI提案に自動反映）
 - 月間カレンダービュー
 - AI提案UI改善（食材・予算・季節を構造的に入力するフォーム）
 - 家族招待フロー（招待コードで世帯参加）
-- また食べたいボタン（ログ一覧・ホームからワンタップ）
-- 記録完了後のホーム自動遷移
 
 ### Phase 3 アレルギー・給食対応
 - 家族メンバー管理（名前・アレルギー設定）
@@ -201,13 +229,13 @@
 
 ---
 
-## 10. 開発運用
+## 12. 開発運用
 
 - **開発スタイル**: Claudeとのチャットで開発・デバッグ。PATを渡してpushまで完結。
 - **引き継ぎ**: 本DESIGN.md＋README.mdを新しいClaudeセッションに共有する。
 - **Supabase SQL**: 管理コンソールのSQLエディタで手動実行（スマホ・iPad可）。
 - **Edge Function**: Supabaseコンソールから編集・デプロイ（iPad可）。
-- **PAT**: ghp_****（各自のPATを設定）****（各自のPATを使用）
+- **キャッシュ問題**: 全HTMLにno-cacheメタタグ追加済み。それでも残る場合はSafari設定からWebデータ削除。
 
 ---
 
