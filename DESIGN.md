@@ -1,6 +1,6 @@
 # Tavera 設計書・引き継ぎ書
 
-**バージョン**: 0.7.0
+**バージョン**: 0.8.0
 **最終更新**: 2026-05-31
 **ステータス**: MVP稼働中・Phase 2完了・本番運用準備中
 
@@ -46,7 +46,7 @@
 
 ### Edge Functions
 | 関数名 | 用途 | JWT検証 |
-|--------|------|---------| 
+|--------|------|---------|
 | tavera-suggest | AI献立提案（Claude API呼び出し） | オフ |
 
 - Secret名: ANTHROPIC_API_KEY（TaskraのSecretを共有）
@@ -108,39 +108,37 @@
 | used | boolean | 採用したか |
 | created_at | timestamptz | |
 
-### RLSポリシー（現在の正確な設定）
+### RLSポリシー
 
 **menu_households**
 | ポリシー名 | 操作 | 条件 |
 |---|---|---|
-| households_select | SELECT | auth.uid() IS NOT NULL（全認証ユーザーが検索可能・招待用） |
+| households_select | SELECT | auth.uid() IS NOT NULL |
 | households_insert | INSERT | created_by = auth.uid() |
-| households_update | UPDATE | menu_members.role = 'owner'（roleベース判定。created_byは使わない） |
+| households_update | UPDATE | role = 'owner' |
 | households_delete | DELETE | created_by = auth.uid() |
 
 **menu_members**
 | ポリシー名 | 操作 | 条件 |
 |---|---|---|
-| （元の自動生成ポリシー） | SELECT | id = auth.uid() |
-| members_household_select | SELECT | household_id = get_my_household_id()（同世帯メンバー全員を表示） |
+| （自動生成） | SELECT | id = auth.uid() |
+| members_household_select | SELECT | household_id = get_my_household_id() |
 | members_self_update | UPDATE | id = auth.uid() |
 
-**menu_fridge_items** ★ v0.7.0追加
+**menu_fridge_items**
 | ポリシー名 | 操作 | 条件 |
 |---|---|---|
 | fridge_select | SELECT | household_id = get_my_household_id() |
 | fridge_insert | INSERT | household_id = get_my_household_id() |
 | fridge_delete | DELETE | household_id = get_my_household_id() |
 
-**SECURITY DEFINER関数（再帰RLS回避）**
+**SECURITY DEFINER関数**
 ```sql
--- 自分のhousehold_idを取得（RLSポリシー内のサブクエリ再帰を回避）
 CREATE OR REPLACE FUNCTION get_my_household_id()
 RETURNS UUID LANGUAGE sql SECURITY DEFINER AS $$
   SELECT household_id FROM menu_members WHERE id = auth.uid() LIMIT 1;
 $$;
 
--- 招待コード（UUIDの先頭8文字）で世帯を検索
 CREATE OR REPLACE FUNCTION find_household_by_code(code TEXT)
 RETURNS TABLE(id UUID, name TEXT) LANGUAGE sql SECURITY DEFINER AS $$
   SELECT id, name FROM menu_households WHERE id::text ILIKE code || '%' LIMIT 2;
@@ -152,12 +150,12 @@ $$;
 ## 5. 画面構成
 
 | ファイル | 画面 | 主な機能 |
-|----------|------|---------| 
+|----------|------|---------|
 | index.html | ログイン | Google OAuth |
 | home.html | ホーム | 7日間日付ストリップ・朝昼夜グリッド・🧊冷蔵庫食材メモ・また食べたいランキング |
 | log.html | 献立記録/編集 | URLパラメータで動作が変わる（下記参照） |
 | history.html | 履歴 | 全件一覧・キーワード検索・タップで詳細モーダル |
-| suggest.html | AI提案 | チャット形式・冷蔵庫食材バナー表示・動的クイックチップ |
+| suggest.html | AI提案 | チャット形式・冷蔵庫食材バナー・動的クイックチップ・食材プレビュー付き記録ボタン |
 | settings.html | 設定 | プロフィール・世帯管理・招待・ログアウト |
 
 ### log.htmlのURLパラメータ仕様
@@ -166,13 +164,14 @@ $$;
 | `/log.html` | 新規記録 | 今日の夕食がデフォルト |
 | `?date=X&meal=Y` | 新規記録 | 日付・食事タイプ指定 |
 | `?date=X&meal=Y&dish=Z` | 新規記録（料理名プリセット） | AI提案・今日も作る経由 |
-| `?date=X&meal=Y&edit=1` | **編集モード** | 履歴「編集する」経由。タブ非表示・ヘッダー変更 |
+| `?date=X&meal=Y&dish=Z&ingredients=A,B,C` | 新規記録（料理名＋食材プリセット） | AI提案経由（v0.8.0追加） |
+| `?date=X&meal=Y&edit=1` | **編集モード** | 履歴「編集する」経由 |
 
 ---
 
 ## 6. 履歴詳細モーダルの仕様
 
-- 履歴アイテムをタップ → 下からシート表示（`allLogs[i]`で参照）
+- 履歴アイテムをタップ → 下からシート表示
 - 表示内容: 料理名・日付・食事タイプ・食材・メモ・評価
 - **「編集する」**: `log.html?date=X&meal=Y&edit=1` に遷移
 - **「今日も作る」**: `log.html?date=今日&meal=dinner&dish=料理名` に遷移
@@ -180,21 +179,34 @@ $$;
 
 ---
 
-## 7. AI提案の仕組み（v0.7.0更新）
+## 7. AI提案の仕組み（v0.8.0更新）
 
-1. suggest.htmlが起動時に今週のログ・高評価メニュー・**冷蔵庫食材**を並行取得
+### フロー
+1. suggest.htmlが起動時に今週のログ・高評価メニュー・冷蔵庫食材を並行取得
 2. 冷蔵庫食材がある場合：緑色バナーで食材表示 + 「🧊 冷蔵庫の食材を使いたい」チップを最優先表示
 3. メッセージ送信 → `{ messages, likedDishes, recentDishes, fridgeItems }` をEdge Functionに送信
-4. tavera-suggestがsystemPromptに「今週食べたもの」「好評メニュー」**「冷蔵庫の食材」**を組み込みClaude APIを呼び出し
-5. 返答から料理名を正規表現で抽出（`/^[①②③\d]+[\.．\s。]?\s*\*{0,2}([^\*
-（(]{2,20})\*{0,2}/`）
-6. 料理名ごとに「この料理を記録する」ボタン生成（最大3つ）→ log.htmlへ遷移
+4. tavera-suggestがsystemPromptで返答フォーマットを指定してClaude APIを呼び出し
+5. 返答を `parseDishBlocks()` で解析し、料理名と食材を抽出
+6. 「記録する」ボタン下に食材プレビューを表示（🥕 食材1・食材2・...）
+7. ボタンタップで `log.html?dish=X&ingredients=A,B,C` に遷移し食材欄に自動入力
 
-### 動的クイックチップのロジック（優先順）
-1. 冷蔵庫食材あり → 「🧊 冷蔵庫の食材を使いたい」（最優先）
-2. 今週の記録あり → 「今週と違うものがいい」
-3. 高評価メニューあり → 「好評メニューに近いものがいい」
-4. 常時 → 「簡単に作れるものがいい」「お任せで！」
+### Edge Function（tavera-suggest）のsystemPrompt構造
+```
+基本指示（返答フォーマットを厳密に指定）
+  ↓
+① 料理名
+食材：食材1・食材2・食材3
+（説明）
+  ↓
+【冷蔵庫にある食材】※あれば
+【今週すでに食べたもの】※あれば
+【家族に好評だったメニュー】※あれば
+```
+
+### parseDishBlocks() の動作
+- `①②③` または `1.` で始まる行 → 料理名として抽出
+- `食材：` で始まる行 → `・` 区切りで食材リストに変換
+- `・` `-` で始まる短い行 → 箇条書き食材として補完抽出
 
 ### Edge Functionへ送るリクエスト構造
 ```json
@@ -206,16 +218,22 @@ $$;
 }
 ```
 
+### 動的クイックチップのロジック（優先順）
+1. 冷蔵庫食材あり → 「🧊 冷蔵庫の食材を使いたい」（最優先）
+2. 今週の記録あり → 「今週と違うものがいい」
+3. 高評価メニューあり → 「好評メニューに近いものがいい」
+4. 常時 → 「簡単に作れるものがいい」「お任せで！」
+
 ---
 
 ## 8. 冷蔵庫食材メモの仕様（v0.7.0追加）
 
 - **登録場所**: ホーム画面（🧊 冷蔵庫の食材セクション）
 - **操作**: テキスト入力→＋ボタン or Enterで追加 / ✕ボタンで削除
-- **家族共有**: household_id単位で管理。家族全員が同じ食材を参照・追加・削除できる
-- **期限管理**: expires_onカラムあり（UIは現時点で名前のみ入力。将来的に期限入力UI追加予定）
+- **家族共有**: household_id単位で管理
+- **期限管理**: expires_onカラムあり（UIは名前のみ。将来的に期限入力UI追加予定）
 - **期限警告**: 3日以内の食材はオレンジ色（`expiring-soon`クラス）で表示
-- **AI連携**: suggest.htmlがfridgeItemsを取得してEdge Functionに送信。systemPromptに組み込まれ提案に反映される
+- **AI連携**: suggest.htmlがfridgeItemsを取得してEdge Functionに送信
 
 ---
 
@@ -237,16 +255,10 @@ $$;
 4. `menu_members`の`household_id`と`role`をUPDATE（role = 'member'に）
 5. ページリロードで世帯が切り替わる
 
-### 世帯を離れる
-- 複数メンバー在籍時かつ非オーナーのみ「この世帯を離れる」ボタンが表示
-- 離脱後は新しい個人世帯「わが家」を作成してhousehold_idを移行
-- 元の世帯のログは元の世帯に残る
-- 離脱後に招待コードで別の世帯に再参加可能
-
 ### 権限設計
 | 操作 | オーナー | メンバー |
 |---|---|---|
-| 世帯名の変更 | ✅ | ✗（UIも非表示） |
+| 世帯名の変更 | ✅ | ✗ |
 | 家族を招待 | ✅ | ✅ |
 | 世帯を離れる | ✗ | ✅ |
 
@@ -266,11 +278,11 @@ $$;
 ├── DESIGN.md
 ├── README.md
 ├── assets/
-│   ├── logo.png        # ヘッダー用（64x64）
-│   ├── icon-32.png     # favicon
-│   ├── icon-180.png    # Apple Touch Icon
-│   ├── icon-192.png    # PWAアイコン
-│   └── icon-512.png    # PWAアイコン（大）
+│   ├── logo.png
+│   ├── icon-32.png
+│   ├── icon-180.png
+│   ├── icon-192.png
+│   └── icon-512.png
 ├── css/
 │   └── style.css
 └── js/
@@ -310,11 +322,12 @@ $$;
 - log.htmlの編集モード対応（edit=1パラメータ） ✅
 - AI提案のパーソナライズ（今週の履歴から動的クイックチップ） ✅
 - 家族招待フロー（招待コード発行・参加・離脱・世帯名変更） ✅
-- **冷蔵庫食材メモ（常備食材登録・AI提案に自動反映）** ✅ v0.7.0
+- 冷蔵庫食材メモ（常備食材登録・AI提案に自動反映） ✅ v0.7.0
+- AI提案から食材を自動抽出してlog.htmlにプリセット表示 ✅ v0.8.0
 
 ### Phase 2 残タスク
 - 月間カレンダービュー
-- 冷蔵庫食材の期限入力UI（データは対応済み。UIは将来追加）
+- 冷蔵庫食材の期限入力UI（DBは対応済み）
 
 ### Phase 3 アレルギー・給食対応
 - 家族メンバー管理（名前・アレルギー設定）
@@ -342,8 +355,9 @@ WHERE id NOT IN (SELECT household_id FROM menu_members);
 - **引き継ぎ**: 本DESIGN.mdを新しいClaudeセッションに共有する。
 - **Supabase SQL**: 管理コンソールのSQLエディタで手動実行（スマホ・iPad可）。
 - **Edge Function**: Supabaseコンソールから編集・デプロイ（iPad可）。
-- **別アカウントでのテスト**: シークレット/プライベートウィンドウを使う（`prompt:select_account`はSupabaseのPKCEフローと干渉するため使用不可）。
-- **キャッシュ問題**: 全HTMLにno-cacheメタタグ追加済み。それでも残る場合はSafari設定からWebデータ削除。
+- **別アカウントでのテスト**: シークレット/プライベートウィンドウを使う。
+- **キャッシュ問題**: 全HTMLにno-cacheメタタグ追加済み。残る場合はSafari設定からWebデータ削除。
+- **JS構文チェック**: Pythonでファイル生成→node --checkで確認してからpushする運用に変更（ヒアドキュメント展開による構文破壊を回避）。
 
 ---
 
