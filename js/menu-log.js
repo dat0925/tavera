@@ -20,6 +20,22 @@ async function getTodayLogs(householdId) {
   return data;
 }
 
+// 直近7日間の献立ログを取得（AI提案の文脈生成用）
+async function getLogsForWeek(householdId) {
+  const today = new Date();
+  const weekAgo = new Date(today);
+  weekAgo.setDate(today.getDate() - 6);
+  const { data, error } = await db
+    .from('menu_logs')
+    .select('dish_name, date, meal_type, rating')
+    .eq('household_id', householdId)
+    .gte('date', toDateStr(weekAgo))
+    .lte('date', toDateStr(today))
+    .order('date', { ascending: false });
+  if (error) { console.error(error); return []; }
+  return data || [];
+}
+
 // 指定日の献立ログを取得
 async function getLogsByDate(householdId, dateStr) {
   const { data, error } = await db
