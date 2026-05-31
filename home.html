@@ -171,22 +171,12 @@
     .fridge-input:focus { border-color: var(--olive); }
     .fridge-input::placeholder { color: var(--border); }
 
-    .fridge-add-btn {
-      width: 36px;
-      height: 36px;
-      border-radius: 50%;
-      background: var(--olive);
-      color: var(--white);
-      border: none;
-      font-size: 1.2rem;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      flex-shrink: 0;
-      transition: background var(--transition);
+    .fridge-guide {
+      font-size: 0.75rem;
+      color: var(--terra);
+      margin-top: 6px;
+      padding: 0 2px;
     }
-    .fridge-add-btn:hover { background: #596830; }
 
     .fridge-empty {
       font-size: 0.82rem;
@@ -245,11 +235,11 @@
         <!-- 追加フォーム -->
         <div class="fridge-add-row">
           <input type="text" id="fridgeInput" class="fridge-input"
-                 placeholder="食材名（例：鶏もも肉、ニンジン）"
+                 placeholder="早めに使いたい食材を登録（Enterで追加）"
                  maxlength="20"
                  onkeydown="if(event.key==='Enter')addFridgeItemUI()">
-          <button class="fridge-add-btn" onclick="addFridgeItemUI()" title="追加">＋</button>
         </div>
+        <div id="fridgeGuide" class="fridge-guide hidden"></div>
       </div>
 
       <!-- 区切り -->
@@ -408,15 +398,35 @@
       }).join('');
     }
 
+    const FRIDGE_MAX = 30;
+
     async function addFridgeItemUI() {
       const input = document.getElementById('fridgeInput');
       const name = input.value.trim();
       if (!name) return;
 
+      // 現在の件数チェック
+      const current = document.querySelectorAll('.fridge-chip').length;
+      if (current >= FRIDGE_MAX) {
+        const guide = document.getElementById('fridgeGuide');
+        guide.textContent = '上限（' + FRIDGE_MAX + '個）に達しました。使い切った食材を削除してください。';
+        guide.classList.remove('hidden');
+        return;
+      }
+
       input.value = '';
+      const guide = document.getElementById('fridgeGuide');
+      guide.classList.add('hidden');
+
       const result = await addFridgeItem(householdId, name);
       if (result) {
         await renderFridgeItems();
+        // 上限近づいたらガイド表示
+        const after = document.querySelectorAll('.fridge-chip').length;
+        if (after >= FRIDGE_MAX - 5) {
+          guide.textContent = '残り' + (FRIDGE_MAX - after) + '個登録できます。調味料など常備品は登録不要です。';
+          guide.classList.remove('hidden');
+        }
       } else {
         showToast('追加に失敗しました', 'error');
       }
