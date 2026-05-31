@@ -206,7 +206,7 @@
         }
         if (nameCandidate && nameCandidate.length >= 2 && nameCandidate.length <= 25) {
           if (currentDish) results.push(currentDish);
-          currentDish = { name: nameCandidate, ingredients: [] };
+          currentDish = { name: nameCandidate, ingredients: [], description: '' };
           return;
         }
 
@@ -226,6 +226,12 @@
           if (ing.length >= 1 && ing.length <= 15 && !/[。！？]/.test(ing)) {
             currentDish.ingredients.push(ing);
           }
+          return;
+        }
+
+        // 説明文: 食材行・箇条書き以外で句読点を含む行を説明として取得
+        if (!currentDish.description && trimmed.length > 10 && /[。、]/.test(trimmed)) {
+          currentDish.description = trimmed;
         }
       });
 
@@ -311,16 +317,19 @@
             var btn = document.createElement('button');
             btn.textContent = '📝 ' + item.name + ' を記録する';
             btn.style.cssText = 'display:block;padding:8px 16px;border-radius:99px;background:var(--terra);color:#fff;border:none;cursor:pointer;font-size:0.8rem;font-family:inherit;text-align:left;';
-            btn.onclick = (function(dish, ings) {
+            btn.onclick = (function(dish, ings, desc) {
               return function() {
                 var t = new Date().toISOString().split('T')[0];
                 var url = 'log.html?date=' + t + '&dish=' + encodeURIComponent(dish);
                 if (ings && ings.length > 0) {
                   url += '&ingredients=' + encodeURIComponent(ings.join(','));
                 }
+                if (desc) {
+                  url += '&memo=' + encodeURIComponent('【AI提案より】\n' + desc);
+                }
                 location.href = url;
               };
-            })(item.name, item.ingredients);
+            })(item.name, item.ingredients, item.description);
             bw.appendChild(btn);
             // 食材プレビュー
             if (item.ingredients && item.ingredients.length > 0) {
