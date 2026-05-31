@@ -173,7 +173,12 @@
         </div>
 
         <!-- メンバー一覧 -->
-        <div class="member-list" id="memberList"></div>
+        <div id="memberSection" class="hidden" style="margin-top:4px;padding:8px 0 0;">
+          <div style="font-size:0.72rem;font-weight:700;color:var(--muted);letter-spacing:0.08em;padding:0 2px 6px;">
+            メンバー（<span id="memberCount">0</span>人）
+          </div>
+          <div class="member-list" id="memberList"></div>
+        </div>
 
         <!-- 世帯を離れる -->
         <div id="leaveSection" class="hidden" style="margin-top:12px;">
@@ -316,8 +321,10 @@
 
       // メンバー一覧
       const members = await getHouseholdMembers(householdId);
+      const memberSection = document.getElementById('memberSection');
       const list = document.getElementById('memberList');
       if (members.length > 0) {
+        document.getElementById('memberCount').textContent = members.length;
         list.innerHTML = members.map(m => `
           <div class="member-item">
             <span>👤</span>
@@ -325,8 +332,9 @@
             <span class="member-role">${m.role === 'owner' ? 'オーナー' : 'メンバー'}</span>
           </div>
         `).join('');
+        memberSection.classList.remove('hidden');
       } else {
-        list.innerHTML = '';
+        memberSection.classList.add('hidden');
       }
 
       const myRecord = members.find(m => m.id === currentUser.id);
