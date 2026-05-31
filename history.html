@@ -95,6 +95,87 @@
     }
     .heart-btn:active { transform: scale(1.4); }
     .heart-btn.loved { filter: none; }
+
+    /* =====================
+       詳細モーダル
+       ===================== */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(74,46,26,0.4);
+      z-index: 200;
+      display: flex;
+      align-items: flex-end;
+      justify-content: center;
+      animation: fadeIn 0.2s ease;
+    }
+    @keyframes fadeIn { from { opacity:0 } to { opacity:1 } }
+
+    .modal-sheet {
+      width: 100%;
+      max-width: 480px;
+      background: var(--white);
+      border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+      padding: 24px 20px 40px;
+      animation: slideUp 0.25s ease;
+    }
+    @keyframes slideUp {
+      from { transform: translateY(60px); opacity: 0; }
+      to   { transform: translateY(0);    opacity: 1; }
+    }
+
+    .modal-handle {
+      width: 40px; height: 4px;
+      background: var(--border);
+      border-radius: 99px;
+      margin: 0 auto 20px;
+    }
+
+    .modal-title {
+      font-family: var(--font-display);
+      font-size: 1.2rem;
+      color: var(--brown);
+      margin-bottom: 4px;
+    }
+
+    .modal-meta {
+      font-size: 0.8rem;
+      color: var(--muted);
+      margin-bottom: 16px;
+    }
+
+    .modal-section {
+      background: var(--surface);
+      border-radius: var(--radius-sm);
+      padding: 12px 14px;
+      margin-bottom: 10px;
+    }
+
+    .modal-section-label {
+      font-size: 0.7rem;
+      font-weight: 700;
+      color: var(--muted);
+      letter-spacing: 0.06em;
+      margin-bottom: 6px;
+    }
+
+    .modal-section-value {
+      font-size: 0.88rem;
+      color: var(--brown);
+      line-height: 1.6;
+    }
+
+    .modal-actions {
+      display: flex;
+      gap: 10px;
+      margin-top: 20px;
+    }
+
+    .modal-actions .btn {
+      flex: 1;
+      padding: 14px;
+      font-size: 0.88rem;
+    }
   </style>
 </head>
 <body>
@@ -218,6 +299,60 @@
       }).join('');
     }
 
+    const DAY_LABELS_H = ['日','月','火','水','木','金','土'];
+
+    function openModal(log) {
+      const d = new Date(log.date);
+      const [label] = MEAL_BADGE[log.meal_type] || ['?'];
+
+      document.getElementById('modalDishName').textContent = log.dish_name;
+      document.getElementById('modalMeta').textContent =
+        `${d.getMonth()+1}月${d.getDate()}日（${DAY_LABELS_H[d.getDay()]}）${label}`;
+
+      // 食材
+      const ingWrap = document.getElementById('modalIngredientsWrap');
+      const ingEl   = document.getElementById('modalIngredients');
+      if (log.ingredients && log.ingredients.length) {
+        ingEl.textContent = log.ingredients.join('・');
+        ingWrap.classList.remove('hidden');
+      } else {
+        ingWrap.classList.add('hidden');
+      }
+
+      // メモ
+      const memoWrap = document.getElementById('modalMemoWrap');
+      const memoEl   = document.getElementById('modalMemo');
+      if (log.memo) {
+        memoEl.textContent = log.memo;
+        memoWrap.classList.remove('hidden');
+      } else {
+        memoWrap.classList.add('hidden');
+      }
+
+      // 評価
+      const r = log.rating || 0;
+      document.getElementById('modalRating').textContent =
+        r ? '★'.repeat(r) + '☆'.repeat(5-r) : '未評価';
+
+      // ボタン
+      document.getElementById('modalEditBtn').onclick = () => {
+        location.href = `log.html?date=${log.date}&meal=${log.meal_type}`;
+      };
+      document.getElementById('modalCopyBtn').onclick = () => {
+        const today = new Date().toISOString().split('T')[0];
+        location.href = `log.html?date=${today}&meal=dinner&dish=${encodeURIComponent(log.dish_name)}`;
+      };
+
+      document.getElementById('detailModal').classList.remove('hidden');
+    }
+
+    function closeModal(e) {
+      // オーバーレイ自体クリック時のみ閉じる
+      if (e.target.id === 'detailModal') {
+        document.getElementById('detailModal').classList.add('hidden');
+      }
+    }
+
     async function toggleLove(logId, isLoved, btn) {
       const newRating = isLoved ? 3 : 5;
       const { error } = await db
@@ -238,5 +373,34 @@
 
     init();
   </script>
+  <!-- 詳細モーダル -->
+  <div class="modal-overlay hidden" id="detailModal" onclick="closeModal(event)">
+    <div class="modal-sheet">
+      <div class="modal-handle"></div>
+      <div class="modal-title" id="modalDishName"></div>
+      <div class="modal-meta" id="modalMeta"></div>
+
+      <div class="modal-section" id="modalIngredientsWrap">
+        <div class="modal-section-label">使用食材</div>
+        <div class="modal-section-value" id="modalIngredients"></div>
+      </div>
+
+      <div class="modal-section" id="modalMemoWrap">
+        <div class="modal-section-label">メモ</div>
+        <div class="modal-section-value" id="modalMemo"></div>
+      </div>
+
+      <div class="modal-section">
+        <div class="modal-section-label">評価</div>
+        <div class="modal-section-value" id="modalRating"></div>
+      </div>
+
+      <div class="modal-actions">
+        <button class="btn btn-secondary" id="modalEditBtn">✏️ 編集する</button>
+        <button class="btn btn-primary" id="modalCopyBtn">🍳 今日も作る</button>
+      </div>
+    </div>
+  </div>
+
 </body>
 </html>
