@@ -164,7 +164,7 @@
             <span class="label">招待コードで参加する</span>
             <span class="arrow" id="joinArrow">›</span>
           </div>
-          <div class="settings-item" onclick="toggleSection('householdNameSection')">
+          <div class="settings-item" id="householdNameItem" onclick="toggleSection('householdNameSection')">
             <span class="icon">🏠</span>
             <span class="label">世帯名</span>
             <span class="value" id="householdName">読込中...</span>
@@ -329,10 +329,21 @@
         list.innerHTML = '';
       }
 
-      // 複数メンバーかつ自分がメンバー（非オーナー）の場合のみ「離れる」ボタンを表示
-      const leaveSection = document.getElementById('leaveSection');
       const myRecord = members.find(m => m.id === currentUser.id);
-      if (members.length > 1 && myRecord?.role === 'member') {
+      const isOwner = myRecord?.role === 'owner';
+
+      // 非オーナーは世帯名編集を非表示
+      const householdNameItem = document.getElementById('householdNameItem');
+      const householdNameArrow = document.getElementById('householdNameArrow');
+      if (!isOwner) {
+        householdNameItem.style.cursor = 'default';
+        householdNameItem.onclick = null;
+        householdNameArrow.style.display = 'none';
+      }
+
+      // 複数メンバーかつ非オーナーのみ「離れる」ボタンを表示
+      const leaveSection = document.getElementById('leaveSection');
+      if (members.length > 1 && !isOwner) {
         leaveSection.classList.remove('hidden');
       } else {
         leaveSection.classList.add('hidden');
