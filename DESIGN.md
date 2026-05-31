@@ -1,6 +1,6 @@
 # Tavera 設計書・引き継ぎ書
 
-**バージョン**: 0.5.1
+**バージョン**: 0.5.2
 **最終更新**: 2026-05-31
 **ステータス**: MVP稼働中・Phase 2開発中
 
@@ -248,7 +248,18 @@
     - 元の世帯のログは元の世帯に残る
     - 再度招待コードで別の世帯に参加可能
   - 招待コード検索はRPC（`find_household_by_code`）経由で実装（UUID→text変換のため）
-  - 追加済みSupabase SQL: `members_self_update`, `households_owner_update`, `find_household_by_code`関数
+  - 追加済みSupabase SQL（累計）:
+    - `members_self_update`: メンバーが自分のhousehold_idを更新可能
+    - `members_household_select`: 同じ世帯のメンバー全員を表示（SECURITY DEFINER関数`get_my_household_id()`で再帰回避）
+    - `find_household_by_code`: 招待コード検索用RPC関数
+    - `menu_households`ポリシーを全面整理（households_select / insert / update / delete）
+    - `households_update`はroleベース判定に変更（`created_by`ではなく`menu_members.role = 'owner'`で判断）
+  - **既知の問題**: テスト繰り返しにより`わが家`世帯が大量に作成されている。本番運用前にクリーンアップ推奨
+    ```sql
+    -- 不要な世帯を削除（menu_membersに使われていないもの）
+    DELETE FROM menu_households
+    WHERE id NOT IN (SELECT household_id FROM menu_members);
+    ```
 
 ### Phase 3 アレルギー・給食対応
 - 家族メンバー管理（名前・アレルギー設定）
