@@ -14,6 +14,9 @@
 <link rel="apple-touch-icon" href="assets/icon-180.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="theme-color" content="#C8522A">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="js/supabase.js"></script>
+<script src="js/auth.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Kaisei+Decol:wght@400;700&family=Zen+Kaku+Gothic+New:wght@300;400;500;700&display=swap" rel="stylesheet">
@@ -324,7 +327,7 @@ footer { background: var(--brown); color: rgba(255,255,255,0.7); }
       <a href="#company">運営者情報</a>
     </nav>
     <div class="header-cta">
-      <a href="home.html" class="btn btn-primary">無料で始める</a>
+      <a href="#" onclick="startLogin(event)" class="btn btn-primary">無料で始める</a>
     </div>
   </div>
 </header>
@@ -339,7 +342,7 @@ footer { background: var(--brown); color: rgba(255,255,255,0.7); }
       冷蔵庫の食材を登録すれば、使い切りメニューも提案してくれます。
     </p>
     <div class="hero-cta">
-      <a href="home.html" class="btn btn-primary btn-xl">Googleで無料ではじめる</a>
+      <a href="#" onclick="startLogin(event)" class="btn btn-primary btn-xl">Googleで無料ではじめる</a>
       <a href="#features" class="btn btn-outline btn-lg">機能を見る</a>
     </div>
 
@@ -535,7 +538,7 @@ footer { background: var(--brown); color: rgba(255,255,255,0.7); }
   <div class="fade-in">
     <h2 class="section-title">今日から、献立の悩みを手放そう</h2>
     <p>無料・登録1分・インストール不要。Googleアカウントでそのまま始められます。</p>
-    <a href="home.html" class="btn btn-white btn-xl">Googleで無料ではじめる →</a>
+    <a href="#" onclick="startLogin(event)" class="btn btn-white btn-xl">Googleで無料ではじめる →</a>
   </div>
 </section>
 
@@ -570,7 +573,7 @@ footer { background: var(--brown); color: rgba(255,255,255,0.7); }
           <ul>
             <li><a href="#features">機能</a></li>
             <li><a href="#ai">AI提案</a></li>
-            <li><a href="home.html">アプリを開く</a></li>
+            <li><a href="#" onclick="startLogin(event)">アプリを開く</a></li>
           </ul>
         </div>
         <div class="footer-col">
@@ -595,6 +598,18 @@ footer { background: var(--brown); color: rgba(255,255,255,0.7); }
 </footer>
 
 <script>
+// Google ログイン
+async function startLogin(e) {
+  e.preventDefault();
+  await signInWithGoogle();
+}
+
+// すでにログイン済みならhome.htmlへ
+(async () => {
+  const user = await getUser();
+  if (user) window.location.href = 'home.html';
+})();
+
 // Fade-in on scroll
 const obs = new IntersectionObserver((entries) => {
   entries.forEach(e => { if (e.isIntersecting) { e.target.classList.add('visible'); obs.unobserve(e.target); } });
