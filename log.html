@@ -299,7 +299,7 @@
 
       if (result) {
         showToast('記録しました！', 'success');
-        setTimeout(() => history.back(), 1000);
+        setTimeout(() => location.href = 'home.html', 1000);
       } else {
         showToast('保存に失敗しました', 'error');
       }
