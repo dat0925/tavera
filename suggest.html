@@ -20,68 +20,42 @@
   <script src="js/auth.js"></script>
   <script src="js/menu-log.js"></script>
   <style>
-    .chat-page {
-      display: flex;
-      flex-direction: column;
-      height: calc(100vh - 57px - 60px);
-    }
-    .chat-messages {
-      flex: 1;
-      overflow-y: auto;
-      padding: 16px;
-      display: flex;
-      flex-direction: column;
-      gap: 14px;
-    }
-    .chat-bubble { animation: fadeInUp 0.3s ease; }
-    .quick-chips {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
-      padding: 4px 0 8px;
-    }
+    .chat-page { display:flex; flex-direction:column; height:calc(100vh - 57px - 60px); }
+    .chat-messages { flex:1; overflow-y:auto; padding:16px; display:flex; flex-direction:column; gap:14px; }
+    .chat-bubble { animation:fadeInUp 0.3s ease; }
+    .quick-chips { display:flex; flex-wrap:wrap; gap:8px; padding:4px 0 8px; }
     .quick-chip {
-      padding: 6px 14px;
-      border-radius: 99px;
-      border: 1.5px solid var(--border);
-      background: var(--white);
-      font-size: 0.8rem;
-      color: var(--brown);
-      cursor: pointer;
+      padding:6px 14px; border-radius:99px;
+      border:1.5px solid var(--border); background:var(--white);
+      font-size:0.8rem; color:var(--brown); cursor:pointer; transition:all var(--transition);
     }
+    .quick-chip:hover { border-color:var(--terra); color:var(--terra); background:#FEF3EC; }
+    .fridge-banner {
+      display:flex; align-items:center; gap:8px;
+      background:#EEF3E2; border:1.5px solid var(--olive);
+      border-radius:var(--radius-sm); padding:8px 12px; margin-bottom:4px;
+      font-size:0.8rem; color:var(--olive); font-weight:500;
+    }
+    .fridge-banner-items { flex:1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
     .chat-input-wrap {
-      border-top: 1px solid var(--border);
-      padding: 10px 14px;
-      display: flex;
-      gap: 10px;
-      align-items: flex-end;
-      background: var(--white);
+      border-top:1px solid var(--border); padding:10px 14px;
+      display:flex; gap:10px; align-items:flex-end; background:var(--white);
     }
     .chat-input-wrap textarea {
-      flex: 1;
-      border: 1.5px solid var(--border);
-      border-radius: var(--radius-sm);
-      padding: 10px 14px;
-      font-size: 0.9rem;
-      resize: none;
-      outline: none;
-      max-height: 100px;
-      font-family: var(--font-body);
+      flex:1; border:1.5px solid var(--border); border-radius:var(--radius-sm);
+      padding:10px 14px; font-size:0.9rem; resize:none; outline:none;
+      max-height:100px; overflow-y:auto; font-family:var(--font-body); line-height:1.5;
     }
+    .chat-input-wrap textarea:focus { border-color:var(--terra); }
     .send-btn {
-      width: 42px; height: 42px;
-      border-radius: 50%;
-      background: var(--terra);
-      color: var(--white);
-      display: flex; align-items: center; justify-content: center;
-      border: none; cursor: pointer; font-size: 1.1rem;
+      width:42px; height:42px; border-radius:50%;
+      background:var(--terra); color:var(--white);
+      display:flex; align-items:center; justify-content:center;
+      flex-shrink:0; border:none; cursor:pointer;
+      transition:background var(--transition); font-size:1.1rem;
     }
-    .send-btn:disabled { background: var(--border); }
-    #debugLog {
-      font-size: 0.7rem; color: red;
-      padding: 4px 16px;
-      white-space: pre-wrap;
-    }
+    .send-btn:hover { background:#b8451f; }
+    .send-btn:disabled { background:var(--border); cursor:default; }
   </style>
 </head>
 <body>
@@ -95,7 +69,6 @@
     </header>
 
     <div class="chat-page">
-      <div id="debugLog"></div>
       <div class="chat-messages" id="chatMessages">
         <div class="chat-bubble ai">
           <div class="loading-dots" style="padding:8px 0"><span></span><span></span><span></span></div>
@@ -133,153 +106,183 @@
   </div>
 
   <script>
-    let householdId = null;
-    let isLoading = false;
-    let recentDishes = [];
-    let likedDishesCache = [];
-    let fridgeItemsCache = [];
-    const messages = [];
-
-    function dbg(msg) {
-      const el = document.getElementById('debugLog');
-      if (el) el.textContent += msg + '
-';
-      console.log('[DBG]', msg);
-    }
+    var householdId = null;
+    var isLoading = false;
+    var recentDishes = [];
+    var likedDishesCache = [];
+    var fridgeItemsCache = [];
+    var chatMessages = [];
 
     async function init() {
-      dbg('init開始');
       try {
-        const user = await requireAuth();
-        dbg('user: ' + (user ? user.email : 'null'));
+        var user = await requireAuth();
         if (!user) return;
-
-        dbg('getOrCreateHousehold...');
         householdId = await getOrCreateHousehold(user.id);
-        dbg('householdId: ' + householdId);
-
-        try { recentDishes = await getLogsForWeek(householdId); dbg('recentDishes: ' + recentDishes.length); } catch(e) { dbg('recentDishes失敗: '+e); }
-        try { likedDishesCache = await getLikedDishes(householdId, 5); dbg('likedDishes: ' + likedDishesCache.length); } catch(e) { dbg('likedDishes失敗: '+e); }
+        try { recentDishes = await getLogsForWeek(householdId); } catch(e) { recentDishes = []; }
+        try { likedDishesCache = await getLikedDishes(householdId, 5); } catch(e) { likedDishesCache = []; }
         try {
           if (typeof getFridgeItems === 'function') {
             fridgeItemsCache = await getFridgeItems(householdId);
-            dbg('fridgeItems: ' + fridgeItemsCache.length);
-          } else {
-            dbg('getFridgeItems未定義');
           }
-        } catch(e) { dbg('fridgeItems失敗: '+e); fridgeItemsCache = []; }
-
-        dbg('renderWelcome呼び出し');
+        } catch(e) { fridgeItemsCache = []; }
         renderWelcome();
-        dbg('renderWelcome完了');
       } catch(e) {
-        dbg('init例外: ' + e);
+        console.error('init error:', e);
         renderWelcome();
       }
     }
 
     function renderWelcome() {
-      const container = document.getElementById('chatMessages');
+      var container = document.getElementById('chatMessages');
       container.innerHTML = '';
-      const weekNames = [...new Set((recentDishes || []).map(l => l.dish_name))];
-      let greeting = 'こんにちは！今日の献立をお手伝いします🍳
-どんなメニューにしますか？';
+      var weekNames = Array.from(new Set((recentDishes || []).map(function(l) { return l.dish_name; })));
+
+      var fridgeBannerHtml = '';
       if (fridgeItemsCache && fridgeItemsCache.length > 0) {
-        const n = fridgeItemsCache.slice(0,3).map(i=>i.name).join('・');
-        greeting = `こんにちは！🍳
-冷蔵庫に${n}がありますね。これを使った献立を提案できます！`;
-      } else if (weekNames.length > 0) {
-        const preview = weekNames.slice(0,3).join('・');
-        greeting = `こんにちは！🍳
-今週は${preview}を食べましたね。明日の夕食はどうしますか？`;
+        var names = fridgeItemsCache.map(function(i) { return i.name; }).join('・');
+        fridgeBannerHtml = '<div class="fridge-banner"><span>🧊</span><span class="fridge-banner-items">' + names + '</span></div>';
       }
-      const chips = buildChips(weekNames);
-      const bubble = document.createElement('div');
+
+      var greeting;
+      if (fridgeItemsCache && fridgeItemsCache.length > 0) {
+        var fn = fridgeItemsCache.slice(0, 3).map(function(i) { return i.name; }).join('・');
+        var suffix = fridgeItemsCache.length > 3 ? 'など' : '';
+        greeting = 'こんにちは！🍳\n冷蔵庫に' + fn + suffix + 'がありますね。\nこれを使った献立を提案できます！';
+      } else if (weekNames.length === 0) {
+        greeting = 'こんにちは！今日の献立をお手伝いします🍳\nまだ今週の記録がないですね。どんなメニューにしますか？';
+      } else {
+        var preview = weekNames.slice(0, 3).join('・');
+        var suf = weekNames.length > 3 ? ('など' + weekNames.length + '品') : '';
+        greeting = 'こんにちは！🍳\n今週は' + preview + suf + 'を食べましたね。\n明日の夕食はどうしますか？';
+      }
+
+      var chips = buildChips(weekNames);
+      var chipsHtml = chips.map(function(c) {
+        return '<button class="quick-chip" onclick=\'sendQuick(' + JSON.stringify(c.message) + ')\'>' + c.label + '</button>';
+      }).join('');
+
+      var bubble = document.createElement('div');
       bubble.className = 'chat-bubble ai';
-      bubble.innerHTML = `
-        <div class="card-surface" style="padding:14px;white-space:pre-wrap;font-size:0.88rem;line-height:1.7;">${greeting}</div>
-        <div class="quick-chips">${chips.map(c=>`<button class="quick-chip" onclick="sendQuick(${JSON.stringify(c.message)})">${c.label}</button>`).join('')}</div>
-      `;
+      bubble.innerHTML = fridgeBannerHtml +
+        '<div class="card-surface" style="padding:14px;white-space:pre-wrap;font-size:0.88rem;line-height:1.7;">' + greeting + '</div>' +
+        '<div class="quick-chips">' + chipsHtml + '</div>';
       container.appendChild(bubble);
     }
 
     function buildChips(weekNames) {
-      const chips = [];
+      var chips = [];
       if (fridgeItemsCache && fridgeItemsCache.length > 0) {
-        const n = fridgeItemsCache.map(i=>i.name).join('・');
-        chips.push({ label:'🧊 冷蔵庫の食材を使いたい', message:`冷蔵庫に${n}があります。これらを使った献立を3つ提案してください。` });
+        var fn = fridgeItemsCache.map(function(i) { return i.name; }).join('・');
+        chips.push({ label: '🧊 冷蔵庫の食材を使いたい', message: '冷蔵庫に' + fn + 'があります。これらを使った献立を3つ提案してください。' });
       }
-      if (weekNames.length > 0) chips.push({ label:'今週と違うものがいい', message:`今週は${weekNames.slice(0,3).join('・')}を食べました。かぶらない別ジャンルのメニューを3つ提案してください。` });
-      chips.push({ label:'簡単に作れるものがいい', message:'30分以内で作れる簡単なメニューを3つ提案してください。' });
-      chips.push({ label:'お任せで！', message:'今日の夕食にいいメニューを3つ提案してください。' });
+      if (weekNames.length > 0) {
+        chips.push({ label: '今週と違うものがいい', message: '今週は' + weekNames.slice(0,3).join('・') + 'を食べました。かぶらない別ジャンルのメニューを3つ提案してください。' });
+      }
+      if (likedDishesCache && likedDishesCache.length > 0) {
+        var liked = likedDishesCache.slice(0, 3).map(function(d) { return d.dish_name; }).join('・');
+        chips.push({ label: '好評メニューに近いものがいい', message: '家族に好評だったのは' + liked + 'です。これに近いテイストのメニューを3つ提案してください。' });
+      }
+      chips.push({ label: '簡単に作れるものがいい', message: '30分以内で作れる簡単なメニューを3つ提案してください。' });
+      chips.push({ label: 'お任せで！', message: weekNames.length > 0 ? ('今週は' + weekNames.slice(0,3).join('・') + 'を食べました。明日の夕食にぴったりのメニューを3つ提案してください。') : '今日の夕食にいいメニューを3つ提案してください。' });
       return chips;
     }
 
-    function handleKey(e) { if (e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendMessage();} }
-    function autoResize(el) { el.style.height='auto'; el.style.height=Math.min(el.scrollHeight,100)+'px'; }
-    function sendQuick(text) { document.getElementById('chatInput').value=text; sendMessage(); }
+    function handleKey(e) { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); } }
+    function autoResize(el) { el.style.height = 'auto'; el.style.height = Math.min(el.scrollHeight, 100) + 'px'; }
+    function sendQuick(text) { document.getElementById('chatInput').value = text; sendMessage(); }
 
     function addBubble(text, role) {
-      const c = document.getElementById('chatMessages');
-      const b = document.createElement('div');
-      b.className=`chat-bubble ${role}`; b.textContent=text;
-      c.appendChild(b); c.scrollTop=c.scrollHeight; return b;
+      var c = document.getElementById('chatMessages');
+      var b = document.createElement('div');
+      b.className = 'chat-bubble ' + role;
+      b.textContent = text;
+      c.appendChild(b); c.scrollTop = c.scrollHeight;
+      return b;
     }
     function addLoadingBubble() {
-      const c = document.getElementById('chatMessages');
-      const b = document.createElement('div');
-      b.className='chat-bubble ai';
-      b.innerHTML='<div class="loading-dots"><span></span><span></span><span></span></div>';
-      c.appendChild(b); c.scrollTop=c.scrollHeight; return b;
+      var c = document.getElementById('chatMessages');
+      var b = document.createElement('div');
+      b.className = 'chat-bubble ai';
+      b.innerHTML = '<div class="loading-dots"><span></span><span></span><span></span></div>';
+      c.appendChild(b); c.scrollTop = c.scrollHeight;
+      return b;
     }
 
     async function sendMessage() {
       if (isLoading) return;
-      const input = document.getElementById('chatInput');
-      const text = input.value.trim();
+      var input = document.getElementById('chatInput');
+      var text = input.value.trim();
       if (!text) return;
-      input.value=''; input.style.height='auto';
-      addBubble(text,'user');
-      messages.push({role:'user',content:text});
-      isLoading=true;
-      document.getElementById('sendBtn').disabled=true;
-      const lb = addLoadingBubble();
+      input.value = ''; input.style.height = 'auto';
+      addBubble(text, 'user');
+      chatMessages.push({ role: 'user', content: text });
+      isLoading = true;
+      document.getElementById('sendBtn').disabled = true;
+      var lb = addLoadingBubble();
       try {
-        const session = await getSession();
-        const res = await fetch('https://sfhtvtcmgueystyuhzvd.supabase.co/functions/v1/tavera-suggest',{
-          method:'POST',
-          headers:{'Content-Type':'application/json','Authorization':`Bearer ${session?.access_token}`},
-          body:JSON.stringify({messages,likedDishes:likedDishesCache,recentDishes:recentDishes.slice(0,10),fridgeItems:(fridgeItemsCache||[]).map(i=>i.name)}),
+        var session = await getSession();
+        var res = await fetch('https://sfhtvtcmgueystyuhzvd.supabase.co/functions/v1/tavera-suggest', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ' + (session && session.access_token ? session.access_token : '')
+          },
+          body: JSON.stringify({
+            messages: chatMessages,
+            likedDishes: likedDishesCache,
+            recentDishes: recentDishes.slice(0, 10),
+            fridgeItems: (fridgeItemsCache || []).map(function(i) { return i.name; })
+          })
         });
-        const data = await res.json();
-        const reply = data.reply||'提案の取得に失敗しました。';
+        var data = await res.json();
+        var reply = data.reply || '提案の取得に失敗しました。';
         lb.remove();
-        messages.push({role:'assistant',content:reply});
-        const rb = document.createElement('div');
-        rb.className='chat-bubble ai';
-        rb.style.cssText='white-space:pre-wrap;font-size:0.88rem;line-height:1.7;';
-        rb.textContent=reply;
-        const lines=reply.split('
-').filter(l=>l.trim());
-        const dishes=[];
-        lines.forEach(l=>{const m=l.match(/^[①②③\d]+[\.．\s。]?\s*\*{0,2}([^\*
-（(]{2,20})\*{0,2}/);if(m)dishes.push(m[1].trim());});
-        const bw=document.createElement('div');
-        bw.style.cssText='margin-top:12px;display:flex;flex-direction:column;gap:6px;';
-        (dishes.length>0?dishes.slice(0,3):['この献立']).forEach((d,i)=>{
-          const btn=document.createElement('button');
-          btn.textContent='📝 '+(dishes.length>0?d:'この献立')+' を記録する';
-          btn.style.cssText='display:block;padding:8px 16px;border-radius:99px;background:var(--terra);color:#fff;border:none;cursor:pointer;font-size:0.8rem;font-family:inherit;text-align:left;';
-          btn.onclick=()=>{const t=new Date().toISOString().split('T')[0];location.href='log.html?date='+t+'&dish='+encodeURIComponent(d);};
-          bw.appendChild(btn);
+        chatMessages.push({ role: 'assistant', content: reply });
+        var rb = document.createElement('div');
+        rb.className = 'chat-bubble ai';
+        rb.style.whiteSpace = 'pre-wrap';
+        rb.style.fontSize = '0.88rem';
+        rb.style.lineHeight = '1.7';
+        rb.textContent = reply;
+        var lines = reply.split('\n').filter(function(l) { return l.trim(); });
+        var dishes = [];
+        lines.forEach(function(line) {
+          var m = line.match(/^[①②③\d]+[.\s]?\s*([^\n（(]{2,20})/);
+          if (m) dishes.push(m[1].trim().replace(/\*+/g, ''));
         });
+        var bw = document.createElement('div');
+        bw.style.cssText = 'margin-top:12px;display:flex;flex-direction:column;gap:6px;';
+        var targets = dishes.length > 0 ? dishes.slice(0, 3) : [];
+        if (targets.length === 0) {
+          var btn = document.createElement('button');
+          btn.textContent = '📝 この献立を記録する';
+          btn.style.cssText = 'display:block;padding:8px 16px;border-radius:99px;background:var(--terra);color:#fff;border:none;cursor:pointer;font-size:0.8rem;font-family:inherit;';
+          btn.onclick = function() { location.href = 'log.html'; };
+          bw.appendChild(btn);
+        } else {
+          targets.forEach(function(d) {
+            var btn = document.createElement('button');
+            btn.textContent = '📝 ' + d + ' を記録する';
+            btn.style.cssText = 'display:block;padding:8px 16px;border-radius:99px;background:var(--terra);color:#fff;border:none;cursor:pointer;font-size:0.8rem;font-family:inherit;text-align:left;';
+            btn.onclick = (function(dish) {
+              return function() {
+                var t = new Date().toISOString().split('T')[0];
+                location.href = 'log.html?date=' + t + '&dish=' + encodeURIComponent(dish);
+              };
+            })(d);
+            bw.appendChild(btn);
+          });
+        }
         rb.appendChild(bw);
         document.getElementById('chatMessages').appendChild(rb);
-        document.getElementById('chatMessages').scrollTop=999999;
+        document.getElementById('chatMessages').scrollTop = 999999;
       } catch(e) {
-        lb.remove(); addBubble('エラーが発生しました。もう一度お試しください。','ai'); console.error(e);
+        lb.remove();
+        addBubble('エラーが発生しました。もう一度お試しください。', 'ai');
+        console.error(e);
       }
-      isLoading=false; document.getElementById('sendBtn').disabled=false;
+      isLoading = false;
+      document.getElementById('sendBtn').disabled = false;
     }
 
     init();
