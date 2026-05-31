@@ -298,6 +298,11 @@
       // 招待コード（世帯IDの先頭8文字）
       document.getElementById('inviteCode').textContent = householdId?.slice(0,8).toUpperCase() || '-';
 
+      // メンバー名をGoogle表示名で更新（毎回上書きして最新に保つ）
+      await db.from('menu_members')
+        .update({ name: meta.full_name || 'ユーザー' })
+        .eq('id', user.id);
+
       // 世帯名・メンバー表示
       await renderHousehold();
     }
@@ -324,9 +329,10 @@
         list.innerHTML = '';
       }
 
-      // 複数メンバーがいる世帯にいる場合のみ「離れる」ボタンを表示
+      // 複数メンバーかつ自分がメンバー（非オーナー）の場合のみ「離れる」ボタンを表示
       const leaveSection = document.getElementById('leaveSection');
-      if (members.length > 1) {
+      const myRecord = members.find(m => m.id === currentUser.id);
+      if (members.length > 1 && myRecord?.role === 'member') {
         leaveSection.classList.remove('hidden');
       } else {
         leaveSection.classList.add('hidden');
