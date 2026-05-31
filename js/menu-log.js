@@ -193,11 +193,11 @@ async function getHouseholdMembers(householdId) {
 
 // 招待コードで世帯に参加（UPDATEで自分のhousehold_idを切り替え）
 async function joinHouseholdByCode(userId, code) {
-  // 招待コード（8文字）で世帯を検索
+  // 招待コード（8文字）で世帯を検索（UUID→textにキャストして前方一致）
   const { data: households, error: searchErr } = await db
     .from('menu_households')
     .select('id, name')
-    .ilike('id', code + '%');
+    .filter('id::text', 'ilike', code.toLowerCase() + '%');
 
   if (searchErr) { console.error(searchErr); return { ok: false, message: 'エラーが発生しました' }; }
   if (!households || households.length === 0) return { ok: false, message: '招待コードが見つかりません' };
