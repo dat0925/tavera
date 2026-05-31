@@ -159,10 +159,16 @@
       // URLパラメータから日付・食事タイプを取得
       const params = new URLSearchParams(location.search);
       const dateParam = params.get('date') || toDateStr();
-      const mealParam = params.get('meal') || 'breakfast';
+      const mealParam = params.get('meal') || 'dinner';
+      const dishParam = params.get('dish') || '';
 
       document.getElementById('dateInput').value = dateParam;
       selectMealTab(mealParam);
+
+      // AI提案から料理名が渡されていればセット
+      if (dishParam) {
+        document.getElementById('dishName').value = dishParam;
+      }
 
       await loadExisting(dateParam, mealParam);
     }
