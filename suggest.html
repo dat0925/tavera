@@ -288,8 +288,7 @@
         // 「①」「1.」「**料理名**」などのパターンから料理名を抽出
         const dishCandidates = [];
         lines.forEach(line => {
-          const m = line.match(/^[①②③\d]+[\.．\s。]?\s*\*{0,2}([^\*
-（(]{2,20})\*{0,2}/);
+          const m = line.match(/^[①②③\d]+[\.．\s。]?\s*\*{0,2}([^\*\n（(]{2,20})\*{0,2}/);
           if (m) dishCandidates.push(m[1].trim());
         });
 
