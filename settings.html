@@ -212,7 +212,9 @@
           <div class="join-input-row">
             <input type="text" id="joinCodeInput" class="form-input"
                    placeholder="XXXXXXXX" maxlength="8"
-                   oninput="this.value=this.value.toUpperCase()">
+                   autocomplete="off" autocorrect="off"
+                   autocapitalize="characters" spellcheck="false"
+                   style="text-transform:uppercase;letter-spacing:0.1em;font-family:monospace;font-size:1rem;">
             <button class="btn btn-primary" onclick="joinHousehold()">参加する</button>
           </div>
         </div>
