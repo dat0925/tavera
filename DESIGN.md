@@ -1,7 +1,7 @@
 # Tavera 設計書・引き継ぎ書
 
-**バージョン**: 1.0.1
-**最終更新**: 2026-05-31
+**バージョン**: 1.1.0
+**最終更新**: 2026-06-01
 **ステータス**: 一般公開済み・本番運用中
 
 ---
@@ -46,9 +46,10 @@
 - **Google OAuth**: 有効
 
 ### Edge Functions
-| 関数名 | 用途 | JWT検証 |
-|--------|------|---------|
-| tavera-suggest | AI献立提案（Claude API呼び出し） | オフ |
+| 関数名 | 用途 | JWT検証 | モデル |
+|--------|------|---------|--------|
+| tavera-suggest | AI献立提案（Claude API呼び出し） | オフ | - |
+| tavera-kyushoku | 給食献立表の画像/PDF解析 | オフ | claude-haiku-4-5 |
 
 - Secret名: ANTHROPIC_API_KEY（TaskraのSecretを共有）
 
@@ -63,7 +64,7 @@
 |--------|-----|------|
 | id | uuid PK | |
 | name | text | 世帯名 |
-| created_by | uuid | 作成者のuser_id（権限判定には使わない。role=ownerで判断） |
+| created_by | uuid | 作成者のuser_id |
 | created_at | timestamptz | |
 
 ### menu_members（メンバー）
@@ -73,7 +74,7 @@
 | household_id | uuid FK | |
 | name | text | Google表示名（設定画面ロード時に自動更新） |
 | role | text | owner / member |
-| allergies | text[] | Phase 3で使用 |
+| allergies | text[] | 未使用（family_membersで管理） |
 
 ### menu_logs（献立ログ）
 | カラム | 型 | 説明 |
@@ -82,20 +83,20 @@
 | household_id | uuid FK | |
 | date | date | 献立日 |
 | meal_type | text | breakfast / lunch / dinner |
-| dish_name | text | 料理名 |
+| dish_name | text | 料理名（給食インポート時は「料理1・料理2・料理3」形式） |
 | memo | text | |
 | rating | int | 1〜5（5=また食べたい） |
 | ingredients | text[] | 使用食材 |
 | created_by | uuid | |
 | created_at | timestamptz | |
 
-### menu_fridge_items（冷蔵庫食材）★ v0.7.0追加
+### menu_fridge_items（冷蔵庫食材）
 | カラム | 型 | 説明 |
 |--------|-----|------|
 | id | uuid PK | |
 | household_id | uuid FK | |
 | name | text | 食材名（最大20文字） |
-| expires_on | date | 消費期限（任意） |
+| expires_on | date | 消費期限（任意）★UI追加済み |
 | created_by | uuid | |
 | created_at | timestamptz | |
 
@@ -109,42 +110,27 @@
 | used | boolean | 採用したか |
 | created_at | timestamptz | |
 
+### menu_family_members（家族メンバー）★v1.1.0追加
+| カラム | 型 | 説明 |
+|--------|-----|------|
+| id | uuid PK | |
+| household_id | uuid FK | |
+| nickname | text | 表示名（例：ママ・太郎） |
+| allergies | text[] | アレルギー食材リスト |
+| created_by | uuid | |
+| created_at | timestamptz | |
+
 ### RLSポリシー
 
-**menu_households**
+**menu_family_members**
 | ポリシー名 | 操作 | 条件 |
 |---|---|---|
-| households_select | SELECT | auth.uid() IS NOT NULL |
-| households_insert | INSERT | created_by = auth.uid() |
-| households_update | UPDATE | role = 'owner' |
-| households_delete | DELETE | created_by = auth.uid() |
+| fam_select | SELECT | household_id = get_my_household_id() |
+| fam_insert | INSERT | household_id = get_my_household_id() |
+| fam_update | UPDATE | household_id = get_my_household_id() |
+| fam_delete | DELETE | household_id = get_my_household_id() |
 
-**menu_members**
-| ポリシー名 | 操作 | 条件 |
-|---|---|---|
-| （自動生成） | SELECT | id = auth.uid() |
-| members_household_select | SELECT | household_id = get_my_household_id() |
-| members_self_update | UPDATE | id = auth.uid() |
-
-**menu_fridge_items**
-| ポリシー名 | 操作 | 条件 |
-|---|---|---|
-| fridge_select | SELECT | household_id = get_my_household_id() |
-| fridge_insert | INSERT | household_id = get_my_household_id() |
-| fridge_delete | DELETE | household_id = get_my_household_id() |
-
-**SECURITY DEFINER関数**
-```sql
-CREATE OR REPLACE FUNCTION get_my_household_id()
-RETURNS UUID LANGUAGE sql SECURITY DEFINER AS $$
-  SELECT household_id FROM menu_members WHERE id = auth.uid() LIMIT 1;
-$$;
-
-CREATE OR REPLACE FUNCTION find_household_by_code(code TEXT)
-RETURNS TABLE(id UUID, name TEXT) LANGUAGE sql SECURITY DEFINER AS $$
-  SELECT id, name FROM menu_households WHERE id::text ILIKE code || '%' LIMIT 2;
-$$;
-```
+（他テーブルのRLSは従来通り）
 
 ---
 
@@ -152,12 +138,13 @@ $$;
 
 | ファイル | 画面 | 主な機能 |
 |----------|------|---------|
-| index.html | LP（ランディングページ） | 機能紹介・AIモック・CTA・Googleログイン・ログイン済みなら自動でhome.htmlへ |
-| home.html | ホーム | 7日間日付ストリップ・朝昼夜グリッド・🧊冷蔵庫食材メモ・また食べたいランキング |
-| log.html | 献立記録/編集 | URLパラメータで動作が変わる（下記参照） |
-| history.html | 履歴 | 全件一覧・キーワード検索・タップで詳細モーダル |
-| suggest.html | AI提案 | チャット形式・冷蔵庫食材バナー・動的クイックチップ・食材＋説明プレビュー付き記録ボタン |
-| settings.html | 設定 | プロフィール・世帯管理・招待・ログアウト |
+| index.html | LP | 機能紹介・AIモック・CTA・Googleログイン・ログイン済みなら自動でhome.htmlへ |
+| home.html | ホーム | 7日間日付ストリップ・朝昼夜グリッド・🧊冷蔵庫食材メモ（期限入力対応）・また食べたいランキング・給食インポートへのリンク |
+| log.html | 献立記録/編集 | URLパラメータで動作が変わる・食材入力・アレルギーリアルタイム警告 |
+| history.html | 履歴 | リスト表示・月間カレンダー表示（切替）・キーワード検索・詳細モーダル |
+| suggest.html | AI提案 | チャット形式・冷蔵庫食材バナー・食材プレビュー・アレルギー警告 |
+| kyushoku.html | 給食インポート | 献立表写真/PDF→AI解析→チェックボックスで選択→lunch記録として一括登録 |
+| settings.html | 設定 | プロフィール・家族メンバー管理（名前・アレルギー）・世帯管理・招待 |
 | terms.html | 利用規約 | |
 | privacy.html | プライバシーポリシー | |
 | contact.html | お問い合わせ | Formspree経由 |
@@ -179,25 +166,12 @@ home.html等でrequireAuth()失敗 → index.html（LP）にリダイレクト
 | `?date=X&meal=Y&dish=Z&ingredients=A,B,C&memo=M` | 新規記録（全プリセット） | AI提案経由 |
 | `?date=X&meal=Y&edit=1` | **編集モード** | 履歴「編集する」経由 |
 
-### プリセットの優先順位（log.html）
-- 料理名：AIパラメータ → 既存ログ
-- 食材：既存ログに食材がある場合は既存優先。ない場合はAIパラメータ
-- メモ：既存ログにメモがある場合は既存優先。ない場合はAIパラメータ
-
-### 食材入力の仕様（log.html）
-- ラベル：「使用食材」
-- プレースホルダー：「食材名を入力してEnter（複数可）」
-- ラベル横の「？」アイコンをタップ → ヒント表示「スペース・読点・カンマで区切ると一度に複数登録できます」
-- Enterで確定・タグとして表示
-- 全角・半角スペース、読点、カンマで自動分割して複数タグ登録
-- タグの×ボタンで個別削除
-
 ---
 
 ## 6. 履歴詳細モーダルの仕様
 
 - 履歴アイテムをタップ → 下からシート表示
-- 表示内容: 料理名・日付・食事タイプ・食材・メモ・評価
+- 表示内容: 料理名・日付・食事タイプ・食材・メモ・**また食べたい度**（旧「評価」）
 - **「編集する」**: `log.html?date=X&meal=Y&edit=1` に遷移
 - **「今日も作る」**: `log.html?date=今日&meal=dinner&dish=料理名` に遷移
 - オーバーレイタップで閉じる
@@ -207,71 +181,111 @@ home.html等でrequireAuth()失敗 → index.html（LP）にリダイレクト
 ## 7. AI提案の仕組み（v0.9.0）
 
 ### フロー
-1. suggest.htmlが起動時に今週のログ・高評価メニュー・冷蔵庫食材を並行取得
+1. suggest.htmlが起動時に今週のログ・高評価メニュー・冷蔵庫食材・家族メンバー（アレルギー）を並行取得
 2. 冷蔵庫食材がある場合：緑色バナーで食材表示 + 「🧊 冷蔵庫の食材を使いたい」チップを最優先表示
 3. メッセージ送信 → `{ messages, likedDishes, recentDishes, fridgeItems }` をEdge Functionに送信
 4. tavera-suggestがsystemPromptで返答フォーマットを指定してClaude APIを呼び出し
 5. 返答を `parseDishBlocks()` で解析し、料理名・食材・説明文を抽出
-6. 記録ボタン下に食材プレビューを表示（🥕 食材1・食材2・...）
-7. ボタンタップで `log.html?dish=X&ingredients=A,B,C&memo=【AI提案より】説明文` に遷移
-8. log.htmlで料理名・食材タグ・メモ欄にプリセット表示
-
-### parseDishBlocks() が抽出する情報
-```javascript
-{
-  name: "トマトソースパスタ",
-  ingredients: ["パスタ", "トマト缶"],
-  description: "あっさりとしたトマトベースのパスタです。"
-}
-```
-
-### メモのプリセット形式
-```
-【AI提案より】
-クリーミーではなくあっさりとしたトマトベースのパスタです。
-```
-
-### Edge Function（tavera-suggest）のsystemPrompt
-返答フォーマットを厳密に指定：
-```
-① 料理名
-食材：食材1・食材2・食材3・食材4
-（1〜2文の説明）
-```
-
-### 動的クイックチップのロジック（優先順）
-1. 冷蔵庫食材あり → 「🧊 冷蔵庫の食材を使いたい」
-2. 今週の記録あり → 「今週と違うものがいい」
-3. 高評価メニューあり → 「好評メニューに近いものがいい」
-4. 常時 → 「簡単に作れるものがいい」「お任せで！」
+6. 記録ボタン下に食材プレビューを表示 + **アレルギー警告を表示**
+7. ボタンタップで `log.html` に遷移
 
 ---
 
-## 8. 冷蔵庫食材メモの仕様
+## 8. 冷蔵庫食材メモの仕様（v1.1.0更新）
 
 - **思想**: 常備調味料は登録不要。賞味期限が近いもの・使い切りたいものだけ登録する運用
 - **登録場所**: ホーム画面（🧊 冷蔵庫の食材セクション）
-- **操作**: テキスト入力 → Enterで追加（+ボタンは廃止。FABとの誤タップ防止のため） / ✕ボタンで削除
-- **プレースホルダー**: 「早めに使いたい食材を登録（Enterで追加）」
-- **上限**: 30個。残り5個以下でガイドメッセージ。上限到達時は追加不可＋メッセージ表示
+- **操作**: 食材名入力 → 消費期限（任意）を日付ピッカーで入力 → Enterで追加 / ✕ボタンで削除
+- **期限表示**:
+  - 期限あり（余裕）: チップに `(06/15)` の形式で薄く表示
+  - 3日以内: `(あと2日)` でオレンジ色警告
+  - 期限切れ: `(期限切れ)` 表示
+- **上限**: 30個。残り5個以下でガイドメッセージ。
 - **家族共有**: household_id単位で管理
-- **期限管理**: expires_onカラムあり（UIは名前のみ。将来的に期限入力UI追加予定）
-- **期限警告**: 3日以内の食材はオレンジ色（`expiring-soon`クラス）で表示
 - **AI連携**: suggest.htmlがfridgeItemsを取得してEdge Functionに送信
 
 ---
 
-## 9. また食べたい度の仕組み
+## 9. また食べたい度の仕組み（v0.9.3・v1.0.3更新）
 
-- rating = 5 を「また食べたい」として扱う（旧称「家族の評価」→「また食べたい度」に変更 v0.9.3）
+- rating = 5 を「また食べたい」として扱う
 - 履歴画面の🤍ボタンをタップ → rating を5に更新 → ❤️に変化
 - ❤️をタップ → rating を3に戻す
 - ホームのランキングは rating >= 4 のメニューを表示
-- log.htmlの評価欄ラベル：「また食べたい度」（星2rem・タップ余白拡大済み）
+- log.htmlの評価欄ラベル：「また食べたい度」（星2rem）
+- history.htmlの詳細モーダルのラベル：「また食べたい度」（旧「評価」から統一済み）
 
 ---
 
-## 10. 家族共有の仕組み
+## 10. 月間カレンダービュー（v1.1.0追加）
+
+- 履歴画面（history.html）右上のトグルで「リスト」「カレンダー」を切り替え
+- 月グリッド（7列×6行、日曜始まり）で朝昼夜の献立を色分けチップ表示
+  - 朝食: 黄系、昼食: 水色系、夕食: 青紫系
+- 前月・翌月ナビゲーション（‹ / › ボタン）
+- 日付タップ → 下部に当日の献立詳細パネルを展開（再タップで閉じる）
+- 詳細パネルの料理名タップ → 既存の詳細モーダルを表示
+- カレンダー表示中は検索欄を非表示
+- Supabaseから月単位でデータ取得（月ごとにキャッシュ）
+
+---
+
+## 11. 家族メンバー管理（v1.1.0追加）
+
+- 設定画面（settings.html）の「家族メンバー」セクションで管理
+- **登録対象**: Taveraアカウントを持たない家族（子供など）も登録可能
+- **管理内容**: ニックネーム + アレルギー食材リスト（タグ形式）
+- **CRUD**: 追加・編集・削除すべて対応
+- DBテーブル: `menu_family_members`（household_id単位でRLS管理）
+- JS関数: `getFamilyMembers(householdId)` / `checkAllergies(ingredients, familyMembers)`
+
+---
+
+## 12. アレルギー照合・NGアラート（v1.1.0追加）
+
+### 照合ロジック
+- `checkAllergies(ingredients, familyMembers)` がsimple部分一致で照合
+  - ingredient.includes(allergen) または allergen.includes(ingredient)
+- 戻り値: `[{ memberName, allergen }, ...]`
+
+### 発火タイミング
+| 場所 | タイミング | 表示 |
+|------|-----------|------|
+| log.html | 食材タグ追加/削除のたびにリアルタイム | 食材タグ直下に警告バナー |
+| suggest.html | AI提案の解析結果表示時 | 各料理ボタン直下にテキスト |
+
+### 表示例
+```
+⚠️ 太郎：卵 が含まれています
+⚠️ 花子：小麦・乳 が含まれています
+```
+
+---
+
+## 13. 給食献立インポート（v1.1.0追加）
+
+### 概要
+給食の献立表（写真・PDF）をAIに読み取らせてlunch記録として一括登録する機能。
+
+### フロー
+1. `kyushoku.html` を開く（ホーム右上の「📋 給食」ボタンからアクセス）
+2. 対象年月を選択
+3. 献立表の写真またはPDFを選択
+4. 「AIで解析する」→ Edge Function `tavera-kyushoku` がClaude Haikuに送信
+5. 日付・料理名のリストが表示される（既存登録済みにはバッジ）
+6. チェックボックスで選択 → 「インポート」でmenu_logsに一括登録
+7. 料理名はその日のすべての料理を「・」区切りで1件のlunch記録として保存
+
+### Edge Function: tavera-kyushoku
+- モデル: claude-haiku-4-5
+- 入力: `{ image: base64, mediaType, year, month }`
+- 出力: `{ menu: [{ date: "YYYY-MM-DD", dishes: ["料理1", "料理2"] }] }`
+- JWT検証: オフ（他のtaveraと同様）
+- 既存登録との重複: `upsert`で上書き（onConflict: household_id,date,meal_type）
+
+---
+
+## 14. 家族共有の仕組み
 
 ### 招待フロー
 1. オーナーが設定画面「📤 家族を招待する」→ 8桁コードをコピー
@@ -286,22 +300,24 @@ home.html等でrequireAuth()失敗 → index.html（LP）にリダイレクト
 | 世帯名の変更 | ✅ | ✗ |
 | 家族を招待 | ✅ | ✅ |
 | 世帯を離れる | ✗ | ✅ |
+| 家族メンバー管理 | ✅ | ✅ |
 
 ---
 
-## 11. ファイル構成
+## 15. ファイル構成
 
 ```
 /
 ├── index.html       # LP（ランディングページ）兼ログイン処理
-├── home.html
-├── log.html
-├── history.html
-├── suggest.html
-├── settings.html
-├── terms.html       # 利用規約
-├── privacy.html     # プライバシーポリシー
-├── contact.html     # お問い合わせ（Formspree）
+├── home.html        # ホーム（冷蔵庫期限UI・給食リンク追加済み）
+├── log.html         # 献立記録/編集（アレルギー警告追加済み）
+├── history.html     # 履歴（月間カレンダービュー追加済み）
+├── suggest.html     # AI提案（アレルギー警告追加済み）
+├── kyushoku.html    # 給食献立インポート ★v1.1.0追加
+├── settings.html    # 設定（家族メンバー管理追加済み）
+├── terms.html
+├── privacy.html
+├── contact.html
 ├── manifest.json
 ├── DESIGN.md
 ├── README.md
@@ -312,24 +328,28 @@ home.html等でrequireAuth()失敗 → index.html（LP）にリダイレクト
 │   ├── icon-192.png
 │   └── icon-512.png
 ├── css/
-│   └── style.css
-└── js/
-    ├── supabase.js     # Supabase初期化・getSession/getUser/requireAuth
-    ├── auth.js         # Google OAuth・signOut・showToast
-    ├── menu-log.js     # 献立CRUD・世帯管理・招待参加・冷蔵庫CRUD
-    └── suggest.js      # 未使用（Edge Function直呼びのため）
+│   └── style.css    # 星サイズ2rem・冷蔵庫期限スタイル追加済み
+├── js/
+│   ├── supabase.js
+│   ├── auth.js
+│   ├── menu-log.js  # getFamilyMembers・checkAllergies追加済み
+│   └── suggest.js   # 未使用
+└── supabase/
+    └── functions/
+        └── tavera-kyushoku/
+            └── index.ts  # ★v1.1.0追加（要デプロイ）
 ```
 
 ---
 
-## 12. デザインシステム
+## 16. デザインシステム
 
 | 変数 | 値 | 用途 |
 |------|-----|------|
 | --terra | #C8522A | メインカラー・CTA |
-| --amber | #E8932A | アクセント・星評価 |
+| --amber | #E8932A | アクセント・また食べたい度の星 |
 | --cream | #FDF6EC | 背景 |
-| --olive | #6B7A3A | サブアクセント・冷蔵庫UI |
+| --olive | #6B7A3A | サブアクセント・冷蔵庫UI・インポートボタン |
 | --brown | #4A2E1A | テキスト |
 | --muted | #9B8878 | サブテキスト |
 | --border | #EAD9C8 | ボーダー |
@@ -338,7 +358,7 @@ home.html等でrequireAuth()失敗 → index.html（LP）にリダイレクト
 
 ---
 
-## 13. 開発ロードマップ
+## 17. 開発ロードマップ
 
 ### Phase 1（完了）MVP
 - Google認証・献立ログCRUD・ホーム・履歴・AI提案・PWA・カスタムドメイン
@@ -356,30 +376,27 @@ home.html等でrequireAuth()失敗 → index.html（LP）にリダイレクト
 - AI説明文をメモ欄に「【AI提案より】」形式でプリセット ✅ v0.9.0
 - 食材入力の全角/半角スペース分割バグ修正・ラベルUX改善 ✅ v0.9.1
 - 冷蔵庫食材の+ボタン廃止（Enterのみ）・上限30個・プレースホルダー変更 ✅ v0.9.2
-- 食材ツールチップ追加・星評価を大型化・「また食べたい度」に改称 ✅ v0.9.3
+- 食材ツールチップ追加・星評価を大型化（2rem）・「また食べたい度」に改称 ✅ v0.9.3
+- 月間カレンダービュー（history.html） ✅ v1.1.0
+- 冷蔵庫食材の期限入力UI（日付ピッカー・期限表示） ✅ v1.1.0
 
 ### v1.0.0 一般公開対応（完了）
-- LP（index.html）新規作成：ヒーロー・機能紹介・AIチャットモック・使い方3ステップ・CTA・運営者情報・フッター ✅
-- 利用規約（terms.html）新規作成 ✅
-- プライバシーポリシー（privacy.html）新規作成 ✅
-- お問い合わせ（contact.html）新規作成（Formspree: xpqbkdea） ✅
-- LPにGoogleログイン処理を組み込み・ログイン済みなら自動でhome.htmlへ ✅ v1.0.1
+- LP・利用規約・プライバシーポリシー・お問い合わせ・ログイン処理 ✅ v1.0.0〜v1.0.1
 
-### Phase 2 残タスク
-- 月間カレンダービュー
-- 冷蔵庫食材の期限入力UI（DBは対応済み）
+### Phase 3（完了）アレルギー・給食対応
+- 家族メンバー管理（ニックネーム・アレルギー設定） ✅ v1.1.0
+- アレルギー照合・NGアラート（記録画面・AI提案画面） ✅ v1.1.0
+- 給食献立インポート（写真/PDF→AI解析→一括登録） ✅ v1.1.0
 
-### Phase 3 アレルギー・給食対応
-- 家族メンバー管理（名前・アレルギー設定）
-- 給食献立インポート（PDF・画像テキスト変換）
-- アレルギー照合・NGアラート
-
-### Phase 4 連携・マネタイズ
-- Flowra連携・LINE連携・Stripeサブスク・iOSアプリ
+### Phase 4 連携・マネタイズ（未着手）
+- Flowra連携
+- LINE連携
+- Stripeサブスク
+- iOSアプリ
 
 ---
 
-## 14. 本番運用前にやること
+## 18. 本番運用前にやること（済）
 
 ```sql
 -- テスト中に大量作成された不要な「わが家」世帯を削除
@@ -389,7 +406,7 @@ WHERE id NOT IN (SELECT household_id FROM menu_members);
 
 ---
 
-## 15. 開発運用・注意事項
+## 19. 開発運用・注意事項
 
 - **開発スタイル**: Claudeとのチャットで開発。GitHubのPATを渡してpushまで完結。
 - **引き継ぎ**: 本DESIGN.mdを新しいClaudeセッションに共有する。
@@ -400,6 +417,7 @@ WHERE id NOT IN (SELECT household_id FROM menu_members);
 - **JS生成の注意**: シェルのヒアドキュメントで日本語・正規表現・クォートが壊れる事故が多発。**必ずPythonスクリプトでファイル生成 → node --checkで構文確認 → pushの順で行う。**
 - **suggest.htmlの構文エラー歴**: デバッグ用dbg()関数内の改行混入・正規表現のUnicodeエスケープ漏れ・parseDishBlocks未接続など複数のバグがあった。修正済み。
 - **GitHub Pagesのビルド失敗**: 短時間に大量pushすると競合でビルド失敗メールが来ることがある。最終ビルドがsuccessであれば問題なし。GitHub Actions画面で確認する。
+- **tavera-kyushoku Edge Function**: supabase/functions/tavera-kyushoku/index.ts にコードあり。新しい環境では必ずSupabaseコンソールからデプロイすること。
 
 ---
 
