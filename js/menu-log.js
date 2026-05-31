@@ -214,10 +214,10 @@ async function joinHouseholdByCode(userId, code) {
     return { ok: false, message: 'すでにこの世帯のメンバーです' };
   }
 
-  // 自分のhousehold_idを更新
+  // 自分のhousehold_idを更新（roleをmemberに変更）
   const { error: updateErr } = await db
     .from('menu_members')
-    .update({ household_id: targetHousehold.id })
+    .update({ household_id: targetHousehold.id, role: 'member' })
     .eq('id', userId);
 
   if (updateErr) { console.error(updateErr); return { ok: false, message: '参加に失敗しました' }; }
