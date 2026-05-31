@@ -256,6 +256,15 @@ async function deleteFridgeItem(itemId) {
   return !error;
 }
 
+// 冷蔵庫食材の期限を更新
+async function updateFridgeExpiry(itemId, expiresOn) {
+  const { error } = await db
+    .from('menu_fridge_items')
+    .update({ expires_on: expiresOn || null })
+    .eq('id', itemId);
+  return !error;
+}
+
 // =====================
 //  家族メンバー（アレルギー管理）
 // =====================
