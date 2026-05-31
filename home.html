@@ -273,7 +273,9 @@
         <div class="liked-item fade-in" style="animation-delay:${i*0.08}s">
           <div class="liked-rank">${medals[i]}</div>
           <div class="liked-name">${d.dish_name}</div>
-          <div class="liked-stars">${'★'.repeat(d.rating)}${'☆'.repeat(5-d.rating)}</div>
+          <div style="margin-left:auto;display:flex;align-items:center;gap:6px;">
+            <span style="font-size:0.75rem;color:var(--muted)">${d.rating >= 5 ? '❤️ また食べたい' : '★'.repeat(d.rating)}</span>
+          </div>
         </div>
       `).join('');
     }

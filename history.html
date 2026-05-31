@@ -82,6 +82,19 @@
 
     .history-dish   { font-size: 0.95rem; font-weight: 500; flex: 1; }
     .history-rating { font-size: 0.75rem; color: var(--amber); flex-shrink: 0; }
+
+    .heart-btn {
+      font-size: 1.2rem;
+      flex-shrink: 0;
+      background: none;
+      border: none;
+      cursor: pointer;
+      line-height: 1;
+      padding: 4px;
+      transition: transform 0.15s ease;
+    }
+    .heart-btn:active { transform: scale(1.4); }
+    .heart-btn.loved { filter: none; }
   </style>
 </head>
 <body>
@@ -203,6 +216,24 @@
             ${log.rating ? `<div class="history-rating">${'★'.repeat(log.rating)}</div>` : ''}
           </div>`;
       }).join('');
+    }
+
+    async function toggleLove(logId, isLoved, btn) {
+      const newRating = isLoved ? 3 : 5;
+      const { error } = await db
+        .from('menu_logs')
+        .update({ rating: newRating })
+        .eq('id', logId);
+
+      if (!error) {
+        const loved = !isLoved;
+        btn.textContent = loved ? '❤️' : '🤍';
+        btn.classList.toggle('loved', loved);
+        // アニメーション
+        btn.style.transform = 'scale(1.5)';
+        setTimeout(() => btn.style.transform = '', 200);
+        showToast(loved ? 'また食べたいに追加！' : 'また食べたいを解除', loved ? 'success' : 'info');
+      }
     }
 
     init();
