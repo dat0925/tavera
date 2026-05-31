@@ -172,6 +172,7 @@
       const dateParam = params.get('date') || toDateStr();
       const mealParam = params.get('meal') || 'dinner';
       const dishParam = params.get('dish') || '';
+      isEditMode = params.get('edit') === '1';
 
       document.getElementById('dateInput').value = dateParam;
       selectMealTab(mealParam);
@@ -198,9 +199,8 @@
       setRating(log.rating || 0);
       document.getElementById('deleteBtn').style.display = '';
 
-      // 既存データがあれば編集モードに切り替え
-      if (!isEditMode) {
-        isEditMode = true;
+      // edit=1 で来た場合のみ編集モードUIに切り替え
+      if (isEditMode) {
         document.getElementById('headerTitle').textContent = '献立を編集';
         document.getElementById('pageTitle').textContent = '献立を編集 - Tavera';
         document.getElementById('saveBtn').textContent = '変更を保存する';

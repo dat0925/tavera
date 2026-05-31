@@ -347,7 +347,7 @@
 
       // ボタン
       document.getElementById('modalEditBtn').onclick = () => {
-        location.href = `log.html?date=${log.date}&meal=${log.meal_type}`;
+        location.href = `log.html?date=${log.date}&meal=${log.meal_type}&edit=1`;
       };
       document.getElementById('modalCopyBtn').onclick = () => {
         const today = new Date().toISOString().split('T')[0];
