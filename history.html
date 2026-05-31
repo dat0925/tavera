@@ -20,36 +20,66 @@
   <script src="js/auth.js"></script>
   <script src="js/menu-log.js"></script>
   <style>
-    .search-bar {
-      padding: 16px 20px 8px;
+    /* ---- ツールバー ---- */
+    .toolbar {
+      padding: 12px 20px 10px;
       position: sticky;
       top: 57px;
       background: var(--white);
       z-index: 10;
       border-bottom: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .toolbar-top {
+      display: flex;
+      align-items: center;
+      gap: 10px;
     }
     .search-input-wrap {
       position: relative;
+      flex: 1;
     }
-    .search-input-wrap input {
-      padding-left: 40px;
-    }
+    .search-input-wrap input { padding-left: 36px; }
     .search-icon {
       position: absolute;
-      left: 12px;
+      left: 10px;
       top: 50%;
       transform: translateY(-50%);
       color: var(--muted);
-      font-size: 1rem;
+      font-size: 0.95rem;
+    }
+    .view-toggle {
+      display: flex;
+      background: var(--surface);
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border);
+      overflow: hidden;
+      flex-shrink: 0;
+    }
+    .view-toggle button {
+      padding: 7px 14px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      border: none;
+      background: none;
+      color: var(--muted);
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .view-toggle button.active {
+      background: var(--terra);
+      color: #fff;
     }
 
+    /* ---- リストビュー ---- */
     .history-list {
       padding: 12px 20px;
       display: flex;
       flex-direction: column;
       gap: 10px;
     }
-
     .history-item {
       display: flex;
       align-items: center;
@@ -61,124 +91,157 @@
       cursor: pointer;
       transition: all var(--transition);
     }
-    .history-item:hover {
-      border-color: var(--amber);
-      box-shadow: 0 2px 8px var(--shadow);
-    }
-    .history-date-badge {
-      text-align: center;
-      flex-shrink: 0;
-      width: 44px;
-    }
+    .history-item:hover { border-color: var(--amber); box-shadow: 0 2px 8px var(--shadow); }
+    .history-date-badge { text-align: center; flex-shrink: 0; width: 44px; }
     .history-date-badge .month { font-size: 0.65rem; color: var(--muted); }
     .history-date-badge .day   { font-size: 1.2rem; font-weight: 700; color: var(--brown); font-family: var(--font-display); }
-    .history-meal-badge {
-      font-size: 0.7rem;
-      font-weight: 700;
-      padding: 2px 8px;
-      border-radius: 99px;
-      flex-shrink: 0;
-    }
+    .history-meal-badge { font-size: 0.7rem; font-weight: 700; padding: 2px 8px; border-radius: 99px; flex-shrink: 0; }
     .badge-breakfast { background:#FFF3CD; color:#856404; }
     .badge-lunch     { background:#D1ECF1; color:#0C5460; }
     .badge-dinner    { background:#E8ECFF; color:#3042a0; }
-
     .history-dish   { font-size: 0.95rem; font-weight: 500; flex: 1; }
     .history-rating { font-size: 0.75rem; color: var(--amber); flex-shrink: 0; }
-
     .heart-btn {
-      font-size: 1.2rem;
-      flex-shrink: 0;
-      background: none;
-      border: none;
-      cursor: pointer;
-      line-height: 1;
-      padding: 4px;
-      transition: transform 0.15s ease;
+      font-size: 1.2rem; flex-shrink: 0; background: none; border: none;
+      cursor: pointer; line-height: 1; padding: 4px; transition: transform 0.15s ease;
     }
     .heart-btn:active { transform: scale(1.4); }
-    .heart-btn.loved { filter: none; }
 
-    /* =====================
-       詳細モーダル
-       ===================== */
+    /* ---- カレンダービュー ---- */
+    .cal-wrap { padding: 0 16px 16px; }
+    .cal-nav {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 4px 12px;
+    }
+    .cal-nav-btn {
+      width: 36px; height: 36px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      background: var(--surface);
+      font-size: 1.1rem;
+      cursor: pointer;
+      color: var(--brown);
+      display: flex; align-items: center; justify-content: center;
+    }
+    .cal-title {
+      font-family: var(--font-display);
+      font-size: 1.05rem;
+      color: var(--brown);
+      font-weight: 700;
+    }
+    .cal-grid {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 1px;
+      background: var(--border);
+      border-radius: var(--radius-md);
+      overflow: hidden;
+    }
+    .cal-wd {
+      background: var(--cream);
+      text-align: center;
+      padding: 5px 2px;
+      font-size: 0.65rem;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      color: var(--muted);
+    }
+    .cal-wd:first-child { color: #c0392b; }
+    .cal-wd:last-child  { color: #2980b9; }
+    .cal-cell {
+      background: var(--white);
+      min-height: 72px;
+      padding: 4px 3px 3px;
+      cursor: pointer;
+      transition: background 0.12s;
+      position: relative;
+    }
+    .cal-cell:hover { background: var(--cream); }
+    .cal-cell.other { background: var(--surface); opacity: 0.5; pointer-events: none; }
+    .cal-cell.today .cal-day { background: var(--terra); color: #fff; border-radius: 50%; width: 22px; height: 22px; display: flex; align-items: center; justify-content: center; }
+    .cal-cell.has-log { border-top: 2px solid var(--amber); }
+    .cal-cell.selected { background: #FEF3EC; }
+    .cal-day {
+      font-size: 0.7rem;
+      font-weight: 700;
+      color: var(--brown);
+      width: 22px; height: 22px;
+      display: flex; align-items: center; justify-content: center;
+      margin-bottom: 2px;
+    }
+    .cal-cell:nth-child(7n+1) .cal-day { color: #c0392b; }
+    .cal-cell:nth-child(7n)   .cal-day { color: #2980b9; }
+    .cal-cell.today:nth-child(7n+1) .cal-day,
+    .cal-cell.today:nth-child(7n)   .cal-day { color: #fff; }
+    .cal-chip {
+      font-size: 0.6rem;
+      padding: 1px 4px;
+      border-radius: 3px;
+      margin-bottom: 1px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      max-width: 100%;
+      display: block;
+      line-height: 1.4;
+    }
+    .chip-breakfast { background: #FFF3CD; color: #856404; }
+    .chip-lunch     { background: #D1ECF1; color: #0C5460; }
+    .chip-dinner    { background: #E8ECFF; color: #3042a0; }
+    .cal-more { font-size: 0.55rem; color: var(--muted); padding: 0 2px; }
+
+    /* ---- 選択日パネル ---- */
+    .cal-detail {
+      margin-top: 14px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: 14px;
+    }
+    .cal-detail-title {
+      font-size: 0.85rem;
+      font-weight: 700;
+      color: var(--brown);
+      margin-bottom: 10px;
+    }
+    .cal-detail-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 9px 0;
+      border-bottom: 1px solid var(--border);
+      cursor: pointer;
+    }
+    .cal-detail-item:last-child { border-bottom: none; }
+    .cal-detail-empty { font-size: 0.82rem; color: var(--muted); padding: 4px 0; }
+
+    /* ---- 詳細モーダル ---- */
     .modal-overlay {
-      position: fixed;
-      inset: 0;
+      position: fixed; inset: 0;
       background: rgba(74,46,26,0.4);
       z-index: 200;
-      display: flex;
-      align-items: flex-end;
-      justify-content: center;
+      display: flex; align-items: flex-end; justify-content: center;
       animation: fadeIn 0.2s ease;
     }
     @keyframes fadeIn { from { opacity:0 } to { opacity:1 } }
-
     .modal-sheet {
-      width: 100%;
-      max-width: 480px;
+      width: 100%; max-width: 480px;
       background: var(--white);
       border-radius: var(--radius-lg) var(--radius-lg) 0 0;
       padding: 24px 20px 40px;
       animation: slideUp 0.25s ease;
     }
-    @keyframes slideUp {
-      from { transform: translateY(60px); opacity: 0; }
-      to   { transform: translateY(0);    opacity: 1; }
-    }
-
-    .modal-handle {
-      width: 40px; height: 4px;
-      background: var(--border);
-      border-radius: 99px;
-      margin: 0 auto 20px;
-    }
-
-    .modal-title {
-      font-family: var(--font-display);
-      font-size: 1.2rem;
-      color: var(--brown);
-      margin-bottom: 4px;
-    }
-
-    .modal-meta {
-      font-size: 0.8rem;
-      color: var(--muted);
-      margin-bottom: 16px;
-    }
-
-    .modal-section {
-      background: var(--surface);
-      border-radius: var(--radius-sm);
-      padding: 12px 14px;
-      margin-bottom: 10px;
-    }
-
-    .modal-section-label {
-      font-size: 0.7rem;
-      font-weight: 700;
-      color: var(--muted);
-      letter-spacing: 0.06em;
-      margin-bottom: 6px;
-    }
-
-    .modal-section-value {
-      font-size: 0.88rem;
-      color: var(--brown);
-      line-height: 1.6;
-    }
-
-    .modal-actions {
-      display: flex;
-      gap: 10px;
-      margin-top: 20px;
-    }
-
-    .modal-actions .btn {
-      flex: 1;
-      padding: 14px;
-      font-size: 0.88rem;
-    }
+    @keyframes slideUp { from { transform:translateY(60px);opacity:0 } to { transform:translateY(0);opacity:1 } }
+    .modal-handle { width:40px;height:4px;background:var(--border);border-radius:99px;margin:0 auto 20px; }
+    .modal-title { font-family:var(--font-display);font-size:1.2rem;color:var(--brown);margin-bottom:4px; }
+    .modal-meta  { font-size:0.8rem;color:var(--muted);margin-bottom:16px; }
+    .modal-section { background:var(--surface);border-radius:var(--radius-sm);padding:12px 14px;margin-bottom:10px; }
+    .modal-section-label { font-size:0.7rem;font-weight:700;color:var(--muted);letter-spacing:0.06em;margin-bottom:6px; }
+    .modal-section-value { font-size:0.88rem;color:var(--brown);line-height:1.6; }
+    .modal-actions { display:flex;gap:10px;margin-top:20px; }
+    .modal-actions .btn { flex:1;padding:14px;font-size:0.88rem; }
   </style>
 </head>
 <body>
@@ -191,22 +254,41 @@
       <span class="header-title">献立履歴</span>
     </header>
 
-    <!-- 検索 -->
-    <div class="search-bar">
-      <div class="search-input-wrap">
-        <span class="search-icon">🔍</span>
-        <input type="text" id="searchInput" class="form-input"
-               placeholder="料理名で検索..." oninput="onSearch(this.value)">
+    <div class="toolbar">
+      <div class="toolbar-top">
+        <div class="search-input-wrap" id="searchWrap">
+          <span class="search-icon">&#128269;</span>
+          <input type="text" id="searchInput" class="form-input"
+                 placeholder="料理名で検索..." oninput="onSearch(this.value)">
+        </div>
+        <div class="view-toggle">
+          <button id="btnList" class="active" onclick="switchView('list')">リスト</button>
+          <button id="btnCal"              onclick="switchView('cal')">カレンダー</button>
+        </div>
       </div>
     </div>
 
-    <div class="page" style="padding-bottom:80px">
+    <!-- リストビュー -->
+    <div id="listView" class="page" style="padding-bottom:80px">
       <div class="history-list" id="historyList">
         <div class="empty-state">
-          <div class="empty-icon">📖</div>
+          <div class="empty-icon">&#128214;</div>
           <p>まだ献立が記録されていません</p>
           <a href="log.html" class="btn btn-primary">最初の献立を記録する</a>
         </div>
+      </div>
+    </div>
+
+    <!-- カレンダービュー -->
+    <div id="calView" class="page" style="padding-bottom:80px;display:none">
+      <div class="cal-wrap">
+        <div class="cal-nav">
+          <button class="cal-nav-btn" onclick="calPrev()">&#8249;</button>
+          <span class="cal-title" id="calTitle"></span>
+          <button class="cal-nav-btn" onclick="calNext()">&#8250;</button>
+        </div>
+        <div class="cal-grid" id="calGrid"></div>
+        <div id="calDetail" style="display:none"></div>
       </div>
     </div>
 
@@ -237,21 +319,49 @@
   <script>
     let householdId = null;
     let searchTimer = null;
-    let allLogs = [];  // モーダル参照用
+    let allLogs = [];
+    let currentView = 'list';
+
+    // カレンダー状態
+    const today = new Date();
+    let calYear  = today.getFullYear();
+    let calMonth = today.getMonth(); // 0-indexed
+    let calSelDate = null;
+    let calLogsCache = {}; // "YYYY-MM" -> logs[]
 
     const MEAL_BADGE = {
       breakfast: ['朝食', 'badge-breakfast'],
       lunch:     ['昼食', 'badge-lunch'],
       dinner:    ['夕食', 'badge-dinner'],
     };
+    const CHIP_CLASS = { breakfast: 'chip-breakfast', lunch: 'chip-lunch', dinner: 'chip-dinner' };
+    const MEAL_ORDER = ['breakfast', 'lunch', 'dinner'];
+    const WD = ['日','月','火','水','木','金','土'];
 
     async function init() {
       const user = await requireAuth();
       if (!user) return;
       householdId = await getOrCreateHousehold(user.id);
       await renderHistory('');
+      await renderCalendar();
     }
 
+    // =====================
+    //  ビュー切り替え
+    // =====================
+    function switchView(v) {
+      currentView = v;
+      document.getElementById('listView').style.display = v === 'list' ? '' : 'none';
+      document.getElementById('calView').style.display  = v === 'cal'  ? '' : 'none';
+      document.getElementById('btnList').classList.toggle('active', v === 'list');
+      document.getElementById('btnCal').classList.toggle('active', v === 'cal');
+      // カレンダー表示時は検索欄を非表示
+      document.getElementById('searchWrap').style.display = v === 'list' ? '' : 'none';
+    }
+
+    // =====================
+    //  リストビュー
+    // =====================
     async function onSearch(val) {
       clearTimeout(searchTimer);
       searchTimer = setTimeout(() => renderHistory(val.trim()), 300);
@@ -265,7 +375,6 @@
       if (keyword) {
         data = await searchLogs(householdId, keyword);
       } else {
-        // 全件（新しい順）
         const { data: d } = await db
           .from('menu_logs')
           .select('*')
@@ -275,14 +384,13 @@
           .limit(100);
         data = d || [];
       }
-
       allLogs = data;
 
       if (!data.length) {
         list.innerHTML = `
           <div class="empty-state">
-            <div class="empty-icon">🍽️</div>
-            <p>${keyword ? `「${keyword}」の記録が見つかりません` : 'まだ献立が記録されていません'}</p>
+            <div class="empty-icon">&#127869;&#65039;</div>
+            <p>${keyword ? `&#12300;${keyword}&#12301;の記録が見つかりません` : 'まだ献立が記録されていません'}</p>
             <a href="log.html" class="btn btn-primary">献立を記録する</a>
           </div>`;
         return;
@@ -296,69 +404,197 @@
           <div class="history-item fade-in" style="animation-delay:${i*0.04}s"
                onclick="openModal(allLogs[${i}])">
             <div class="history-date-badge">
-              <div class="month">${d.getMonth()+1}月</div>
+              <div class="month">${d.getMonth()+1}&#26376;</div>
               <div class="day">${d.getDate()}</div>
             </div>
             <span class="history-meal-badge ${badgeClass}">${label}</span>
             <div class="history-dish">${log.dish_name}</div>
-            ${log.rating ? `<div class="history-rating">${'★'.repeat(log.rating)}</div>` : ''}
+            ${log.rating ? `<div class="history-rating">${'&#9733;'.repeat(log.rating)}</div>` : ''}
             <button class="heart-btn ${isLoved ? 'loved' : ''}"
               onclick="event.stopPropagation(); toggleLove('${log.id}', ${isLoved}, this)">
-              ${isLoved ? '❤️' : '🤍'}
+              ${isLoved ? '&#10084;&#65039;' : '&#129293;'}
             </button>
           </div>`;
       }).join('');
     }
 
+    // =====================
+    //  カレンダービュー
+    // =====================
+    async function fetchCalLogs(year, month) {
+      const key = year + '-' + String(month+1).padStart(2, '0');
+      if (calLogsCache[key]) return calLogsCache[key];
+      const from = key + '-01';
+      const lastDay = new Date(year, month+1, 0).getDate();
+      const to = key + '-' + String(lastDay).padStart(2, '0');
+      const { data } = await db
+        .from('menu_logs')
+        .select('*')
+        .eq('household_id', householdId)
+        .gte('date', from)
+        .lte('date', to)
+        .order('meal_type');
+      calLogsCache[key] = data || [];
+      return calLogsCache[key];
+    }
+
+    async function renderCalendar() {
+      const logs = await fetchCalLogs(calYear, calMonth);
+
+      // 日付ごとにグループ化
+      const byDate = {};
+      logs.forEach(l => {
+        (byDate[l.date] = byDate[l.date] || []).push(l);
+      });
+
+      const monthNames = ['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月'];
+      document.getElementById('calTitle').textContent = calYear + '年 ' + monthNames[calMonth];
+
+      const todayStr = today.toISOString().slice(0, 10);
+      const firstWd = new Date(calYear, calMonth, 1).getDay();
+      const lastDate = new Date(calYear, calMonth+1, 0).getDate();
+
+      let cells = [];
+      // 前月の空白
+      for (let i = 0; i < firstWd; i++) cells.push({ date: null });
+      // 当月
+      for (let d = 1; d <= lastDate; d++) {
+        const ds = calYear + '-' + String(calMonth+1).padStart(2,'0') + '-' + String(d).padStart(2,'0');
+        cells.push({ date: ds });
+      }
+      // 末尾を42マスに揃える
+      while (cells.length < 42) cells.push({ date: null });
+
+      const grid = document.getElementById('calGrid');
+      // 曜日ヘッダー
+      let html = WD.map(w => `<div class="cal-wd">${w}</div>`).join('');
+
+      cells.forEach(cell => {
+        if (!cell.date) {
+          html += '<div class="cal-cell other"></div>';
+          return;
+        }
+        const dayLogs = byDate[cell.date] || [];
+        const isToday = cell.date === todayStr;
+        const isSel   = cell.date === calSelDate;
+        const hasLog  = dayLogs.length > 0;
+        const dayNum  = parseInt(cell.date.slice(8));
+        let cls = 'cal-cell';
+        if (isToday) cls += ' today';
+        if (isSel)   cls += ' selected';
+        if (hasLog)  cls += ' has-log';
+
+        // 朝昼夜順に最大3件チップ
+        const sorted = MEAL_ORDER.map(m => dayLogs.find(l => l.meal_type === m)).filter(Boolean);
+        const chips = sorted.slice(0, 3).map(l =>
+          `<span class="cal-chip ${CHIP_CLASS[l.meal_type] || ''}">${l.dish_name}</span>`
+        ).join('');
+        const more = dayLogs.length > 3 ? `<div class="cal-more">+${dayLogs.length-3}</div>` : '';
+
+        html += `<div class="${cls}" data-date="${cell.date}" onclick="calSelectDate('${cell.date}')">
+          <div class="cal-day">${dayNum}</div>
+          ${chips}${more}
+        </div>`;
+      });
+
+      grid.innerHTML = html;
+
+      // 選択日の詳細更新
+      updateCalDetail(byDate);
+    }
+
+    function updateCalDetail(byDate) {
+      const el = document.getElementById('calDetail');
+      if (!calSelDate) { el.style.display = 'none'; return; }
+
+      const logs = byDate[calSelDate] || [];
+      const d = new Date(calSelDate + 'T00:00:00');
+      const title = `${d.getMonth()+1}月${d.getDate()}日（${WD[d.getDay()]}）`;
+
+      if (!logs.length) {
+        el.style.display = '';
+        el.innerHTML = `<div class="cal-detail"><div class="cal-detail-title">${title}</div><div class="cal-detail-empty">この日の記録はありません</div></div>`;
+        return;
+      }
+
+      const sorted = MEAL_ORDER.map(m => logs.find(l => l.meal_type === m)).filter(Boolean);
+      const items = sorted.map((log, i) => {
+        const [label, badgeClass] = MEAL_BADGE[log.meal_type] || ['?', ''];
+        const idx = allLogs.findIndex(l => l.id === log.id);
+        const clickFn = idx >= 0 ? `openModal(allLogs[${idx}])` : `openModalDirect(${JSON.stringify(log).replace(/"/g,'&quot;')})`;
+        return `<div class="cal-detail-item" onclick="${clickFn}">
+          <span class="history-meal-badge ${badgeClass}">${label}</span>
+          <span style="flex:1;font-size:0.9rem;color:var(--brown)">${log.dish_name}</span>
+          ${log.rating ? `<span style="font-size:0.75rem;color:var(--amber)">${'&#9733;'.repeat(log.rating)}</span>` : ''}
+        </div>`;
+      }).join('');
+
+      el.style.display = '';
+      el.innerHTML = `<div class="cal-detail"><div class="cal-detail-title">${title}</div>${items}</div>`;
+    }
+
+    function calSelectDate(date) {
+      calSelDate = (calSelDate === date) ? null : date;
+      renderCalendar();
+    }
+
+    function calPrev() {
+      calMonth--;
+      if (calMonth < 0) { calMonth = 11; calYear--; }
+      calSelDate = null;
+      renderCalendar();
+    }
+
+    function calNext() {
+      calMonth++;
+      if (calMonth > 11) { calMonth = 0; calYear++; }
+      calSelDate = null;
+      renderCalendar();
+    }
+
+    // =====================
+    //  モーダル
+    // =====================
     const DAY_LABELS_H = ['日','月','火','水','木','金','土'];
 
-    function openModal(log) {
-      const d = new Date(log.date);
-      const [label] = MEAL_BADGE[log.meal_type] || ['?'];
+    function openModalDirect(log) { openModal(log); }
 
+    function openModal(log) {
+      const d = new Date(log.date + 'T00:00:00');
+      const [label] = MEAL_BADGE[log.meal_type] || ['?'];
       document.getElementById('modalDishName').textContent = log.dish_name;
       document.getElementById('modalMeta').textContent =
         `${d.getMonth()+1}月${d.getDate()}日（${DAY_LABELS_H[d.getDay()]}）${label}`;
 
-      // 食材
       const ingWrap = document.getElementById('modalIngredientsWrap');
       const ingEl   = document.getElementById('modalIngredients');
       if (log.ingredients && log.ingredients.length) {
         ingEl.textContent = log.ingredients.join('・');
         ingWrap.classList.remove('hidden');
-      } else {
-        ingWrap.classList.add('hidden');
-      }
+      } else { ingWrap.classList.add('hidden'); }
 
-      // メモ
       const memoWrap = document.getElementById('modalMemoWrap');
       const memoEl   = document.getElementById('modalMemo');
       if (log.memo) {
         memoEl.textContent = log.memo;
         memoWrap.classList.remove('hidden');
-      } else {
-        memoWrap.classList.add('hidden');
-      }
+      } else { memoWrap.classList.add('hidden'); }
 
-      // また食べたい度
       const r = log.rating || 0;
       document.getElementById('modalRating').textContent =
         r ? '★'.repeat(r) + '☆'.repeat(5-r) : '未設定';
 
-      // ボタン
       document.getElementById('modalEditBtn').onclick = () => {
         location.href = `log.html?date=${log.date}&meal=${log.meal_type}&edit=1`;
       };
       document.getElementById('modalCopyBtn').onclick = () => {
-        const today = new Date().toISOString().split('T')[0];
-        location.href = `log.html?date=${today}&meal=dinner&dish=${encodeURIComponent(log.dish_name)}`;
+        const t = new Date().toISOString().split('T')[0];
+        location.href = `log.html?date=${t}&meal=dinner&dish=${encodeURIComponent(log.dish_name)}`;
       };
-
       document.getElementById('detailModal').classList.remove('hidden');
     }
 
     function closeModal(e) {
-      // オーバーレイ自体クリック時のみ閉じる
       if (e.target.id === 'detailModal') {
         document.getElementById('detailModal').classList.add('hidden');
       }
@@ -366,54 +602,48 @@
 
     async function toggleLove(logId, isLoved, btn) {
       const newRating = isLoved ? 3 : 5;
-      const { error } = await db
-        .from('menu_logs')
-        .update({ rating: newRating })
-        .eq('id', logId);
-
+      const { error } = await db.from('menu_logs').update({ rating: newRating }).eq('id', logId);
       if (!error) {
         const loved = !isLoved;
-        btn.textContent = loved ? '❤️' : '🤍';
+        btn.textContent = loved ? '&#10084;&#65039;' : '&#129293;';
         btn.classList.toggle('loved', loved);
         btn.style.transform = 'scale(1.5)';
         setTimeout(() => btn.style.transform = '', 200);
         showToast(loved ? 'また食べたいに追加！' : 'また食べたいを解除', loved ? 'success' : 'info');
-        // allLogs内のratingも更新（モーダルで再表示したときに反映）
         const idx = allLogs.findIndex(l => l.id === logId);
         if (idx !== -1) allLogs[idx].rating = newRating;
+        // カレンダーキャッシュを無効化
+        const dateKey = allLogs[idx]?.date?.slice(0,7);
+        if (dateKey) delete calLogsCache[dateKey];
       }
     }
 
     init();
   </script>
+
   <!-- 詳細モーダル -->
   <div class="modal-overlay hidden" id="detailModal" onclick="closeModal(event)">
     <div class="modal-sheet">
       <div class="modal-handle"></div>
       <div class="modal-title" id="modalDishName"></div>
       <div class="modal-meta" id="modalMeta"></div>
-
       <div class="modal-section" id="modalIngredientsWrap">
         <div class="modal-section-label">使用食材</div>
         <div class="modal-section-value" id="modalIngredients"></div>
       </div>
-
       <div class="modal-section" id="modalMemoWrap">
         <div class="modal-section-label">メモ</div>
         <div class="modal-section-value" id="modalMemo"></div>
       </div>
-
       <div class="modal-section">
         <div class="modal-section-label">また食べたい度</div>
         <div class="modal-section-value" id="modalRating"></div>
       </div>
-
       <div class="modal-actions">
-        <button class="btn btn-secondary" id="modalEditBtn">✏️ 編集する</button>
-        <button class="btn btn-primary" id="modalCopyBtn">🍳 今日も作る</button>
+        <button class="btn btn-secondary" id="modalEditBtn">&#9999;&#65039; 編集する</button>
+        <button class="btn btn-primary"   id="modalCopyBtn">&#127859; 今日も作る</button>
       </div>
     </div>
   </div>
-
 </body>
 </html>
