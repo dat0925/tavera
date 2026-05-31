@@ -360,7 +360,7 @@
       document.getElementById('btnList').classList.toggle('active', v === 'list');
       document.getElementById('btnCal').classList.toggle('active', v === 'cal');
       // カレンダー表示時は検索欄を非表示
-      document.getElementById('searchWrap').style.display = v === 'list' ? '' : 'none';
+      document.getElementById('searchWrap').style.visibility = v === 'list' ? '' : 'hidden';
     }
 
     // =====================
