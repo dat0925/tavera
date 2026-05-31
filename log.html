@@ -6,7 +6,7 @@
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
-  <title>献立を記録 - Tavera</title>
+  <title id="pageTitle">献立を記録 - Tavera</title>
   <link rel="icon" href="assets/logo.png">
   <link rel="stylesheet" href="css/style.css">
   <link rel="manifest" href="manifest.json">
@@ -65,7 +65,7 @@
   <div class="app-container">
     <header class="app-header">
       <button class="btn-ghost" onclick="history.back()">← 戻る</button>
-      <span class="header-title">献立を記録</span>
+      <span class="header-title" id="headerTitle">献立を記録</span>
       <div style="width:60px"></div>
     </header>
 
@@ -121,6 +121,7 @@
         <button class="btn btn-primary btn-full" id="saveBtn" onclick="saveMeal()">
           この献立を記録する
         </button>
+
         <button class="btn btn-ghost btn-full mt-8" id="deleteBtn"
                 onclick="deleteMeal()" style="display:none;color:var(--muted)">
           この献立を削除する
@@ -159,6 +160,7 @@
     let ingredients = [];
     let householdId = null;
     let existingLogId = null;
+    let isEditMode = false;
 
     async function init() {
       const user = await requireAuth();
@@ -195,6 +197,15 @@
       renderIngredientTags();
       setRating(log.rating || 0);
       document.getElementById('deleteBtn').style.display = '';
+
+      // 既存データがあれば編集モードに切り替え
+      if (!isEditMode) {
+        isEditMode = true;
+        document.getElementById('headerTitle').textContent = '献立を編集';
+        document.getElementById('pageTitle').textContent = '献立を編集 - Tavera';
+        document.getElementById('saveBtn').textContent = '変更を保存する';
+        document.querySelector('.meal-tabs').style.display = 'none';
+      }
     }
 
     // 食事タイプ切替
@@ -297,11 +308,11 @@
         rating: selectedRating || null,
       });
 
-      btn.textContent = 'この献立を記録する';
+      btn.textContent = isEditMode ? '変更を保存する' : 'この献立を記録する';
       btn.disabled = false;
 
       if (result) {
-        showToast('記録しました！', 'success');
+        showToast(isEditMode ? '更新しました！' : '記録しました！', 'success');
         setTimeout(() => location.href = 'home.html', 1000);
       } else {
         showToast('保存に失敗しました', 'error');
