@@ -148,16 +148,19 @@
       font-weight: 700;
       letter-spacing: 0.04em;
       color: var(--muted);
+      min-width: 0;
     }
     .cal-wd:first-child { color: #c0392b; }
     .cal-wd:last-child  { color: #2980b9; }
     .cal-cell {
       background: var(--white);
       min-height: 72px;
+      min-width: 0;
       padding: 4px 3px 3px;
       cursor: pointer;
       transition: background 0.12s;
       position: relative;
+      overflow: hidden;
     }
     .cal-cell:hover { background: var(--cream); }
     .cal-cell.other { background: var(--surface); opacity: 0.5; pointer-events: none; }
@@ -463,8 +466,9 @@
         const ds = calYear + '-' + String(calMonth+1).padStart(2,'0') + '-' + String(d).padStart(2,'0');
         cells.push({ date: ds });
       }
-      // 末尾を42マスに揃える
-      while (cells.length < 42) cells.push({ date: null });
+      // 末尾を必要な行数に揃える（空行を作らない）
+      const neededRows = Math.ceil(cells.length / 7);
+      while (cells.length < neededRows * 7) cells.push({ date: null });
 
       const grid = document.getElementById('calGrid');
       // 曜日ヘッダー
