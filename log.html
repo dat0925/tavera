@@ -59,6 +59,34 @@
     .save-area {
       padding: 0 20px 20px;
     }
+
+    .tip-icon {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: var(--border);
+      color: var(--muted);
+      font-size: 0.65rem;
+      font-weight: 700;
+      cursor: pointer;
+      flex-shrink: 0;
+      transition: background var(--transition);
+    }
+    .tip-icon:hover { background: var(--muted); color: var(--white); }
+
+    .ingredient-tip {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 8px 12px;
+      font-size: 0.78rem;
+      color: var(--muted);
+      margin-bottom: 8px;
+      line-height: 1.6;
+    }
   </style>
 </head>
 <body>
@@ -91,7 +119,13 @@
 
         <!-- 使用食材 -->
         <div class="form-group">
-          <label class="form-label">使用食材</label>
+          <label class="form-label" style="display:flex;align-items:center;gap:6px;">
+            使用食材
+            <span class="tip-icon" onclick="toggleTip()" title="">？</span>
+          </label>
+          <div id="ingredientTip" class="ingredient-tip hidden">
+            スペース・読点・カンマで区切ると一度に複数登録できます。<br>例：鶏もも肉 醤油 みりん
+          </div>
           <input type="text" id="ingredientInput" class="form-input"
                  placeholder="食材名を入力してEnter（複数可）"
                  onkeydown="handleIngredientKey(event)">
@@ -106,7 +140,7 @@
 
         <!-- 評価 -->
         <div class="form-group">
-          <label class="form-label">家族の評価</label>
+          <label class="form-label">また食べたい度</label>
           <div class="rating" id="ratingStars">
             <span class="star" data-val="1">★</span>
             <span class="star" data-val="2">★</span>
@@ -161,6 +195,11 @@
     let householdId = null;
     let existingLogId = null;
     let isEditMode = false;
+
+    function toggleTip() {
+      const tip = document.getElementById('ingredientTip');
+      tip.classList.toggle('hidden');
+    }
 
     async function init() {
       const user = await requireAuth();
