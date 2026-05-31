@@ -59,7 +59,6 @@ async function getLogsForMonth(householdId, year, month) {
     .gte('date', from)
     .lte('date', to);
   if (error) { console.error(error); return []; }
-  // ログがある日付のSetを返す
   return new Set(data.map(d => d.date));
 }
 
@@ -68,7 +67,6 @@ async function saveLog({ householdId, date, mealType, dishName, memo, ingredient
   const user = await getUser();
   if (!user) return null;
 
-  // 既存レコードを確認
   const { data: existing } = await db
     .from('menu_logs')
     .select('id')
@@ -78,7 +76,6 @@ async function saveLog({ householdId, date, mealType, dishName, memo, ingredient
     .single();
 
   if (existing) {
-    // 更新
     const { data, error } = await db
       .from('menu_logs')
       .update({ dish_name: dishName, memo, ingredients, rating })
@@ -88,7 +85,6 @@ async function saveLog({ householdId, date, mealType, dishName, memo, ingredient
     if (error) { console.error(error); return null; }
     return data;
   } else {
-    // 新規
     const { data, error } = await db
       .from('menu_logs')
       .insert({
@@ -145,7 +141,6 @@ async function getLikedDishes(householdId, limit = 10) {
 
 // ユーザーのhousehold_idを取得（なければ作成）
 async function getOrCreateHousehold(userId) {
-  // まず既存のhousehold確認
   const { data: member } = await db
     .from('menu_members')
     .select('household_id')
@@ -154,7 +149,6 @@ async function getOrCreateHousehold(userId) {
 
   if (member?.household_id) return member.household_id;
 
-  // なければ世帯を新規作成
   const { data: household, error: hErr } = await db
     .from('menu_households')
     .insert({ created_by: userId, name: 'わが家' })
@@ -163,7 +157,6 @@ async function getOrCreateHousehold(userId) {
 
   if (hErr) { console.error(hErr); return null; }
 
-  // メンバーとして登録
   await db.from('menu_members').insert({
     id: userId,
     household_id: household.id,
@@ -191,9 +184,8 @@ async function getHouseholdMembers(householdId) {
   return data || [];
 }
 
-// 招待コードで世帯に参加（UPDATEで自分のhousehold_idを切り替え）
+// 招待コードで世帯に参加
 async function joinHouseholdByCode(userId, code) {
-  // 招待コード（8文字）でRPC経由で世帯を検索
   const { data: households, error: searchErr } = await db
     .rpc('find_household_by_code', { code: code.toLowerCase() });
 
@@ -203,7 +195,6 @@ async function joinHouseholdByCode(userId, code) {
 
   const targetHousehold = households[0];
 
-  // すでにこの世帯のメンバーかチェック
   const { data: existing } = await db
     .from('menu_members')
     .select('household_id')
@@ -214,7 +205,6 @@ async function joinHouseholdByCode(userId, code) {
     return { ok: false, message: 'すでにこの世帯のメンバーです' };
   }
 
-  // 自分のhousehold_idを更新（roleをmemberに変更）
   const { error: updateErr } = await db
     .from('menu_members')
     .update({ household_id: targetHousehold.id, role: 'member' })
@@ -222,4 +212,46 @@ async function joinHouseholdByCode(userId, code) {
 
   if (updateErr) { console.error(updateErr); return { ok: false, message: '参加に失敗しました' }; }
   return { ok: true, householdName: targetHousehold.name };
+}
+
+// =====================
+// 冷蔵庫食材 CRUD
+// =====================
+
+// 冷蔵庫食材を全件取得
+async function getFridgeItems(householdId) {
+  const { data, error } = await db
+    .from('menu_fridge_items')
+    .select('*')
+    .eq('household_id', householdId)
+    .order('created_at', { ascending: true });
+  if (error) { console.error(error); return []; }
+  return data || [];
+}
+
+// 冷蔵庫食材を追加
+async function addFridgeItem(householdId, name, expiresOn = null) {
+  const user = await getUser();
+  if (!user) return null;
+  const { data, error } = await db
+    .from('menu_fridge_items')
+    .insert({
+      household_id: householdId,
+      name: name.trim(),
+      expires_on: expiresOn || null,
+      created_by: user.id,
+    })
+    .select()
+    .single();
+  if (error) { console.error(error); return null; }
+  return data;
+}
+
+// 冷蔵庫食材を削除
+async function deleteFridgeItem(itemId) {
+  const { error } = await db
+    .from('menu_fridge_items')
+    .delete()
+    .eq('id', itemId);
+  return !error;
 }
