@@ -7,9 +7,6 @@ async function signInWithGoogle() {
     provider: 'google',
     options: {
       redirectTo: 'https://tavera.taskra.jp/home.html',
-      queryParams: {
-        prompt: 'select_account',  // 毎回Googleのアカウント選択画面を表示
-      },
     }
   });
   if (error) {
