@@ -164,10 +164,11 @@
             <span class="label">招待コードで参加する</span>
             <span class="arrow" id="joinArrow">›</span>
           </div>
-          <div class="settings-item">
+          <div class="settings-item" onclick="toggleSection('householdNameSection')">
             <span class="icon">🏠</span>
             <span class="label">世帯名</span>
             <span class="value" id="householdName">読込中...</span>
+            <span class="arrow" id="householdNameArrow">›</span>
           </div>
         </div>
 
@@ -181,6 +182,18 @@
           <p>招待コードをコピーして<br>家族のTaveraアカウントで入力してもらってください</p>
           <div style="font-family:monospace;font-size:1.4rem;font-weight:700;color:var(--terra);letter-spacing:0.15em;margin-bottom:12px;" id="inviteCode">-</div>
           <button class="btn btn-primary" onclick="copyInviteCode()">コードをコピー</button>
+        </div>
+      </div>
+
+      <!-- 世帯名編集（非表示→表示） -->
+      <div class="settings-section hidden" id="householdNameSection">
+        <div class="join-box">
+          <p>新しい世帯名を入力してください</p>
+          <div class="join-input-row">
+            <input type="text" id="householdNameInput" class="form-input"
+                   placeholder="例：田中家" maxlength="20">
+            <button class="btn btn-primary" onclick="saveHouseholdName()">保存</button>
+          </div>
         </div>
       </div>
 
@@ -318,6 +331,33 @@
         // fallback for older browsers
         showToast('コード: ' + code, 'info');
       });
+    }
+
+    async function saveHouseholdName() {
+      const name = document.getElementById('householdNameInput').value.trim();
+      if (!name) { showToast('世帯名を入力してください', 'error'); return; }
+
+      const btn = event.target;
+      btn.textContent = '保存中...';
+      btn.disabled = true;
+
+      const { error } = await db
+        .from('menu_households')
+        .update({ name })
+        .eq('id', householdId);
+
+      btn.textContent = '保存';
+      btn.disabled = false;
+
+      if (!error) {
+        document.getElementById('householdName').textContent = name;
+        document.getElementById('householdNameInput').value = '';
+        document.getElementById('householdNameSection').classList.add('hidden');
+        document.getElementById('householdNameArrow').textContent = '›';
+        showToast('世帯名を変更しました', 'success');
+      } else {
+        showToast('保存に失敗しました', 'error');
+      }
     }
 
     async function joinHousehold() {
