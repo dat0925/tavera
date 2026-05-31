@@ -296,27 +296,39 @@
           var m = line.match(/^[①②③\d]+[.\s]?\s*([^\n（(]{2,20})/);
           if (m) dishes.push(m[1].trim().replace(/\*+/g, ''));
         });
+        // parseDishBlocksで料理名と食材を抽出
+        var parsedDishes = parseDishBlocks(reply);
         var bw = document.createElement('div');
         bw.style.cssText = 'margin-top:12px;display:flex;flex-direction:column;gap:6px;';
-        var targets = dishes.length > 0 ? dishes.slice(0, 3) : [];
-        if (targets.length === 0) {
+        if (parsedDishes.length === 0) {
           var btn = document.createElement('button');
           btn.textContent = '📝 この献立を記録する';
           btn.style.cssText = 'display:block;padding:8px 16px;border-radius:99px;background:var(--terra);color:#fff;border:none;cursor:pointer;font-size:0.8rem;font-family:inherit;';
           btn.onclick = function() { location.href = 'log.html'; };
           bw.appendChild(btn);
         } else {
-          targets.forEach(function(d) {
+          parsedDishes.slice(0, 3).forEach(function(item) {
             var btn = document.createElement('button');
-            btn.textContent = '📝 ' + d + ' を記録する';
+            btn.textContent = '📝 ' + item.name + ' を記録する';
             btn.style.cssText = 'display:block;padding:8px 16px;border-radius:99px;background:var(--terra);color:#fff;border:none;cursor:pointer;font-size:0.8rem;font-family:inherit;text-align:left;';
-            btn.onclick = (function(dish) {
+            btn.onclick = (function(dish, ings) {
               return function() {
                 var t = new Date().toISOString().split('T')[0];
-                location.href = 'log.html?date=' + t + '&dish=' + encodeURIComponent(dish);
+                var url = 'log.html?date=' + t + '&dish=' + encodeURIComponent(dish);
+                if (ings && ings.length > 0) {
+                  url += '&ingredients=' + encodeURIComponent(ings.join(','));
+                }
+                location.href = url;
               };
-            })(d);
+            })(item.name, item.ingredients);
             bw.appendChild(btn);
+            // 食材プレビュー
+            if (item.ingredients && item.ingredients.length > 0) {
+              var preview = document.createElement('div');
+              preview.style.cssText = 'font-size:0.72rem;color:var(--muted);padding:0 16px 8px;';
+              preview.textContent = '🥕 ' + item.ingredients.slice(0, 5).join('・');
+              bw.appendChild(preview);
+            }
           });
         }
         rb.appendChild(bw);
