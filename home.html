@@ -79,7 +79,6 @@
       text-align: center;
     }
     .liked-name { font-size: 0.9rem; font-weight: 500; flex: 1; }
-    .liked-stars { font-size: 0.75rem; color: var(--amber); }
 
     .fab {
       position: fixed;
@@ -103,6 +102,96 @@
 
     @media (max-width: 480px) {
       .fab { right: 20px; }
+    }
+
+    /* =====================
+       冷蔵庫セクション
+    ===================== */
+    .fridge-section { padding: 0 20px; }
+
+    .fridge-chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 12px;
+      min-height: 32px;
+    }
+
+    .fridge-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 5px 12px;
+      border-radius: 99px;
+      background: #EEF3E2;
+      border: 1.5px solid var(--olive);
+      color: var(--olive);
+      font-size: 0.8rem;
+      font-weight: 500;
+      transition: all var(--transition);
+    }
+
+    .fridge-chip.expiring-soon {
+      background: #FEF3EC;
+      border-color: var(--terra);
+      color: var(--terra);
+    }
+
+    .fridge-chip .chip-del {
+      background: none;
+      border: none;
+      color: inherit;
+      font-size: 0.75rem;
+      cursor: pointer;
+      padding: 0;
+      opacity: 0.6;
+      line-height: 1;
+      margin-left: 2px;
+    }
+    .fridge-chip .chip-del:hover { opacity: 1; }
+
+    .fridge-add-row {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .fridge-input {
+      flex: 1;
+      border: 1.5px solid var(--border);
+      border-radius: 99px;
+      padding: 9px 16px;
+      font-size: 0.88rem;
+      outline: none;
+      background: var(--white);
+      font-family: var(--font-body);
+      color: var(--brown);
+      transition: border-color var(--transition);
+    }
+    .fridge-input:focus { border-color: var(--olive); }
+    .fridge-input::placeholder { color: var(--border); }
+
+    .fridge-add-btn {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      background: var(--olive);
+      color: var(--white);
+      border: none;
+      font-size: 1.2rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      transition: background var(--transition);
+    }
+    .fridge-add-btn:hover { background: #596830; }
+
+    .fridge-empty {
+      font-size: 0.82rem;
+      color: var(--muted);
+      padding: 4px 2px;
     }
   </style>
 </head>
@@ -137,6 +226,29 @@
             <div class="meal-type">夜</div>
             <div class="meal-empty">未登録</div>
           </div>
+        </div>
+      </div>
+
+      <!-- 区切り -->
+      <div class="divider" style="margin:20px 20px 0;"></div>
+
+      <!-- 冷蔵庫食材メモ -->
+      <div class="section-header">
+        <span class="section-title">🧊 冷蔵庫の食材</span>
+        <span style="font-size:0.75rem;color:var(--muted);">AI提案に自動反映</span>
+      </div>
+      <div class="fridge-section">
+        <!-- 登録済み食材チップ -->
+        <div class="fridge-chips" id="fridgeChips">
+          <span class="fridge-empty">食材を登録するとAIが献立を提案しやすくなります</span>
+        </div>
+        <!-- 追加フォーム -->
+        <div class="fridge-add-row">
+          <input type="text" id="fridgeInput" class="fridge-input"
+                 placeholder="食材名（例：鶏もも肉、ニンジン）"
+                 maxlength="20"
+                 onkeydown="if(event.key==='Enter')addFridgeItemUI()">
+          <button class="fridge-add-btn" onclick="addFridgeItemUI()" title="追加">＋</button>
         </div>
       </div>
 
@@ -199,6 +311,7 @@
 
       renderDateStrip();
       await renderMealGrid(selectedDate);
+      await renderFridgeItems();
       await renderLikedList();
     }
 
@@ -207,7 +320,6 @@
       strip.innerHTML = '';
       const today = new Date();
 
-      // 前後3日 + 今日 = 7日表示
       for (let i = -3; i <= 3; i++) {
         const d = new Date(today);
         d.setDate(today.getDate() + i);
@@ -264,6 +376,62 @@
       }).join('');
     }
 
+    // ---- 冷蔵庫食材 ----
+    async function renderFridgeItems() {
+      const container = document.getElementById('fridgeChips');
+      if (!householdId) return;
+
+      const items = await getFridgeItems(householdId);
+      if (items.length === 0) {
+        container.innerHTML = '<span class="fridge-empty">食材を登録するとAIが献立を提案しやすくなります</span>';
+        return;
+      }
+
+      const today = toDateStr();
+      container.innerHTML = items.map(item => {
+        // 期限3日以内は警告色
+        let expiringSoon = false;
+        let expiresLabel = '';
+        if (item.expires_on) {
+          const diffDays = Math.ceil((new Date(item.expires_on) - new Date(today)) / 86400000);
+          expiringSoon = diffDays <= 3;
+          expiresLabel = expiringSoon
+            ? ` <small>(${diffDays <= 0 ? '期限切れ' : diffDays + '日'})</small>`
+            : '';
+        }
+        return `
+          <span class="fridge-chip ${expiringSoon ? 'expiring-soon' : ''}">
+            ${item.name}${expiresLabel}
+            <button class="chip-del" onclick="removeFridgeItem('${item.id}')" title="削除">✕</button>
+          </span>
+        `;
+      }).join('');
+    }
+
+    async function addFridgeItemUI() {
+      const input = document.getElementById('fridgeInput');
+      const name = input.value.trim();
+      if (!name) return;
+
+      input.value = '';
+      const result = await addFridgeItem(householdId, name);
+      if (result) {
+        await renderFridgeItems();
+      } else {
+        showToast('追加に失敗しました', 'error');
+      }
+    }
+
+    async function removeFridgeItem(itemId) {
+      const ok = await deleteFridgeItem(itemId);
+      if (ok) {
+        await renderFridgeItems();
+      } else {
+        showToast('削除に失敗しました', 'error');
+      }
+    }
+
+    // ---- また食べたいランキング ----
     async function renderLikedList() {
       const list = document.getElementById('likedList');
       if (!householdId) return;
