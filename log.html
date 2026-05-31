@@ -91,9 +91,9 @@
 
         <!-- 使用食材 -->
         <div class="form-group">
-          <label class="form-label">使用食材（スペースで区切って入力）</label>
+          <label class="form-label">使用食材</label>
           <input type="text" id="ingredientInput" class="form-input"
-                 placeholder="例：鶏もも肉 醤油 みりん"
+                 placeholder="食材名を入力してEnter（複数可）"
                  onkeydown="handleIngredientKey(event)">
           <div class="ingredient-tags" id="ingredientTags"></div>
         </div>
@@ -260,7 +260,7 @@
 
     // 食材タグ
     function handleIngredientKey(e) {
-      if (e.key === 'Enter' || e.key === ' ') {
+      if (e.key === 'Enter') {
         e.preventDefault();
         addIngredient();
       }
@@ -268,11 +268,16 @@
 
     function addIngredient() {
       const input = document.getElementById('ingredientInput');
-      const val = input.value.trim();
-      if (val && !ingredients.includes(val)) {
-        ingredients.push(val);
-        renderIngredientTags();
-      }
+      const raw = input.value.trim();
+      if (!raw) return;
+      // 全角・半角スペース、読点、カンマで分割
+      const vals = raw.split(/[\s　、,，]+/).map(s => s.trim()).filter(Boolean);
+      vals.forEach(val => {
+        if (val && !ingredients.includes(val)) {
+          ingredients.push(val);
+        }
+      });
+      renderIngredientTags();
       input.value = '';
     }
 
