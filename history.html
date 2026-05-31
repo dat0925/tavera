@@ -340,10 +340,10 @@
         memoWrap.classList.add('hidden');
       }
 
-      // 評価
+      // また食べたい度
       const r = log.rating || 0;
       document.getElementById('modalRating').textContent =
-        r ? '★'.repeat(r) + '☆'.repeat(5-r) : '未評価';
+        r ? '★'.repeat(r) + '☆'.repeat(5-r) : '未設定';
 
       // ボタン
       document.getElementById('modalEditBtn').onclick = () => {
@@ -404,7 +404,7 @@
       </div>
 
       <div class="modal-section">
-        <div class="modal-section-label">評価</div>
+        <div class="modal-section-label">また食べたい度</div>
         <div class="modal-section-value" id="modalRating"></div>
       </div>
 

@@ -290,10 +290,10 @@ input, textarea, select { font-family: inherit; }
    ===================== */
 .rating {
   display: flex;
-  gap: 2px;
+  gap: 4px;
 }
 .rating .star {
-  font-size: 1rem;
+  font-size: 2rem;
   color: var(--border);
   cursor: pointer;
   transition: color var(--transition);
