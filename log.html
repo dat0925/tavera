@@ -192,6 +192,12 @@
         renderIngredientTags();
       }
 
+      // AI提案からメモが渡されていればプリセット
+      const memoParam = params.get('memo') || '';
+      if (memoParam) {
+        document.getElementById('memo').value = memoParam;
+      }
+
       await loadExisting(dateParam, mealParam);
     }
 
@@ -203,7 +209,10 @@
 
       existingLogId = log.id;
       document.getElementById('dishName').value = log.dish_name || '';
-      document.getElementById('memo').value = log.memo || '';
+      // 既存ログのメモがある場合は既存を優先
+      if (log.memo) {
+        document.getElementById('memo').value = log.memo;
+      }
       // 既存ログに食材がある場合は既存を優先、なければプリセットを維持
       if (log.ingredients && log.ingredients.length > 0) {
         ingredients = log.ingredients;
