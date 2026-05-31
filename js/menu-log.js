@@ -255,3 +255,34 @@ async function deleteFridgeItem(itemId) {
     .eq('id', itemId);
   return !error;
 }
+
+// =====================
+//  家族メンバー（アレルギー管理）
+// =====================
+
+// 家族メンバー一覧を取得
+async function getFamilyMembers(householdId) {
+  const { data } = await db
+    .from('menu_family_members')
+    .select('*')
+    .eq('household_id', householdId)
+    .order('created_at');
+  return data || [];
+}
+
+// 食材リストとアレルギーを照合
+// 戻り値: [{ memberName, allergen }, ...]
+function checkAllergies(ingredients, familyMembers) {
+  const hits = [];
+  familyMembers.forEach(m => {
+    (m.allergies || []).forEach(allergen => {
+      const matched = ingredients.find(ing =>
+        ing.includes(allergen) || allergen.includes(ing)
+      );
+      if (matched) {
+        hits.push({ memberName: m.nickname, allergen });
+      }
+    });
+  });
+  return hits;
+}

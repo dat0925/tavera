@@ -107,6 +107,7 @@
 
   <script>
     var householdId = null;
+    var familyMembers = [];
     var isLoading = false;
     var recentDishes = [];
     var likedDishesCache = [];
@@ -118,6 +119,7 @@
         var user = await requireAuth();
         if (!user) return;
         householdId = await getOrCreateHousehold(user.id);
+        try { familyMembers = await getFamilyMembers(householdId); } catch(e) { familyMembers = []; }
         try { recentDishes = await getLogsForWeek(householdId); } catch(e) { recentDishes = []; }
         try { likedDishesCache = await getLikedDishes(householdId, 5); } catch(e) { likedDishesCache = []; }
         try {
@@ -334,9 +336,25 @@
             // 食材プレビュー
             if (item.ingredients && item.ingredients.length > 0) {
               var preview = document.createElement('div');
-              preview.style.cssText = 'font-size:0.72rem;color:var(--muted);padding:0 16px 8px;';
+              preview.style.cssText = 'font-size:0.72rem;color:var(--muted);padding:0 16px 4px;';
               preview.textContent = '🥕 ' + item.ingredients.slice(0, 5).join('・');
               bw.appendChild(preview);
+            }
+            // アレルギー警告
+            if (item.ingredients && item.ingredients.length > 0 && familyMembers.length > 0) {
+              var hits = checkAllergies(item.ingredients, familyMembers);
+              if (hits.length > 0) {
+                var byMember = {};
+                hits.forEach(function(h) {
+                  (byMember[h.memberName] = byMember[h.memberName] || []).push(h.allergen);
+                });
+                var alertEl = document.createElement('div');
+                alertEl.style.cssText = 'font-size:0.75rem;color:var(--terra);padding:2px 16px 8px;line-height:1.6;';
+                alertEl.innerHTML = Object.entries(byMember)
+                  .map(function(e) { return '⚠️ ' + e[0] + '：' + e[1].join('・') + ' が含まれています'; })
+                  .join('<br>');
+                bw.appendChild(alertEl);
+              }
             }
           });
         }

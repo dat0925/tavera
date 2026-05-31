@@ -130,6 +130,7 @@
                  placeholder="食材名を入力してEnter（複数可）"
                  onkeydown="handleIngredientKey(event)">
           <div class="ingredient-tags" id="ingredientTags"></div>
+          <div id="allergyAlert" style="display:none;margin-top:8px;padding:10px 12px;background:#FEF3EC;border:1.5px solid var(--terra);border-radius:8px;font-size:0.8rem;color:var(--terra);line-height:1.6"></div>
         </div>
 
         <!-- メモ -->
@@ -195,6 +196,24 @@
     let householdId = null;
     let existingLogId = null;
     let isEditMode = false;
+    let familyMembers = [];
+
+    // アレルギー警告を更新
+    function updateAllergyAlert() {
+      const alert = document.getElementById('allergyAlert');
+      if (!familyMembers.length || !ingredients.length) { alert.style.display = 'none'; return; }
+      const hits = checkAllergies(ingredients, familyMembers);
+      if (!hits.length) { alert.style.display = 'none'; return; }
+      // メンバーごとにまとめる
+      const byMember = {};
+      hits.forEach(h => {
+        (byMember[h.memberName] = byMember[h.memberName] || []).push(h.allergen);
+      });
+      const lines = Object.entries(byMember)
+        .map(([name, allergens]) => `⚠️ ${name}：${allergens.join('・')} が含まれています`);
+      alert.innerHTML = lines.join('<br>');
+      alert.style.display = '';
+    }
 
     function toggleTip() {
       const tip = document.getElementById('ingredientTip');
@@ -205,6 +224,8 @@
       const user = await requireAuth();
       if (!user) return;
       householdId = await getOrCreateHousehold(user.id);
+      // 家族メンバー（アレルギー照合用）
+      familyMembers = await getFamilyMembers(householdId);
 
       // URLパラメータから日付・食事タイプを取得
       const params = new URLSearchParams(location.search);
@@ -330,6 +351,7 @@
           <button onclick="removeIngredient(${i})">×</button>
         </span>
       `).join('');
+      updateAllergyAlert();
     }
 
     function removeIngredient(index) {
