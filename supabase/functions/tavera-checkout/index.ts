@@ -77,11 +77,20 @@ serve(async (req) => {
     });
 
     const session = await sessionRes.json();
+    console.log("Stripe session response:", JSON.stringify(session));
+    if (!session.url) {
+      console.error("No URL in session:", JSON.stringify(session));
+      return new Response(JSON.stringify({ error: "no_url", detail: session }), {
+        status: 500,
+        headers: { ...CORS, "Content-Type": "application/json" },
+      });
+    }
     return new Response(JSON.stringify({ url: session.url }), {
       headers: { ...CORS, "Content-Type": "application/json" },
     });
 
   } catch (e: any) {
+    console.error("Exception:", e.message);
     return new Response(JSON.stringify({ error: e.message }), {
       status: 500,
       headers: { ...CORS, "Content-Type": "application/json" },
