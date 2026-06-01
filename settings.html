@@ -706,7 +706,7 @@
           .select('count')
           .eq('user_id', currentUser.id)
           .eq('month', month)
-          .single();
+          .maybeSingle();
         const used = usage?.count || 0;
         const remaining = 10 - used;
         const warnClass = remaining <= 3 ? 'warn' : '';
