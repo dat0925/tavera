@@ -6,7 +6,9 @@ const CORS = {
   "Access-Control-Allow-Headers": "authorization, content-type",
 };
 
-const FREE_LIMIT = 10; // 無料プランの月間上限
+const FREE_LIMIT      = 10;  // 無料プランの月間上限
+const PREMIUM_LIMIT   = 500; // プレミアムの月間上限（上限攻撃対策）
+const PREMIUM_DAY_LIMIT = 50; // プレミアムの1日上限
 
 const SYSTEM_PROMPT = `あなたは家庭料理の献立提案アシスタントです。
 ユーザーの家族構成・冷蔵庫の食材・最近の献立・高評価メニューを考慮して、
@@ -50,33 +52,42 @@ serve(async (req) => {
     const isPremium = plan === "premium" &&
       (!member?.plan_expires_at || new Date(member.plan_expires_at) > new Date());
 
-    // 無料プランは月10回制限
-    if (!isPremium) {
-      const month = new Date().toISOString().slice(0, 7); // YYYY-MM
-      const { data: usage } = await supabase
-        .from("menu_ai_usage")
-        .select("count")
-        .eq("user_id", user.id)
-        .eq("month", month)
-        .single();
+    const now = new Date();
+    const month = now.toISOString().slice(0, 7); // YYYY-MM
+    const today = now.toISOString().slice(0, 10); // YYYY-MM-DD
 
-      const currentCount = usage?.count || 0;
-      if (currentCount >= FREE_LIMIT) {
-        return new Response(JSON.stringify({
-          error: "limit_exceeded",
-          count: currentCount,
-          limit: FREE_LIMIT,
-        }), { status: 429, headers: { ...CORS, "Content-Type": "application/json" } });
-      }
+    // 利用回数取得
+    const { data: usage } = await supabase
+      .from("menu_ai_usage")
+      .select("count, day_count, last_day")
+      .eq("user_id", user.id)
+      .eq("month", month)
+      .single();
 
-      // カウントアップ
-      await supabase.from("menu_ai_usage").upsert({
-        user_id: user.id,
-        month,
-        count: currentCount + 1,
-        updated_at: new Date().toISOString(),
-      }, { onConflict: "user_id,month" });
+    const monthCount = usage?.count || 0;
+    const dayCount   = usage?.last_day === today ? (usage?.day_count || 0) : 0;
+
+    const monthLimit = isPremium ? PREMIUM_LIMIT     : FREE_LIMIT;
+    const dayLimit   = isPremium ? PREMIUM_DAY_LIMIT : 3;
+
+    if (monthCount >= monthLimit || dayCount >= dayLimit) {
+      return new Response(JSON.stringify({
+        error: "limit_exceeded",
+        count: monthCount,
+        limit: monthLimit,
+        plan: isPremium ? "premium" : "free",
+      }), { status: 429, headers: { ...CORS, "Content-Type": "application/json" } });
     }
+
+    // カウントアップ
+    await supabase.from("menu_ai_usage").upsert({
+      user_id: user.id,
+      month,
+      count: monthCount + 1,
+      day_count: dayCount + 1,
+      last_day: today,
+      updated_at: now.toISOString(),
+    }, { onConflict: "user_id,month" });
 
     const { messages, likedDishes, recentDishes, fridgeItems } = await req.json();
 
@@ -114,17 +125,16 @@ serve(async (req) => {
     const data = await response.json();
     const reply = data.content?.[0]?.text || "提案を生成できませんでした。";
 
-    // 無料プランの残り回数を返す
+    // 残り回数（無料プランのみ表示）
     let remaining = null;
     if (!isPremium) {
-      const month = new Date().toISOString().slice(0, 7);
-      const { data: usage } = await supabase
+      const { data: latestUsage } = await supabase
         .from("menu_ai_usage")
         .select("count")
         .eq("user_id", user.id)
         .eq("month", month)
         .single();
-      remaining = FREE_LIMIT - (usage?.count || 0);
+      remaining = FREE_LIMIT - (latestUsage?.count || 0);
     }
 
     return new Response(JSON.stringify({ reply, remaining, plan }), {

@@ -14,8 +14,10 @@ ALTER TABLE menu_members
 CREATE TABLE IF NOT EXISTS menu_ai_usage (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
-  month text NOT NULL,  -- 'YYYY-MM' 形式
-  count integer NOT NULL DEFAULT 0,
+  month text NOT NULL,       -- 'YYYY-MM' 形式
+  count integer NOT NULL DEFAULT 0,     -- 月間累計
+  day_count integer NOT NULL DEFAULT 0, -- 当日カウント
+  last_day text,                        -- 最終利用日 'YYYY-MM-DD'
   updated_at timestamptz DEFAULT now(),
   UNIQUE(user_id, month)
 );
