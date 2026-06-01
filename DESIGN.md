@@ -1,6 +1,6 @@
 # Tavera 設計書・引き継ぎ書
 
-**バージョン**: 1.2.4
+**バージョン**: 1.3.0
 **最終更新**: 2026-06-01
 **ステータス**: 一般公開済み・本番運用中
 
@@ -394,7 +394,50 @@ home.html等でrequireAuth()失敗 → index.html（LP）にリダイレクト
 
 ---
 
-## 16. デザインシステム
+## 16. Stripeサブスク設計（v1.3.0）
+
+### プラン構成
+| プラン | 月額 | AI提案 |
+|---|---|---|
+| Free | 無料 | 月10回まで |
+| Premium | ¥480 | 無制限 |
+
+### 原価試算（claude-haiku-4-5ベース）
+- 1回あたり約0.5円（入力1,100 + 出力600トークン）
+- ヘビー利用（月90回）でも約50円 → 利益率約90%
+
+### 必要なStripe設定（手動作業）
+1. Stripeダッシュボードで商品「Tavera Premium」を作成（¥480/月）
+2. Price IDをSupabase SecretにSTRIPE_PREMIUM_PRICE_IDとして登録
+3. Stripe Secret KeyをSTRIPE_SECRET_KEYとして登録
+4. Webhookエンドポイントを登録: `https://sfhtvtcmgueystyuhzvd.supabase.co/functions/v1/tavera-webhook`
+5. 購読するWebhookイベント: customer.subscription.created/updated/deleted, invoice.payment_failed
+6. Webhook SigningSecretをSTRIPE_WEBHOOK_SECRETとして登録
+
+### 必要なSupabase Secrets
+| Secret名 | 内容 |
+|---|---|
+| ANTHROPIC_API_KEY | 既存（Taskraと共有） |
+| STRIPE_SECRET_KEY | Stripeダッシュボードから取得 |
+| STRIPE_PREMIUM_PRICE_ID | Stripeで作成した価格のID（price_xxx） |
+| STRIPE_WEBHOOK_SECRET | Stripe Webhookの署名シークレット（whsec_xxx） |
+| SUPABASE_SERVICE_ROLE_KEY | SupabaseプロジェクトのService Role Key |
+
+### Edge Functions（3本）
+| 関数名 | 用途 | JWT検証 |
+|---|---|---|
+| tavera-suggest | AI提案・プラン判定・利用回数制限 | オン |
+| tavera-checkout | Stripe Checkout Session生成 | オン |
+| tavera-webhook | Stripeイベント受信・DB更新 | オフ（Stripe署名で代替） |
+| tavera-kyushoku | 給食献立表解析 | オフ |
+
+### DBスキーマ追加（stripe_setup.sql参照）
+- menu_members: plan, stripe_customer_id, stripe_subscription_id, plan_expires_at
+- menu_ai_usage: user_id, month(YYYY-MM), count
+
+---
+
+## 18. デザインシステム
 
 | 変数 | 値 | 用途 |
 |------|-----|------|
@@ -410,7 +453,7 @@ home.html等でrequireAuth()失敗 → index.html（LP）にリダイレクト
 
 ---
 
-## 17. 開発ロードマップ
+## 18. 開発ロードマップ
 
 ### Phase 1（完了）MVP
 - Google認証・献立ログCRUD・ホーム・履歴・AI提案・PWA・カスタムドメイン
@@ -453,10 +496,14 @@ home.html等でrequireAuth()失敗 → index.html（LP）にリダイレクト
 > 代わりに定着率向上・AI改善・早期マネタイズを優先する。
 
 #### 優先度：高
-- [ ] **Stripeサブスク** — AI機能を有料化。free / premiumの2プラン構成を想定
-  - Edge Function経由でのStripe Checkout/Webhook
-  - AI提案の月間利用回数制限（無料: N回/月、有料: 無制限）
-  - 設定画面にプラン表示・アップグレードボタン
+- [x] **Stripeサブスク** ✅ v1.3.0 — AI機能を有料化。free / premiumの2プラン構成
+  - Edge Function: tavera-checkout（Stripe Checkout Session生成）
+  - Edge Function: tavera-webhook（subscription作成/更新/削除/支払失敗を処理）
+  - Edge Function: tavera-suggest（プラン判定・月10回制限・残り回数をレスポンスに含める）
+  - DBテーブル: menu_ai_usage（ユーザー×月の利用回数トラッキング）
+  - menu_membersにplan・stripe_customer_id・stripe_subscription_id・plan_expires_at追加
+  - settings.html: プランカード（利用回数・アップグレードボタン）追加
+  - suggest.html: 残り回数バー・上限超過時のペイウォール表示
 
 #### 優先度：中
 - [ ] **AI提案の精度向上** — 使うほど良くなる体験で定着率を上げる
@@ -473,7 +520,7 @@ home.html等でrequireAuth()失敗 → index.html（LP）にリダイレクト
 
 ---
 
-## 18. 本番運用前にやること（済）
+## 19. 本番運用前にやること（済）
 
 ```sql
 -- テスト中に大量作成された不要な「わが家」世帯を削除
@@ -483,7 +530,7 @@ WHERE id NOT IN (SELECT household_id FROM menu_members);
 
 ---
 
-## 19. 開発運用・注意事項
+## 20. 開発運用・注意事項
 
 - **開発スタイル**: Claudeとのチャットで開発。GitHubのPATを渡してpushまで完結。
 - **引き継ぎ**: 本DESIGN.mdを新しいClaudeセッションに共有する。

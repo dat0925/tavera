@@ -48,6 +48,37 @@
       display: flex; align-items: center; gap: 14px;
     }
     .profile-avatar { width: 52px; height: 52px; border-radius: 50%; object-fit: cover; border: 2px solid var(--border); }
+
+    /* プランカード */
+    .plan-card {
+      background: var(--white);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: 16px;
+    }
+    .plan-badge {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 4px 12px; border-radius: 99px;
+      font-size: 0.78rem; font-weight: 700; margin-bottom: 10px;
+    }
+    .plan-badge.free     { background: var(--surface); color: var(--muted); border: 1px solid var(--border); }
+    .plan-badge.premium  { background: #FEF3EC; color: var(--terra); border: 1px solid var(--terra); }
+    .plan-usage {
+      font-size: 0.82rem; color: var(--brown); margin-bottom: 12px; line-height: 1.6;
+    }
+    .plan-usage .count { font-weight: 700; }
+    .plan-usage .warn   { color: var(--terra); }
+    .plan-upgrade-btn {
+      display: block; width: 100%; padding: 11px;
+      background: var(--terra); color: #fff; border: none;
+      border-radius: 99px; font-size: 0.88rem; font-weight: 700;
+      cursor: pointer; font-family: inherit; text-align: center; text-decoration: none;
+    }
+    .plan-manage-btn {
+      display: block; width: 100%; padding: 11px; margin-top: 8px;
+      background: none; color: var(--muted); border: 1.5px solid var(--border);
+      border-radius: 99px; font-size: 0.82rem; cursor: pointer; font-family: inherit;
+    }
     .profile-info h3 { font-size: 1rem; font-weight: 700; margin-bottom: 2px; }
     .profile-info p  { font-size: 0.8rem; color: var(--muted); }
 
@@ -268,6 +299,14 @@
                    oninput="this.value=this.value.toUpperCase()">
             <button class="btn btn-primary" onclick="joinHousehold()">参加する</button>
           </div>
+        </div>
+      </div>
+
+      <!-- プラン -->
+      <div class="settings-section" id="plan">
+        <div class="settings-label">プラン</div>
+        <div class="plan-card" id="planCard">
+          <div class="loading-dots" style="padding:8px 0;justify-content:center"><span></span><span></span><span></span></div>
         </div>
       </div>
 

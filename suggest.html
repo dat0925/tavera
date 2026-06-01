@@ -56,6 +56,29 @@
     }
     .send-btn:hover { background:#b8451f; }
     .send-btn:disabled { background:var(--border); cursor:default; }
+    .usage-bar {
+      display:flex; align-items:center; gap:8px;
+      padding:6px 14px; background:var(--surface);
+      border-bottom:1px solid var(--border);
+      font-size:0.75rem; color:var(--muted);
+    }
+    .usage-bar .usage-count { font-weight:700; color:var(--brown); }
+    .usage-bar .upgrade-link {
+      margin-left:auto; color:var(--terra); font-weight:700;
+      text-decoration:none; font-size:0.75rem;
+    }
+    .paywall-msg {
+      margin:20px 16px; padding:20px;
+      background:#FEF3EC; border:1.5px solid var(--terra);
+      border-radius:var(--radius-md); text-align:center;
+    }
+    .paywall-msg p { font-size:0.88rem; color:var(--brown); margin-bottom:14px; line-height:1.7; }
+    .paywall-btn {
+      display:inline-block; padding:10px 28px;
+      background:var(--terra); color:#fff; border:none;
+      border-radius:99px; font-size:0.88rem; font-weight:700;
+      cursor:pointer; font-family:inherit; text-decoration:none;
+    }
   </style>
 </head>
 <body>
@@ -67,6 +90,12 @@
       </div>
       <span class="header-title">✨ AI献立提案</span>
     </header>
+
+    <!-- 利用回数バー（無料プランのみ表示） -->
+    <div class="usage-bar" id="usageBar" style="display:none">
+      <span>今月のAI提案：<span class="usage-count" id="usageCount">-</span> / 10回</span>
+      <a href="settings.html#plan" class="upgrade-link">✨ プレミアムにする</a>
+    </div>
 
     <div class="chat-page">
       <div class="chat-messages" id="chatMessages">
@@ -109,6 +138,30 @@
     var householdId = null;
     var familyMembers = [];
     var isLoading = false;
+
+    function updateUsageBar(used, remaining) {
+      var bar = document.getElementById('usageBar');
+      var cnt = document.getElementById('usageCount');
+      bar.style.display = 'flex';
+      cnt.textContent = used;
+      if (remaining <= 0) {
+        cnt.style.color = 'var(--terra)';
+      } else if (remaining <= 3) {
+        cnt.style.color = '#E8932A';
+      } else {
+        cnt.style.color = 'var(--brown)';
+      }
+    }
+
+    function showPaywall() {
+      var c = document.getElementById('chatMessages');
+      var div = document.createElement('div');
+      div.className = 'paywall-msg';
+      div.innerHTML = '<p>今月のAI提案（無料：10回）を使い切りました。<br>プレミアムプランなら<strong>無制限</strong>でご利用いただけます。</p>' +
+        '<a href="settings.html#plan" class="paywall-btn">✨ プレミアムにアップグレード</a>';
+      c.appendChild(div);
+      c.scrollTop = 999999;
+    }
     var recentDishes = [];
     var likedDishesCache = [];
     var fridgeItemsCache = [];
@@ -288,7 +341,25 @@
             fridgeItems: (fridgeItemsCache || []).map(function(i) { return i.name; })
           })
         });
+
+        // 上限超過チェック
+        if (res.status === 429) {
+          lb.remove();
+          showPaywall();
+          isLoading = false;
+          document.getElementById('sendBtn').disabled = false;
+          return;
+        }
+
         var data = await res.json();
+
+        // 残り回数バー更新
+        if (data.plan === 'free' && data.remaining !== null && data.remaining !== undefined) {
+          updateUsageBar(10 - data.remaining, data.remaining);
+        } else if (data.plan === 'premium') {
+          document.getElementById('usageBar').style.display = 'none';
+        }
+
         var reply = data.reply || '提案の取得に失敗しました。';
         lb.remove();
         chatMessages.push({ role: 'assistant', content: reply });
