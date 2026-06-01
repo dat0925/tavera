@@ -718,25 +718,17 @@
     }
 
     async function startCheckout() {
-      const { data: { session } } = await db.auth.getSession();
-      if (!session) return;
       const btn = document.querySelector('.plan-upgrade-btn');
       if (btn) { btn.textContent = '処理中...'; btn.disabled = true; }
       try {
-        const res = await fetch('https://sfhtvtcmgueystyuhzvd.supabase.co/functions/v1/tavera-checkout', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': 'Bearer ' + session.access_token,
-            'apikey': 'sb_publishable_g-33XdOGA-W_dRg_MT8Xfg_K1qzoDer',
-          },
-          body: JSON.stringify({
+        const { data, error } = await db.functions.invoke('tavera-checkout', {
+          body: {
             successUrl: location.origin + '/settings.html?plan=success',
             cancelUrl: location.origin + '/settings.html#plan',
-          }),
+          },
         });
-        const data = await res.json();
-        if (data.url) {
+        if (error) throw error;
+        if (data?.url) {
           location.href = data.url;
         } else {
           showToast('決済ページへの遷移に失敗しました', 'error');
