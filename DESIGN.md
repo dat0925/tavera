@@ -1,7 +1,7 @@
 # Tavera 設計書・引き継ぎ書
 
-**バージョン**: 1.3.1
-**最終更新**: 2026-06-01
+**バージョン**: 1.3.2
+**最終更新**: 2026-06-02
 **ステータス**: 一般公開済み・本番運用中
 
 ---
@@ -408,13 +408,43 @@ home.html等でrequireAuth()失敗 → index.html（LP）にリダイレクト
 - プレミアム上限フル利用（月500回）でも約250円 → 利益率約48%（現実的な利用では90%前後）
 
 ### デプロイ状況（2026-06-02時点）
-- DBマイグレーション（stripe_setup.sql）: ✅ 実行済み
-- Stripe商品・Price ID作成（サンドボックス）: ✅ 完了
-- Supabase Secrets登録: ✅ 完了
-- Edge Function tavera-checkout: ✅ コンソールからデプロイ済み（CORSエラー調査中）
-- Edge Function tavera-webhook: ✅ デプロイ済み
-- Edge Function tavera-suggest: ✅ デプロイ済み（既存上書き）
-- CORSエラーの根本原因: Supabase GatewayがOPTIONSプリフライトを404で返す問題。Supabase CLIからの再デプロイで解消予定。
+
+| 項目 | 状況 |
+|---|---|
+| DBマイグレーション（stripe_setup.sql） | ✅ 実行済み |
+| Stripe商品・Price ID作成（サンドボックス） | ✅ 完了（`price_1TdMZzB5e5DORDCyeMEYw7un`） |
+| Supabase Secrets登録 | ✅ 完了（TAVERA_STRIPE_PRICE_ID・TAVERA_STRIPE_WEBHOOK_SECRET・STRIPE_SECRET_KEY_TEST） |
+| Edge Function tavera-checkout | ✅ Supabase CLIでデプロイ済み・動作確認済み |
+| Edge Function tavera-webhook | ✅ デプロイ済み |
+| Edge Function tavera-suggest | ✅ デプロイ済み（既存上書き） |
+| Stripe決済画面への遷移 | ✅ 動作確認済み（テストカードで決済成功） |
+| Webhook → DB反映 | ⚠️ 未完了（下記「残作業」参照） |
+
+### 残作業（次回セッションで対応）
+
+1. **tavera-webhookのJWT設定確認**
+   - Supabase → Edge Functions → tavera-webhook → Settings
+   - 「Verify JWT with legacy secret」を**オフ**にする（現在オンになっていた）
+   - Save changesを忘れずに
+
+2. **Webhookイベントの再送**
+   - Stripe（サンドボックス）→ Webhooks → エンドポイント
+   - 最近のイベントから`customer.subscription.created`を探して「再送」
+   - 設定画面でプランが「✨ プレミアム」に変わることを確認
+
+3. **動作確認後にデバッグログを削除**
+   - `tavera-checkout/index.ts`の`console.log`を削除してから再デプロイ
+
+4. **Supabase anon keyの整合性確認**
+   - `js/supabase.js`を新Publishable Key（`sb_publishable_g-33XdOGA-W_dRg_MT8Xfg_K1qzoDer`）に変更済み
+   - Taskra・Flowraの同ファイルも同様に更新が必要な可能性あり
+
+### トラブルシューティング履歴（参考）
+- CORSエラー: Supabase GatewayはOPTIONSを404で返す問題 → Supabase CLIでデプロイすることで解消
+- CORS_HEADERSに`x-client-info, apikey`が必要
+- `menu_ai_usage`未存在時の406エラー → `.single()`を`.maybeSingle()`に変更
+- Stripe顧客作成のmetadata形式: `metadata[supabase_user_id]`（フラット形式）
+- STRIPE_SECRET_KEYはTaskraの本番キーが登録済みのため、`STRIPE_SECRET_KEY_TEST`を別途登録
 
 ### 必要なStripe設定（手動作業）
 1. Stripeダッシュボードで商品「Tavera Premium」を作成（¥480/月）
