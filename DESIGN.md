@@ -419,8 +419,8 @@ home.html等でrequireAuth()失敗 → index.html（LP）にリダイレクト
 |---|---|
 | ANTHROPIC_API_KEY | 既存（Taskraと共有） |
 | STRIPE_SECRET_KEY | Stripeダッシュボードから取得 |
-| STRIPE_PREMIUM_PRICE_ID | Stripeで作成した価格のID（price_xxx） |
-| STRIPE_WEBHOOK_SECRET | Stripe Webhookの署名シークレット（whsec_xxx） |
+| TAVERA_STRIPE_PRICE_ID | Stripeで作成した価格のID（price_xxx）※Taskraと別名 |
+| TAVERA_STRIPE_WEBHOOK_SECRET | Stripe Webhookの署名シークレット（whsec_xxx）※Taskraと別名 |
 | SUPABASE_SERVICE_ROLE_KEY | SupabaseプロジェクトのService Role Key |
 
 ### Edge Functions（3本）
