@@ -46,17 +46,22 @@ serve(async (req) => {
         },
         body: new URLSearchParams({
           email: user.email || "",
-          metadata: JSON.stringify({ supabase_user_id: user.id }),
+          "metadata[supabase_user_id]": user.id,
         }),
       });
       const customer = await cusRes.json();
+      console.log("Created customer:", JSON.stringify(customer));
       customerId = customer.id;
 
-      await supabase
-        .from("menu_members")
-        .update({ stripe_customer_id: customerId })
-        .eq("id", user.id);
+      if (customerId) {
+        await supabase
+          .from("menu_members")
+          .update({ stripe_customer_id: customerId })
+          .eq("id", user.id);
+      }
     }
+    
+    console.log("Using customerId:", customerId);
 
     // Checkout Session作成
     const sessionRes = await fetch("https://api.stripe.com/v1/checkout/sessions", {
