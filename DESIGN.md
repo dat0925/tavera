@@ -407,6 +407,15 @@ home.html等でrequireAuth()失敗 → index.html（LP）にリダイレクト
 - ヘビー利用（月90回）でも約50円 → 利益率約90%
 - プレミアム上限フル利用（月500回）でも約250円 → 利益率約48%（現実的な利用では90%前後）
 
+### デプロイ状況（2026-06-02時点）
+- DBマイグレーション（stripe_setup.sql）: ✅ 実行済み
+- Stripe商品・Price ID作成（サンドボックス）: ✅ 完了
+- Supabase Secrets登録: ✅ 完了
+- Edge Function tavera-checkout: ✅ コンソールからデプロイ済み（CORSエラー調査中）
+- Edge Function tavera-webhook: ✅ デプロイ済み
+- Edge Function tavera-suggest: ✅ デプロイ済み（既存上書き）
+- CORSエラーの根本原因: Supabase GatewayがOPTIONSプリフライトを404で返す問題。Supabase CLIからの再デプロイで解消予定。
+
 ### 必要なStripe設定（手動作業）
 1. Stripeダッシュボードで商品「Tavera Premium」を作成（¥480/月）
 2. Price IDをSupabase SecretにSTRIPE_PREMIUM_PRICE_IDとして登録
