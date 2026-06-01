@@ -382,6 +382,13 @@
 
       await renderHousehold();
       await renderFamMembers();
+      await renderPlanCard();
+
+      // plan=successのクエリパラメータがあればトースト表示
+      if (location.search.includes('plan=success')) {
+        showToast('🎉 プレミアムプランへようこそ！');
+        history.replaceState({}, '', location.pathname + '#plan');
+      }
     }
 
     // =====================
@@ -665,6 +672,84 @@
     }
 
     init();
+
+    // =====================
+    //  プランカード
+    // =====================
+    async function renderPlanCard() {
+      if (!currentUser) return;
+      const card = document.getElementById('planCard');
+      if (!card) return;
+
+      const { data: member } = await db
+        .from('menu_members')
+        .select('plan, plan_expires_at')
+        .eq('id', currentUser.id)
+        .single();
+
+      const plan = member?.plan || 'free';
+      const isPremium = plan === 'premium' &&
+        (!member?.plan_expires_at || new Date(member.plan_expires_at) > new Date());
+
+      if (isPremium) {
+        const expires = member.plan_expires_at
+          ? new Date(member.plan_expires_at).toLocaleDateString('ja-JP')
+          : '';
+        card.innerHTML = `
+          <div class="plan-badge premium">✨ プレミアム</div>
+          <div class="plan-usage">AI提案は<span class="count">無制限</span>でご利用いただけます。${expires ? '<br>次回更新日：' + expires : ''}</div>
+          <button class="plan-manage-btn" onclick="manageSubscription()">サブスクリプションを管理</button>`;
+      } else {
+        const month = new Date().toISOString().slice(0, 7);
+        const { data: usage } = await db
+          .from('menu_ai_usage')
+          .select('count')
+          .eq('user_id', currentUser.id)
+          .eq('month', month)
+          .single();
+        const used = usage?.count || 0;
+        const remaining = 10 - used;
+        const warnClass = remaining <= 3 ? 'warn' : '';
+        card.innerHTML = `
+          <div class="plan-badge free">無料プラン</div>
+          <div class="plan-usage">今月のAI提案：<span class="count ${warnClass}">${used} / 10回</span>使用<br>残り<span class="count ${warnClass}">${remaining}回</span>利用できます。</div>
+          <button class="plan-upgrade-btn" onclick="startCheckout()">✨ プレミアムにアップグレード（¥480/月）</button>`;
+      }
+    }
+
+    async function startCheckout() {
+      const { data: { session } } = await db.auth.getSession();
+      if (!session) return;
+      const btn = document.querySelector('.plan-upgrade-btn');
+      if (btn) { btn.textContent = '処理中...'; btn.disabled = true; }
+      try {
+        const res = await fetch('https://sfhtvtcmgueystyuhzvd.supabase.co/functions/v1/tavera-checkout', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ' + session.access_token,
+          },
+          body: JSON.stringify({
+            successUrl: location.origin + '/settings.html?plan=success',
+            cancelUrl: location.origin + '/settings.html#plan',
+          }),
+        });
+        const data = await res.json();
+        if (data.url) {
+          location.href = data.url;
+        } else {
+          showToast('決済ページへの遷移に失敗しました', 'error');
+          if (btn) { btn.textContent = '✨ プレミアムにアップグレード（¥480/月）'; btn.disabled = false; }
+        }
+      } catch(e) {
+        showToast('エラーが発生しました', 'error');
+        if (btn) { btn.textContent = '✨ プレミアムにアップグレード（¥480/月）'; btn.disabled = false; }
+      }
+    }
+
+    function manageSubscription() {
+      showToast('解約はStripeカスタマーポータルから行えます');
+    }
   </script>
 </body>
 </html>
