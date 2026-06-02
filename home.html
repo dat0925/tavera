@@ -169,53 +169,81 @@
     }
     .chip-del:hover { opacity: 1; }
 
-    /* 期限ピッカーパネル（チップと独立した行） */
-    .chip-expiry-panel {
-      width: 100%;
-      margin-top: 6px;
-      padding: 10px 14px;
+    /* ボトムシート */
+    .bottom-sheet-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.4);
+      z-index: 200;
+      animation: fadeIn 0.2s ease;
+    }
+    .bottom-sheet-overlay.open { display: block; }
+    .bottom-sheet {
+      position: fixed;
+      bottom: 0; left: 0; right: 0;
       background: var(--white);
-      border: 1.5px solid var(--olive);
-      border-radius: 12px;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      animation: fadeIn 0.15s ease;
+      border-radius: 20px 20px 0 0;
+      padding: 20px 20px 40px;
+      z-index: 201;
+      transform: translateY(100%);
+      transition: transform 0.25s cubic-bezier(0.32, 0.72, 0, 1);
     }
-    .chip-expiry-panel label {
-      font-size: 0.78rem;
-      color: var(--muted);
-      white-space: nowrap;
+    .bottom-sheet.open { transform: translateY(0); }
+    .bs-handle {
+      width: 40px; height: 4px;
+      background: var(--border);
+      border-radius: 2px;
+      margin: 0 auto 18px;
     }
-    .chip-expiry-panel input[type=date] {
+    .bs-title {
+      font-size: 1rem; font-weight: 700;
+      color: var(--brown); margin-bottom: 16px;
+    }
+    .bs-row {
+      display: flex; align-items: center;
+      gap: 10px; margin-bottom: 14px;
+    }
+    .bs-label {
+      font-size: 0.82rem; color: var(--muted);
+      white-space: nowrap; width: 60px;
+    }
+    .bs-date-input {
       flex: 1;
       border: 1.5px solid var(--border);
-      border-radius: 8px;
-      padding: 5px 8px;
-      font-size: 0.82rem;
+      border-radius: 10px;
+      padding: 10px 12px;
+      font-size: 0.9rem;
       outline: none;
       font-family: var(--font-body);
       color: var(--brown);
     }
-    .chip-expiry-panel input[type=date]:focus { border-color: var(--olive); }
-    .chip-expiry-panel .btn-save {
-      background: var(--olive);
-      color: white;
-      border: none;
-      border-radius: 8px;
-      padding: 5px 12px;
-      font-size: 0.8rem;
-      cursor: pointer;
-      font-family: var(--font-body);
-      white-space: nowrap;
+    .bs-date-input:focus { border-color: var(--olive); }
+    .bs-actions {
+      display: flex; gap: 10px; margin-top: 18px;
     }
-    .chip-expiry-panel .btn-cancel {
-      background: none;
-      border: none;
-      color: var(--muted);
-      font-size: 0.85rem;
-      cursor: pointer;
-      padding: 2px 4px;
+    .bs-btn-save {
+      flex: 1; padding: 13px;
+      background: var(--olive); color: white;
+      border: none; border-radius: 99px;
+      font-size: 0.9rem; font-weight: 700;
+      cursor: pointer; font-family: var(--font-body);
+    }
+    .bs-btn-clear {
+      padding: 13px 18px;
+      background: none; color: var(--muted);
+      border: 1.5px solid var(--border);
+      border-radius: 99px;
+      font-size: 0.82rem;
+      cursor: pointer; font-family: var(--font-body);
+    }
+    .bs-btn-delete {
+      padding: 13px 18px;
+      background: none; color: var(--terra);
+      border: 1.5px solid var(--terra);
+      border-radius: 99px;
+      font-size: 0.82rem;
+      cursor: pointer; font-family: var(--font-body);
     }
 
     .fridge-add-row {
@@ -315,6 +343,22 @@
         </div>
         <div id="fridgeGuide" class="fridge-guide hidden"></div>
       </div>
+
+    <!-- 食材編集ボトムシート -->
+    <div class="bottom-sheet-overlay" id="bsOverlay" onclick="closeFridgeSheet()"></div>
+    <div class="bottom-sheet" id="fridgeSheet">
+      <div class="bs-handle"></div>
+      <div class="bs-title" id="bsTitle">食材を編集</div>
+      <div class="bs-row">
+        <span class="bs-label">消費期限</span>
+        <input type="date" class="bs-date-input" id="bsDateInput">
+      </div>
+      <div class="bs-actions">
+        <button class="bs-btn-save" onclick="saveFridgeSheet()">保存</button>
+        <button class="bs-btn-clear" onclick="clearFridgeSheetDate()">期限を削除</button>
+        <button class="bs-btn-delete" onclick="deleteFridgeSheetItem()">食材を削除</button>
+      </div>
+    </div>
 
       <!-- 区切り -->
       <div class="divider" style="margin:20px 20px 0;"></div>
@@ -441,7 +485,8 @@
     }
 
     // ---- 冷蔵庫食材 ----
-    let openExpiryId = null; // 現在期限ピッカーが開いているチップのID
+    // ---- 冷蔵庫食材ボトムシート ----
+    let sheetItemId = null;
 
     function buildExpiryText(item, today) {
       if (!item.expires_on) return null;
@@ -451,6 +496,56 @@
       return { label: item.expires_on.slice(5).replace('-', '/'), soon: false };
     }
 
+    function openFridgeSheet(itemId, itemName, expiresOn) {
+      sheetItemId = itemId;
+      document.getElementById('bsTitle').textContent = itemName;
+      document.getElementById('bsDateInput').value = expiresOn || '';
+      document.getElementById('bsOverlay').classList.add('open');
+      document.getElementById('fridgeSheet').classList.add('open');
+    }
+
+    function closeFridgeSheet() {
+      sheetItemId = null;
+      document.getElementById('bsOverlay').classList.remove('open');
+      document.getElementById('fridgeSheet').classList.remove('open');
+    }
+
+    async function saveFridgeSheet() {
+      if (!sheetItemId) return;
+      const val = document.getElementById('bsDateInput').value || null;
+      const ok = await updateFridgeExpiry(sheetItemId, val);
+      if (ok) {
+        closeFridgeSheet();
+        await renderFridgeItems();
+        showToast(val ? '期限を設定しました' : '保存しました');
+      } else {
+        showToast('更新に失敗しました', 'error');
+      }
+    }
+
+    async function clearFridgeSheetDate() {
+      if (!sheetItemId) return;
+      const ok = await updateFridgeExpiry(sheetItemId, null);
+      if (ok) {
+        closeFridgeSheet();
+        await renderFridgeItems();
+        showToast('期限を削除しました');
+      } else {
+        showToast('更新に失敗しました', 'error');
+      }
+    }
+
+    async function deleteFridgeSheetItem() {
+      if (!sheetItemId) return;
+      const ok = await deleteFridgeItem(sheetItemId);
+      if (ok) {
+        closeFridgeSheet();
+        await renderFridgeItems();
+      } else {
+        showToast('削除に失敗しました', 'error');
+      }
+    }
+
     async function renderFridgeItems() {
       const container = document.getElementById('fridgeChips');
       if (!householdId) return;
@@ -458,77 +553,26 @@
       const items = await getFridgeItems(householdId);
       if (items.length === 0) {
         container.innerHTML = '<span class="fridge-empty">食材を登録するとAIが献立を提案しやすくなります</span>';
-        openExpiryId = null;
         return;
       }
 
       const today = toDateStr();
-      const html = items.map(item => {
+      container.innerHTML = items.map(item => {
         const expiry = buildExpiryText(item, today);
         const soon = expiry && expiry.soon;
         const chipClass = 'fridge-chip' + (soon ? ' expiring-soon' : '');
-
-        // 期限ボタン: 設定済みは日付+✏️、未設定は📅
         const dateBtn = expiry
-          ? `<button class="chip-date-btn has-date" data-id="${item.id}" title="期限を変更">${expiry.label} ✏️</button>`
-          : `<button class="chip-date-btn" data-id="${item.id}" title="消費期限を設定">📅</button>`;
-
-        // ピッカーパネル（chipの外・独立要素）
-        const panel = (openExpiryId === item.id) ? `
-          <div class="chip-expiry-panel" id="panel_${item.id}">
-            <label>消費期限</label>
-            <input type="date" id="expiryInput_${item.id}" value="${item.expires_on || ''}">
-            <button class="btn-save" id="saveBtn_${item.id}">保存</button>
-            <button class="btn-cancel" id="cancelBtn_${item.id}">✕</button>
-          </div>` : '';
-
-        return `<span class="${chipClass}" data-chip="${item.id}">${item.name}${dateBtn}<button class="chip-del" data-del="${item.id}" title="削除">✕</button></span>${panel}`;
+          ? `<button class="chip-date-btn has-date" title="期限を変更">${expiry.label} ✏️</button>`
+          : `<button class="chip-date-btn" title="消費期限を設定">📅</button>`;
+        return `<span class="${chipClass}" data-id="${item.id}" data-name="${item.name.replace(/"/g,'&quot;')}" data-expires="${item.expires_on || ''}">${item.name}${dateBtn}</span>`;
       }).join('');
 
-      container.innerHTML = html;
-
-      // イベントをDOMに直接バインド（onclick属性を使わない）
-      items.forEach(item => {
-        const dateBtn = container.querySelector('[data-id="' + item.id + '"]');
-        if (dateBtn) dateBtn.addEventListener('click', e => {
-          e.stopPropagation();
-          openExpiryId = (openExpiryId === item.id) ? null : item.id;
-          renderFridgeItems();
-        });
-
-        const delBtn = container.querySelector('[data-del="' + item.id + '"]');
-        if (delBtn) delBtn.addEventListener('click', e => {
-          e.stopPropagation();
-          removeFridgeItemUI(item.id);
-        });
-
-        if (openExpiryId === item.id) {
-          const saveBtn = document.getElementById('saveBtn_' + item.id);
-          const cancelBtn = document.getElementById('cancelBtn_' + item.id);
-          if (saveBtn) saveBtn.addEventListener('click', e => {
-            e.stopPropagation();
-            const input = document.getElementById('expiryInput_' + item.id);
-            saveExpiry(item.id, input ? input.value : '');
-          });
-          if (cancelBtn) cancelBtn.addEventListener('click', e => {
-            e.stopPropagation();
-            openExpiryId = null;
-            renderFridgeItems();
-          });
-        }
-      });
-    }
-
-    async function saveExpiry(itemId, dateVal) {
-      const val = dateVal || null;
-      const ok = await updateFridgeExpiry(itemId, val);
-      if (ok) {
-        openExpiryId = null;
-        await renderFridgeItems();
-        showToast(val ? '期限を設定しました' : '期限を削除しました');
-      } else {
-        showToast('更新に失敗しました', 'error');
-      }
+      // チップタップ → ボトムシート（1つのイベントデリゲートで管理）
+      container.onclick = e => {
+        const chip = e.target.closest('[data-id]');
+        if (!chip) return;
+        openFridgeSheet(chip.dataset.id, chip.dataset.name, chip.dataset.expires);
+      };
     }
 
     const FRIDGE_MAX = 30;
@@ -564,7 +608,6 @@
     }
 
     async function removeFridgeItemUI(itemId) {
-      if (openExpiryId === itemId) openExpiryId = null;
       const ok = await deleteFridgeItem(itemId);
       if (ok) {
         await renderFridgeItems();
