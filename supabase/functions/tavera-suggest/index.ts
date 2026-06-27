@@ -105,18 +105,15 @@ serve(async (req) => {
       contextNote += `\n【冷蔵庫の食材】${fridgeItems.join("・")}`;
     }
     if (familyMembers?.length > 0) {
-      const goalNotes = familyMembers
-        .filter((m: any) => m.goals?.length > 0)
-        .map((m: any) => `${m.nickname}（${m.goals.join("・")}）`);
-      if (goalNotes.length > 0) {
-        contextNote += `\n【家族の目標・体質】${goalNotes.join(" / ")}`;
-      }
-      const allergyNotes = familyMembers
-        .filter((m: any) => m.allergies?.length > 0)
-        .map((m: any) => `${m.nickname}（${m.allergies.join("・")}NG）`);
-      if (allergyNotes.length > 0) {
-        contextNote += `\n【アレルギー】${allergyNotes.join(" / ")}`;
-      }
+      const memberProfiles = familyMembers.map((m: any) => {
+        const attrs: string[] = [];
+        if (m.age_group) attrs.push(m.age_group);
+        if (m.gender && m.gender !== "指定しない") attrs.push(m.gender);
+        if (m.goals?.length > 0) attrs.push(...m.goals);
+        if (m.allergies?.length > 0) attrs.push(`${m.allergies.join("・")}NG`);
+        return attrs.length > 0 ? `${m.nickname}（${attrs.join("・")}）` : m.nickname;
+      });
+      contextNote += `\n【家族構成】${memberProfiles.join(" / ")}`;
     }
 
     const systemWithContext = SYSTEM_PROMPT + (contextNote ? "\n\n" + contextNote : "");
