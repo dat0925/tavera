@@ -11,8 +11,8 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { status: 200, headers: CORS });
 
   try {
-    // 本番キーを優先、なければテストキーにフォールバック
-    const STRIPE_SECRET_KEY = Deno.env.get("STRIPE_SECRET_KEY") || Deno.env.get("STRIPE_SECRET_KEY_TEST")!;
+    // Tavera専用本番キー → テストキーの順でフォールバック
+    const STRIPE_SECRET_KEY = Deno.env.get("TAVERA_STRIPE_SECRET_KEY") || Deno.env.get("STRIPE_SECRET_KEY_TEST")!;
     const STRIPE_PRICE_ID   = Deno.env.get("TAVERA_STRIPE_PRICE_ID")!;
     const SUPABASE_URL      = Deno.env.get("SUPABASE_URL")!;
     const SUPABASE_KEY      = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
