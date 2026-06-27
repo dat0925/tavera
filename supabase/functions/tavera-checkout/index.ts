@@ -11,7 +11,8 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { status: 200, headers: CORS });
 
   try {
-    const STRIPE_SECRET_KEY = Deno.env.get("STRIPE_SECRET_KEY_TEST") || Deno.env.get("STRIPE_SECRET_KEY")!;
+    // 本番キーを優先、なければテストキーにフォールバック
+    const STRIPE_SECRET_KEY = Deno.env.get("STRIPE_SECRET_KEY") || Deno.env.get("STRIPE_SECRET_KEY_TEST")!;
     const STRIPE_PRICE_ID   = Deno.env.get("TAVERA_STRIPE_PRICE_ID")!;
     const SUPABASE_URL      = Deno.env.get("SUPABASE_URL")!;
     const SUPABASE_KEY      = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -50,7 +51,6 @@ serve(async (req) => {
         }),
       });
       const customer = await cusRes.json();
-      console.log("Created customer:", JSON.stringify(customer));
       customerId = customer.id;
 
       if (customerId) {
@@ -60,8 +60,6 @@ serve(async (req) => {
           .eq("id", user.id);
       }
     }
-    
-    console.log("Using customerId:", customerId);
 
     // Checkout Session作成
     const sessionRes = await fetch("https://api.stripe.com/v1/checkout/sessions", {
@@ -82,9 +80,7 @@ serve(async (req) => {
     });
 
     const session = await sessionRes.json();
-    console.log("Stripe session response:", JSON.stringify(session));
     if (!session.url) {
-      console.error("No URL in session:", JSON.stringify(session));
       return new Response(JSON.stringify({ error: "no_url", detail: session }), {
         status: 500,
         headers: { ...CORS, "Content-Type": "application/json" },
@@ -95,7 +91,6 @@ serve(async (req) => {
     });
 
   } catch (e: any) {
-    console.error("Exception:", e.message);
     return new Response(JSON.stringify({ error: e.message }), {
       status: 500,
       headers: { ...CORS, "Content-Type": "application/json" },
