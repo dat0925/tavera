@@ -84,7 +84,7 @@
 | AI | Anthropic Claude API | Supabase Edge Function経由（APIキー非公開） |
 | PWA | manifest.json + apple-touch-icon | ホーム画面追加対応済み |
 | お問い合わせ | Formspree | エンドポイント: xpqbkdea（Taskraと共有） |
-| アクセス解析 | Google Tag Manager + GA4 | GTM-MB8QQ2GC / index.html・settings.html設置済み |
+| アクセス解析 | Google Tag Manager + GA4 | GTM-ML7NKTDR / index.html・settings.html設置済み |
 | 決済（予定） | Stripe | AI機能有料化時 |
 
 ---
@@ -611,7 +611,7 @@ WHERE id NOT IN (SELECT household_id FROM menu_members);
 2. ✅ **利用規約に解約・返金ポリシーを追記** (`terms.html`) — v1.5.0完了（第11条として追加）
 
 ### 🟡 次点
-3. ✅ **LPにGTM設置** — GTM-MB8QQ2GC を index.html に追加（v1.5.1完了）
+3. ✅ **LPにGTM設置** — GTM-ML7NKTDR を index.html に追加（v1.5.1完了）
 4. ✅ **GA4コンバージョン設定** — v1.5.2完了（詳細は下記）
 5. **AI提案品質改善** — suggest.htmlのプロンプトに季節・曜日を追加
 
@@ -624,7 +624,7 @@ WHERE id NOT IN (SELECT household_id FROM menu_members);
 ## 22. GTM・GA4設定（v1.5.2）
 
 ### GTMコンテナ
-- コンテナID: GTM-MB8QQ2GC
+- コンテナID: GTM-ML7NKTDR
 - 設置ページ: index.html（LP）・settings.html（設定・決済完了）
 
 ### コンバージョンイベント
