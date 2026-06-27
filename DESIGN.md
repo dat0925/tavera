@@ -1,6 +1,6 @@
 # Tavera 設計書・引き継ぎ書
 
-**バージョン**: 1.5.2
+**バージョン**: 1.6.0
 **最終更新**: 2026-06-27
 **ステータス**: 一般公開済み・本番Stripe決済稼働中・解約フロー実装済み・特定商取引法ページ追加済み
 
@@ -175,6 +175,7 @@
 | household_id | uuid FK | |
 | nickname | text | 表示名（例：ママ・太郎） |
 | allergies | text[] | アレルギー食材リスト |
+| goals | text[] | 目標・体質タグ（v1.6.0追加） |
 | created_by | uuid | |
 | created_at | timestamptz | |
 
@@ -563,9 +564,9 @@ home.html等でrequireAuth()失敗 → index.html（LP）にリダイレクト
 - [x] **特定商取引法ページ作成・利用規約に解約返金ポリシー追記** ✅ v1.5.0 — tokushoho.html新規作成、terms.html第11条追加、全フッターにリンク追加 — `tavera-portal` Edge Function追加。「サブスクリプションを管理」からStripeポータルへ遷移。解約済み状態（cancel_at_period_end）をDBに保存・UIで⏳表示・終了日警告・「解約を取り消す」ボタン対応
 
 #### 優先度：中
-- [ ] **AI提案の精度向上** — 使うほど良くなる体験で定着率を上げる
-  - 季節・曜日・天気などのコンテキスト追加
-  - 「また食べたい」ログの重み付け強化
+- [x] **AI提案の精度向上（家族ゴールタグ）** ✅ v1.6.0 — 家族メンバーに目標・体質タグを追加。AI提案プロンプトに自動反映
+  - タグ例：🏃スポーツ・📚受験・🥗ダイエット・💪筋トレ・👶小食偏食・🤰妊娠授乳・❤️健康維持
+  - ⚠️ tavera-suggest Edge Functionのデプロイが必要
 - [ ] **記録ハードルの低減** — 3日以内の離脱を防ぐ
   - ホーム画面からワンタップ記録
   - 「昨日と同じ」ボタンなど繰り返し入力の簡略化
@@ -613,7 +614,8 @@ WHERE id NOT IN (SELECT household_id FROM menu_members);
 ### 🟡 次点
 3. ✅ **LPにGTM設置** — GTM-ML7NKTDR を index.html に追加（v1.5.1完了）
 4. ✅ **GA4コンバージョン設定** — v1.5.2完了（詳細は下記）
-5. **AI提案品質改善** — suggest.htmlのプロンプトに季節・曜日を追加
+5. ✅ **AI提案品質改善（家族ゴールタグ）** — v1.6.0完了
+   - ⚠️ tavera-suggest Edge FunctionをSupabaseコンソールからデプロイすること
 
 ---
 
