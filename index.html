@@ -617,8 +617,9 @@ async function startLogin(e) {
   await signInWithGoogle();
 }
 
-// すでにログイン済みならhome.htmlへ
+// すでにログイン済みならhome.htmlへ（?lp=1 のときはリダイレクトしない）
 (async () => {
+  if (new URLSearchParams(location.search).get('lp') === '1') return;
   const user = await getUser();
   if (user) window.location.href = 'home.html';
 })();
