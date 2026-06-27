@@ -1,6 +1,6 @@
 # Tavera 設計書・引き継ぎ書
 
-**バージョン**: 1.6.0
+**バージョン**: 1.7.0
 **最終更新**: 2026-06-27
 **ステータス**: 一般公開済み・本番Stripe決済稼働中・解約フロー実装済み・特定商取引法ページ追加済み
 
@@ -448,6 +448,7 @@ home.html等でrequireAuth()失敗 → index.html（LP）にリダイレクト
 | Secret名 | 内容 |
 |---|---|
 | `ANTHROPIC_API_KEY` | 既存（Taskraと共有） |
+| `TAVERA_GEMINI_API_KEY` | Tavera専用Gemini APIキー（v1.7.0追加） |
 | `TAVERA_STRIPE_SECRET_KEY` | Stripe本番Secret Key（新規・Tavera専用） |
 | `TAVERA_STRIPE_PRICE_ID` | `price_1TmtslBNAV5e5rhcf4Wxvphw`（本番） |
 | `TAVERA_STRIPE_WEBHOOK_SECRET` | `whsec_8x4LMUX008s0rlDd99oidTQBjn6EzDCZ`（本番） |
@@ -484,6 +485,7 @@ home.html等でrequireAuth()失敗 → index.html（LP）にリダイレクト
 | tavera-checkout | Stripe Checkout Session生成 | オン |
 | tavera-webhook | Stripeイベント受信・DB更新（署名検証なし・fetch直呼び） | オフ |
 | tavera-kyushoku | 給食献立表解析 | オフ |
+| tavera-fridge-scan | 冷蔵庫写真→食材認識（Gemini 2.0 Flash） | オフ |
 | tavera-portal | Stripeカスタマーポータルセッション生成 | オン |
 
 ### Webhook実装上の注意（2026-06-27）
@@ -567,6 +569,7 @@ home.html等でrequireAuth()失敗 → index.html（LP）にリダイレクト
 - [x] **AI提案の精度向上（家族ゴールタグ）** ✅ v1.6.0 — 家族メンバーに目標・体質タグを追加。AI提案プロンプトに自動反映
   - タグ例：🏃スポーツ・📚受験・🥗ダイエット・💪筋トレ・👶小食偏食・🤰妊娠授乳・❤️健康維持
   - ⚠️ tavera-suggest Edge Functionのデプロイが必要
+- [x] **冷蔵庫食材の写真スキャン入力** ✅ v1.7.0 — 📷ボタンで撮影→Gemini 2.0 Flash認識→確認チップ→一括登録
 - [ ] **記録ハードルの低減** — 3日以内の離脱を防ぐ
   - ホーム画面からワンタップ記録
   - 「昨日と同じ」ボタンなど繰り返し入力の簡略化
