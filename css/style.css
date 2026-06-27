@@ -73,8 +73,10 @@ input, textarea, select { font-family: inherit; }
 }
 .header-right {
   display: flex;
+  flex-direction: row;
   align-items: center;
   gap: 10px;
+  flex-shrink: 0;
 }
 .kyushoku-btn {
   font-size: 0.75rem;
@@ -85,6 +87,7 @@ input, textarea, select { font-family: inherit; }
   border-radius: 99px;
   text-decoration: none;
   flex-shrink: 0;
+  line-height: 1;
 }
 
 .app-header .logo {
