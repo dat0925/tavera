@@ -1,8 +1,8 @@
 # Tavera 設計書・引き継ぎ書
 
-**バージョン**: 1.4.1
+**バージョン**: 1.5.0
 **最終更新**: 2026-06-27
-**ステータス**: 一般公開済み・本番Stripe決済稼働中・解約フロー実装済み
+**ステータス**: 一般公開済み・本番Stripe決済稼働中・解約フロー実装済み・特定商取引法ページ追加済み
 
 ---
 
@@ -205,7 +205,7 @@
 | terms.html | 利用規約 | ⚠️ 解約・返金ポリシーの追記が必要（タスク登録済み） |
 | privacy.html | プライバシーポリシー | |
 | contact.html | お問い合わせ | Formspree経由 |
-| tokushoho.html | 特定商取引法に基づく表記 | ⚠️ 未作成・法的必須（タスク登録済み） |
+| tokushoho.html | 特定商取引法に基づく表記 | ✅ v1.5.0追加済み |
 
 ### ページ遷移フロー
 ```
@@ -558,7 +558,8 @@ home.html等でrequireAuth()失敗 → index.html（LP）にリダイレクト
 - [x] **Stripeサブスク** ✅ v1.3.0 — AI機能を有料化。free / premiumの2プラン構成
 - [x] **Stripe署名検証・デバッグログ削除** ✅ v1.4.0 — tavera-webhookにHMAC-SHA256署名検証追加、tavera-checkoutのconsole.log削除
 - [x] **Stripe本番切替** ✅ v1.4.0 — 本番キー登録・Webhook動作確認済み。`current_period_end`はStripe新APIでは`items.data[0]`配下にあることに注意（フォールバック実装済み）
-- [x] **カスタマーポータル・解約フロー** ✅ v1.4.1 — `tavera-portal` Edge Function追加。「サブスクリプションを管理」からStripeポータルへ遷移。解約済み状態（cancel_at_period_end）をDBに保存・UIで⏳表示・終了日警告・「解約を取り消す」ボタン対応
+- [x] **カスタマーポータル・解約フロー** ✅ v1.4.1
+- [x] **特定商取引法ページ作成・利用規約に解約返金ポリシー追記** ✅ v1.5.0 — tokushoho.html新規作成、terms.html第11条追加、全フッターにリンク追加 — `tavera-portal` Edge Function追加。「サブスクリプションを管理」からStripeポータルへ遷移。解約済み状態（cancel_at_period_end）をDBに保存・UIで⏳表示・終了日警告・「解約を取り消す」ボタン対応
 
 #### 優先度：中
 - [ ] **AI提案の精度向上** — 使うほど良くなる体験で定着率を上げる
@@ -605,11 +606,8 @@ WHERE id NOT IN (SELECT household_id FROM menu_members);
 ## 21. 次回セッションの優先タスク（2026-06-27時点）
 
 ### 🔴 最優先（法的必須）
-1. **特定商取引法に基づく表記ページ作成** (`tokushoho.html`)
-   - 販売事業者名・住所・電話番号・価格・支払方法・解約方法を明記
-   - フッターとLPからリンクを追加
-2. **利用規約に解約・返金ポリシーを追記** (`terms.html`)
-   - 月末までの解約→翌月から停止、返金なし、などを明記
+1. ✅ **特定商取引法に基づく表記ページ作成** (`tokushoho.html`) — v1.5.0完了
+2. ✅ **利用規約に解約・返金ポリシーを追記** (`terms.html`) — v1.5.0完了（第11条として追加）
 
 ### 🟡 次点
 3. **LPにGTM設置** — GTM-MB8QQ2GC を index.html に追加
