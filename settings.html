@@ -157,6 +157,19 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
     .goal-tag.selected { background: var(--terra); color: #fff; border-color: var(--terra); }
     .goal-chip { display:inline-flex; align-items:center; gap:4px; font-size:0.75rem;
       background: #FEF3EC; color: var(--terra); border-radius: 99px; padding: 3px 8px; }
+    .gender-btn-group { display: flex; gap: 6px; flex-wrap: wrap; }
+    .gender-btn {
+      font-size: 0.8rem; padding: 5px 12px; border-radius: 99px; cursor: pointer;
+      border: 1.5px solid var(--border); background: var(--white); color: var(--muted);
+      transition: all .15s; font-family: inherit;
+    }
+    .gender-btn.selected { background: var(--olive); color: #fff; border-color: var(--olive); }
+    .age-select {
+      width: 100%; padding: 8px 12px; border: 1px solid var(--border); border-radius: var(--radius-md);
+      font-size: 0.85rem; font-family: inherit; color: var(--brown); background: var(--white);
+      appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%239B8878' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+      background-repeat: no-repeat; background-position: right 12px center;
+    }
 
     /* メンバー編集フォーム */
     .fam-form {
@@ -229,6 +242,26 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
                      placeholder="例：卵・小麦・乳（Enterで追加）" maxlength="20"
                      onkeydown="if(event.key==='Enter'){addAllergyChip('famNewAllergyChips','famNewAllergyInput');event.preventDefault();}">
               <button class="btn btn-secondary" onclick="addAllergyChip('famNewAllergyChips','famNewAllergyInput')" style="padding:8px 14px;font-size:0.82rem">追加</button>
+            </div>
+          </div>
+          <div class="fam-form-row">
+            <div class="fam-form-label">年齢層　<span style="font-weight:400;color:var(--muted)">（任意）</span></div>
+            <select id="famNewAgeGroup" class="age-select">
+              <option value="">指定しない</option>
+              <option value="👶 乳幼児（〜3歳）">👶 乳幼児（〜3歳）</option>
+              <option value="🧒 未就学児（4〜6歳）">🧒 未就学児（4〜6歳）</option>
+              <option value="🏫 小学生（7〜12歳）">🏫 小学生（7〜12歳）</option>
+              <option value="🎒 中高生（13〜18歳）">🎒 中高生（13〜18歳）</option>
+              <option value="🧑 成人（19〜64歳）">🧑 成人（19〜64歳）</option>
+              <option value="🧓 高齢者（65歳〜）">🧓 高齢者（65歳〜）</option>
+            </select>
+          </div>
+          <div class="fam-form-row">
+            <div class="fam-form-label">性別　<span style="font-weight:400;color:var(--muted)">（任意）</span></div>
+            <div class="gender-btn-group" id="famNewGenderBtns">
+              <button class="gender-btn" onclick="toggleGenderBtn(this,'famNewGenderBtns')">男性</button>
+              <button class="gender-btn" onclick="toggleGenderBtn(this,'famNewGenderBtns')">女性</button>
+              <button class="gender-btn" onclick="toggleGenderBtn(this,'famNewGenderBtns')">指定しない</button>
             </div>
           </div>
           <div class="fam-form-row">
@@ -502,6 +535,26 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
               </div>
             </div>
             <div class="fam-form-row">
+              <div class="fam-form-label">年齢層　<span style="font-weight:400;color:var(--muted)">（任意）</span></div>
+              <select id="famEditAgeGroup" class="age-select">
+                <option value="">指定しない</option>
+                <option value="👶 乳幼児（〜3歳）" ${m.age_group==="👶 乳幼児（〜3歳）"?"selected":""}>👶 乳幼児（〜3歳）</option>
+                <option value="🧒 未就学児（4〜6歳）" ${m.age_group==="🧒 未就学児（4〜6歳）"?"selected":""}>🧒 未就学児（4〜6歳）</option>
+                <option value="🏫 小学生（7〜12歳）" ${m.age_group==="🏫 小学生（7〜12歳）"?"selected":""}>🏫 小学生（7〜12歳）</option>
+                <option value="🎒 中高生（13〜18歳）" ${m.age_group==="🎒 中高生（13〜18歳）"?"selected":""}>🎒 中高生（13〜18歳）</option>
+                <option value="🧑 成人（19〜64歳）" ${m.age_group==="🧑 成人（19〜64歳）"?"selected":""}>🧑 成人（19〜64歳）</option>
+                <option value="🧓 高齢者（65歳〜）" ${m.age_group==="🧓 高齢者（65歳〜）"?"selected":""}>🧓 高齢者（65歳〜）</option>
+              </select>
+            </div>
+            <div class="fam-form-row">
+              <div class="fam-form-label">性別　<span style="font-weight:400;color:var(--muted)">（任意）</span></div>
+              <div class="gender-btn-group" id="famEditGenderBtns">
+                <button class="gender-btn ${m.gender==="男性"?"selected":""}" onclick="toggleGenderBtn(this,\'famEditGenderBtns\')">男性</button>
+                <button class="gender-btn ${m.gender==="女性"?"selected":""}" onclick="toggleGenderBtn(this,\'famEditGenderBtns\')">女性</button>
+                <button class="gender-btn ${m.gender==="指定しない"?"selected":""}" onclick="toggleGenderBtn(this,\'famEditGenderBtns\')">指定しない</button>
+              </div>
+            </div>
+            <div class="fam-form-row">
               <div class="fam-form-label">目標・体質タグ</div>
               <div class="goal-tag-list" id="famEditGoalTags">
                 ${buildGoalTagsHtml('famEditGoalTags', goals)}
@@ -522,6 +575,10 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
           <button class="fam-edit-btn" onclick="startEdit(\'${m.id}\')">編集</button>
           <button class="fam-del-btn"  onclick="deleteMember(\'${m.id}\', \'${m.nickname}\')" title="削除">&#128465;</button>
         </div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:${allergyHtml?'4px':'0'}">
+          ${m.age_group ? `<span style="font-size:0.75rem;color:var(--muted)">${m.age_group}</span>` : ''}
+          ${m.gender && m.gender!=='指定しない' ? `<span style="font-size:0.75rem;color:var(--muted)">${m.gender}</span>` : ''}
+        </div>
         <div class="allergy-chips">${allergyHtml}</div>
         ${goalHtml ? `<div class="goal-tag-list" style="margin-top:6px">${goalHtml}</div>` : ''}
       </div>`;
@@ -539,18 +596,24 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
     function cancelNewMember() {
       document.getElementById('famNewForm').classList.add('hidden');
       document.getElementById('famAddBtn').classList.remove('hidden');
+      document.getElementById('famNewAgeGroup').value = '';
+      document.querySelectorAll('#famNewGenderBtns .gender-btn').forEach(b => b.classList.remove('selected'));
     }
     async function saveNewMember() {
       const nickname = document.getElementById('famNewName').value.trim();
       if (!nickname) { showToast('名前を入力してください', 'error'); return; }
       const allergies = getChipValues('famNewAllergyChips');
       const goals = getGoalValues('famNewGoalTags');
+      const age_group = document.getElementById('famNewAgeGroup').value || null;
+      const gender = getGenderValue('famNewGenderBtns') || null;
 
       const { data, error } = await db.from('menu_family_members').insert({
         household_id: householdId,
         nickname,
         allergies,
         goals,
+        age_group,
+        gender,
         created_by: currentUser.id,
       }).select().single();
 
@@ -583,9 +646,11 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
       if (!nickname) { showToast('名前を入力してください', 'error'); return; }
       const allergies = getChipValues('famEditAllergyChips');
       const goals = getGoalValues('famEditGoalTags');
+      const age_group = document.getElementById('famEditAgeGroup').value || null;
+      const gender = getGenderValue('famEditGenderBtns') || null;
 
       const { error } = await db.from('menu_family_members')
-        .update({ nickname, allergies, goals })
+        .update({ nickname, allergies, goals, age_group, gender })
         .eq('id', id);
 
       if (error) { showToast('保存に失敗しました', 'error'); return; }
@@ -613,6 +678,14 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
       const container = document.getElementById(containerId);
       if (!container) return [];
       return Array.from(container.querySelectorAll('.goal-tag.selected')).map(el => el.textContent.trim());
+    }
+    function toggleGenderBtn(el, groupId) {
+      document.querySelectorAll(`#${groupId} .gender-btn`).forEach(b => b.classList.remove('selected'));
+      el.classList.add('selected');
+    }
+    function getGenderValue(groupId) {
+      const selected = document.querySelector(`#${groupId} .gender-btn.selected`);
+      return selected ? selected.textContent.trim() : null;
     }
 
     // =====================
