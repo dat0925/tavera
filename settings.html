@@ -740,9 +740,33 @@
       }
     }
 
-    function manageSubscription() {
-      showToast('解約はStripeカスタマーポータルから行えます');
+    async function manageSubscription() {
+      const btn = document.querySelector('.plan-manage-btn');
+      if (btn) { btn.textContent = '読み込み中...'; btn.disabled = true; }
+      try {
+        const session = await db.auth.getSession();
+        const token = session.data.session?.access_token;
+        const res = await fetch('https://sfhtvtcmgueystyuhzvd.supabase.co/functions/v1/tavera-portal', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
+          },
+          body: JSON.stringify({ returnUrl: location.href }),
+        });
+        const data = await res.json();
+        if (data.url) {
+          location.href = data.url;
+        } else {
+          showToast('エラーが発生しました');
+          if (btn) { btn.textContent = 'サブスクリプションを管理'; btn.disabled = false; }
+        }
+      } catch (e) {
+        showToast('エラーが発生しました');
+        if (btn) { btn.textContent = 'サブスクリプションを管理'; btn.disabled = false; }
+      }
     }
   </script>
 </body>
 </html>
+
