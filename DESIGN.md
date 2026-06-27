@@ -634,7 +634,7 @@ WHERE id NOT IN (SELECT household_id FROM menu_members);
 
 ### GTMでの設定手順（手動作業）
 1. GTMダッシュボードで「タグ」→「新規」→「GA4イベント」タグを作成
-   - 測定ID: G-G2Y4SL0LJS
+   - 測定ID: G-XWVMN30LFD
    - イベント名: `{{Event}}` または固定で `purchase_premium`
 2. トリガー: カスタムイベント → イベント名 `purchase_premium`
 3. GA4ダッシュボードで「コンバージョン」→「新しいコンバージョンイベント」→ `purchase_premium` を登録
