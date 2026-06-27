@@ -761,7 +761,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
       const isHidden = section.classList.toggle('hidden');
       const arrowMap = { inviteSection: 'inviteArrow', joinSection: 'joinArrow' };
       const arrowId = arrowMap[id];
-      if (arrowId) document.getElementById(arrowId).textContent = isHidden ? '&#8250;' : '&#8964;';
+      if (arrowId) document.getElementById(arrowId).textContent = isHidden ? '›' : '⌄';
       if (id === 'householdNameSection' && !isHidden) {
         const currentName = document.getElementById('householdName').textContent;
         const input = document.getElementById('householdNameInput');
