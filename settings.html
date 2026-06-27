@@ -148,6 +148,15 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
     }
     .allergy-chip .chip-del:hover { opacity: 1; }
     .allergy-none { font-size: 0.78rem; color: var(--muted); }
+    .goal-tag-list { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+    .goal-tag {
+      font-size: 0.78rem; padding: 5px 10px; border-radius: 99px; cursor: pointer;
+      border: 1.5px solid var(--border); background: var(--white); color: var(--muted);
+      transition: all .15s; user-select: none;
+    }
+    .goal-tag.selected { background: var(--terra); color: #fff; border-color: var(--terra); }
+    .goal-chip { display:inline-flex; align-items:center; gap:4px; font-size:0.75rem;
+      background: #FEF3EC; color: var(--terra); border-radius: 99px; padding: 3px 8px; }
 
     /* メンバー編集フォーム */
     .fam-form {
@@ -220,6 +229,18 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
                      placeholder="例：卵・小麦・乳（Enterで追加）" maxlength="20"
                      onkeydown="if(event.key==='Enter'){addAllergyChip('famNewAllergyChips','famNewAllergyInput');event.preventDefault();}">
               <button class="btn btn-secondary" onclick="addAllergyChip('famNewAllergyChips','famNewAllergyInput')" style="padding:8px 14px;font-size:0.82rem">追加</button>
+            </div>
+          </div>
+          <div class="fam-form-row">
+            <div class="fam-form-label">目標・体質タグ</div>
+            <div class="goal-tag-list" id="famNewGoalTags">
+              <span class="goal-tag" onclick="toggleGoalTag(this)">🏃 スポーツ・運動量多め</span>
+              <span class="goal-tag" onclick="toggleGoalTag(this)">📚 受験・集中力アップ</span>
+              <span class="goal-tag" onclick="toggleGoalTag(this)">🥗 ダイエット中</span>
+              <span class="goal-tag" onclick="toggleGoalTag(this)">💪 筋トレ・高タンパク</span>
+              <span class="goal-tag" onclick="toggleGoalTag(this)">👶 小食・偏食ぎみ</span>
+              <span class="goal-tag" onclick="toggleGoalTag(this)">🤰 妊娠・授乳中</span>
+              <span class="goal-tag" onclick="toggleGoalTag(this)">❤️ 健康維持・生活習慣病予防</span>
             </div>
           </div>
           <div class="fam-form-actions">
@@ -430,11 +451,31 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
       list.innerHTML = famMembers.map(m => buildFamCard(m)).join('');
     }
 
+    const GOAL_OPTIONS = [
+      '🏃 スポーツ・運動量多め',
+      '📚 受験・集中力アップ',
+      '🥗 ダイエット中',
+      '💪 筋トレ・高タンパク',
+      '👶 小食・偏食ぎみ',
+      '🤰 妊娠・授乳中',
+      '❤️ 健康維持・生活習慣病予防',
+    ];
+
+    function buildGoalTagsHtml(containerId, selectedGoals) {
+      return GOAL_OPTIONS.map(g =>
+        `<span class="goal-tag${selectedGoals.includes(g) ? ' selected' : ''}" onclick="toggleGoalTag(this)">${g}</span>`
+      ).join('');
+    }
+
     function buildFamCard(m) {
       const allergies = (m.allergies || []);
+      const goals = (m.goals || []);
       const allergyHtml = allergies.length
         ? allergies.map(a => `<span class="allergy-chip">${a}</span>`).join('')
         : '<span class="allergy-none">アレルギーなし</span>';
+      const goalHtml = goals.length
+        ? goals.map(g => `<span class="goal-chip">${g}</span>`).join('')
+        : '';
 
       // 編集中はフォームを展開
       if (editingId === m.id) {
@@ -456,13 +497,19 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
               <div class="allergy-input-row" style="margin-top:8px">
                 <input type="text" id="famEditAllergyInput" class="form-input"
                        placeholder="食材名を入力（Enterで追加）" maxlength="20"
-                       onkeydown="if(event.key==='Enter'){addAllergyChip('famEditAllergyChips','famEditAllergyInput');event.preventDefault();}">
-                <button class="btn btn-secondary" onclick="addAllergyChip('famEditAllergyChips','famEditAllergyInput')" style="padding:8px 14px;font-size:0.82rem">追加</button>
+                       onkeydown="if(event.key===\'Enter\'){addAllergyChip(\'famEditAllergyChips\',\'famEditAllergyInput\');event.preventDefault();}">
+                <button class="btn btn-secondary" onclick="addAllergyChip(\'famEditAllergyChips\',\'famEditAllergyInput\')" style="padding:8px 14px;font-size:0.82rem">追加</button>
+              </div>
+            </div>
+            <div class="fam-form-row">
+              <div class="fam-form-label">目標・体質タグ</div>
+              <div class="goal-tag-list" id="famEditGoalTags">
+                ${buildGoalTagsHtml('famEditGoalTags', goals)}
               </div>
             </div>
             <div class="fam-form-actions">
               <button class="btn btn-secondary" onclick="cancelEdit()">キャンセル</button>
-              <button class="btn btn-primary"   onclick="saveEditMember('${m.id}')">保存</button>
+              <button class="btn btn-primary"   onclick="saveEditMember(\'${m.id}\')">保存</button>
             </div>
           </div>
         </div>`;
@@ -472,10 +519,11 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
         <div class="fam-card-head">
           <div class="fam-avatar">&#128100;</div>
           <span class="fam-name">${m.nickname}</span>
-          <button class="fam-edit-btn" onclick="startEdit('${m.id}')">編集</button>
-          <button class="fam-del-btn"  onclick="deleteMember('${m.id}', '${m.nickname}')" title="削除">&#128465;</button>
+          <button class="fam-edit-btn" onclick="startEdit(\'${m.id}\')">編集</button>
+          <button class="fam-del-btn"  onclick="deleteMember(\'${m.id}\', \'${m.nickname}\')" title="削除">&#128465;</button>
         </div>
         <div class="allergy-chips">${allergyHtml}</div>
+        ${goalHtml ? `<div class="goal-tag-list" style="margin-top:6px">${goalHtml}</div>` : ''}
       </div>`;
     }
 
@@ -496,11 +544,13 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
       const nickname = document.getElementById('famNewName').value.trim();
       if (!nickname) { showToast('名前を入力してください', 'error'); return; }
       const allergies = getChipValues('famNewAllergyChips');
+      const goals = getGoalValues('famNewGoalTags');
 
       const { data, error } = await db.from('menu_family_members').insert({
         household_id: householdId,
         nickname,
         allergies,
+        goals,
         created_by: currentUser.id,
       }).select().single();
 
@@ -532,9 +582,10 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
       const nickname = document.getElementById('famEditName').value.trim();
       if (!nickname) { showToast('名前を入力してください', 'error'); return; }
       const allergies = getChipValues('famEditAllergyChips');
+      const goals = getGoalValues('famEditGoalTags');
 
       const { error } = await db.from('menu_family_members')
-        .update({ nickname, allergies })
+        .update({ nickname, allergies, goals })
         .eq('id', id);
 
       if (error) { showToast('保存に失敗しました', 'error'); return; }
@@ -550,6 +601,18 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
       if (error) { showToast('削除に失敗しました', 'error'); return; }
       showToast(`${nickname} を削除しました`, 'info');
       await renderFamMembers();
+    }
+
+    // =====================
+    //  ゴールタグ操作
+    // =====================
+    function toggleGoalTag(el) {
+      el.classList.toggle('selected');
+    }
+    function getGoalValues(containerId) {
+      const container = document.getElementById(containerId);
+      if (!container) return [];
+      return Array.from(container.querySelectorAll('.goal-tag.selected')).map(el => el.textContent.trim());
     }
 
     // =====================
