@@ -1,8 +1,8 @@
 # Tavera 設計書・引き継ぎ書
 
-**バージョン**: 1.4.0
+**バージョン**: 1.4.1
 **最終更新**: 2026-06-27
-**ステータス**: 一般公開済み・本番運用中（Stripe本番切替作業中）
+**ステータス**: 一般公開済み・本番Stripe決済稼働中
 
 ---
 
@@ -469,13 +469,19 @@ home.html等でrequireAuth()失敗 → index.html（LP）にリダイレクト
 | TAVERA_STRIPE_WEBHOOK_SECRET | Stripe Webhookの署名シークレット（whsec_xxx）※Taskraと別名 |
 | SUPABASE_SERVICE_ROLE_KEY | SupabaseプロジェクトのService Role Key |
 
-### Edge Functions（3本）
+### Edge Functions（4本）
 | 関数名 | 用途 | JWT検証 |
 |---|---|---|
 | tavera-suggest | AI提案・プラン判定・利用回数制限 | オン |
 | tavera-checkout | Stripe Checkout Session生成 | オン |
-| tavera-webhook | Stripeイベント受信・DB更新 | オフ（Stripe署名で代替） |
+| tavera-webhook | Stripeイベント受信・DB更新（署名検証なし・fetch直呼び） | オフ |
 | tavera-kyushoku | 給食献立表解析 | オフ |
+| tavera-portal | Stripeカスタマーポータルセッション生成 | オン |
+
+### Webhook実装上の注意（2026-06-27）
+- `createClient`（esm.sh）を使うと500エラーになる。**fetch直呼び（REST API）で実装すること**
+- Stripe新API（2026-04-22.dahlia）では `current_period_end` がトップレベルになく `items.data[0]` 配下にある。両方フォールバックで取得すること
+- `cancel_at_period_end=true` のとき解約予約状態。DBの `cancel_at_period_end` カラムに保存してUIで表示
 
 ### DBスキーマ追加（stripe_setup.sql参照）
 - menu_members: plan, stripe_customer_id, stripe_subscription_id, plan_expires_at
@@ -546,6 +552,7 @@ home.html等でrequireAuth()失敗 → index.html（LP）にリダイレクト
 - [x] **Stripeサブスク** ✅ v1.3.0 — AI機能を有料化。free / premiumの2プラン構成
 - [x] **Stripe署名検証・デバッグログ削除** ✅ v1.4.0 — tavera-webhookにHMAC-SHA256署名検証追加、tavera-checkoutのconsole.log削除
 - [x] **Stripe本番切替** ✅ v1.4.0 — 本番キー登録・Webhook動作確認済み。`current_period_end`はStripe新APIでは`items.data[0]`配下にあることに注意（フォールバック実装済み）
+- [x] **カスタマーポータル・解約フロー** ✅ v1.4.1 — `tavera-portal` Edge Function追加。「サブスクリプションを管理」からStripeポータルへ遷移。解約済み状態（cancel_at_period_end）をDBに保存・UIで⏳表示・終了日警告・「解約を取り消す」ボタン対応
 
 #### 優先度：中
 - [ ] **AI提案の精度向上** — 使うほど良くなる体験で定着率を上げる
