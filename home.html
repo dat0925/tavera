@@ -695,7 +695,7 @@
         await addFridgeItem(name, null);
       }
       cancelFridgeScan();
-      await loadFridgeItems();
+      await renderFridgeItems();
       if (newItems.length) showToast(`${newItems.length}件の食材を追加しました 🧊`);
       if (newItems.length < items.length) showToast(`${items.length - newItems.length}件はすでに登録済みです`);
     }
@@ -763,7 +763,7 @@
         await addFridgeItem(name, null);
       }
       cancelFridgeScan();
-      await loadFridgeItems();
+      await renderFridgeItems();
       if (newItems.length) showToast(`${newItems.length}件の食材を追加しました 🧊`);
       if (newItems.length < items.length) showToast(`${items.length - newItems.length}件はすでに登録済みです`);
     }
@@ -892,7 +892,7 @@
         await addFridgeItem(name, null);
       }
       cancelFridgeScan();
-      await loadFridgeItems();
+      await renderFridgeItems();
       if (newItems.length) showToast(newItems.length + '件の食材を追加しました 🧊');
       if (newItems.length < items.length) showToast((items.length - newItems.length) + '件はすでに登録済みです');
     }
