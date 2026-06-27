@@ -413,6 +413,7 @@ home.html等でrequireAuth()失敗 → index.html（LP）にリダイレクト
 |---|---|
 | DBマイグレーション（stripe_setup.sql） | ✅ 実行済み |
 | Stripe商品・Price ID作成（サンドボックス） | ✅ 完了（`price_1TdMZzB5e5DORDCyeMEYw7un`） |
+| Stripe商品・Price ID作成（**本番**） | ✅ 完了（`price_1TmtslBNAV5e5rhcf4Wxvphw`） |
 | Supabase Secrets登録（テスト用） | ✅ 完了（TAVERA_STRIPE_PRICE_ID・TAVERA_STRIPE_WEBHOOK_SECRET・STRIPE_SECRET_KEY_TEST） |
 | Edge Function tavera-checkout | ✅ コード修正済み（console.log削除・本番キー優先）→ **Supabaseコンソールで再デプロイ必要** |
 | Edge Function tavera-webhook | ✅ コード修正済み（**Stripe署名検証追加**）→ **Supabaseコンソールで再デプロイ必要** |
@@ -428,11 +429,10 @@ home.html等でrequireAuth()失敗 → index.html（LP）にリダイレクト
 ### 残作業（本番切替）
 
 **Stripeダッシュボード（本番モード）で実施：**
-1. 本番モードに切り替えて商品「Tavera Premium」¥480/月を作成
-2. 本番のPrice IDをメモ（`price_xxx`）
-3. Webhookエンドポイントを本番で登録: `https://sfhtvtcmgueystyuhzvd.supabase.co/functions/v1/tavera-webhook`
-4. 購読イベント: `customer.subscription.created/updated/deleted`, `invoice.payment_failed`
-5. 本番Webhook Signing Secretをメモ（`whsec_xxx`）
+1. ~~本番モードに切り替えて商品「Tavera Premium」¥480/月を作成~~ ✅ `price_1TmtslBNAV5e5rhcf4Wxvphw`
+2. Webhookエンドポイントを本番で登録: `https://sfhtvtcmgueystyuhzvd.supabase.co/functions/v1/tavera-webhook`
+3. 購読イベント: `customer.subscription.created/updated/deleted`, `invoice.payment_failed`
+4. 本番Webhook Signing Secretをメモ（`whsec_xxx`）
 
 **Supabase Secretsに登録（本番用）：**
 | Secret名 | 内容 |
