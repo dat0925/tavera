@@ -701,6 +701,73 @@
     }
 
 
+
+    // =====================
+    //  冷蔵庫スキャン
+    // =====================
+    function triggerFridgeScan() {
+      document.getElementById('fridgeScanInput').click();
+    }
+
+    async function handleFridgeScan(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+      const resultEl = document.getElementById('fridgeScanResult');
+      const chipsEl = document.getElementById('fridgeScanChips');
+      const actionsEl = resultEl.querySelector('.fridge-scan-actions');
+      resultEl.classList.remove('hidden');
+      chipsEl.innerHTML = '<div class="fridge-scanning">🔍 認識中...</div>';
+      actionsEl.style.display = 'none';
+      try {
+        const base64data = await new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result.split(',')[1]);
+          reader.onerror = reject;
+          reader.readAsDataURL(file);
+        });
+        const res = await fetch('https://sfhtvtcmgueystyuhzvd.supabase.co/functions/v1/tavera-fridge-scan', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ image: base64data, mediaType: file.type })
+        });
+        const data = await res.json();
+        const items = data.items || [];
+        if (!items.length) {
+          chipsEl.innerHTML = '<span style="font-size:0.82rem;color:var(--muted)">食材を認識できませんでした。別の写真を試してください。</span>';
+          actionsEl.style.display = 'flex';
+          e.target.value = '';
+          return;
+        }
+        chipsEl.innerHTML = items.map(item =>
+          `<button class="fridge-scan-chip" onclick="this.classList.toggle('deselected')">${item}</button>`
+        ).join('');
+        actionsEl.style.display = 'flex';
+      } catch(err) {
+        chipsEl.innerHTML = '<span style="font-size:0.82rem;color:var(--terra)">エラーが発生しました。再度お試しください。</span>';
+        actionsEl.style.display = 'flex';
+      }
+      e.target.value = '';
+    }
+
+    function cancelFridgeScan() {
+      document.getElementById('fridgeScanResult').classList.add('hidden');
+    }
+
+    async function confirmFridgeScan() {
+      const chips = document.querySelectorAll('#fridgeScanChips .fridge-scan-chip:not(.deselected)');
+      const items = Array.from(chips).map(c => c.textContent.trim());
+      if (!items.length) { cancelFridgeScan(); return; }
+      const existing = (fridgeItemsCache || []).map(i => i.name);
+      const newItems = items.filter(i => !existing.includes(i));
+      for (const name of newItems) {
+        await addFridgeItem(name, null);
+      }
+      cancelFridgeScan();
+      await loadFridgeItems();
+      if (newItems.length) showToast(`${newItems.length}件の食材を追加しました 🧊`);
+      if (newItems.length < items.length) showToast(`${items.length - newItems.length}件はすでに登録済みです`);
+    }
+
     const FRIDGE_MAX = 30;
 
     async function addFridgeItemUI() {
