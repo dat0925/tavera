@@ -1,6 +1,6 @@
 # Tavera 設計書・引き継ぎ書
 
-**バージョン**: 1.5.1
+**バージョン**: 1.5.2
 **最終更新**: 2026-06-27
 **ステータス**: 一般公開済み・本番Stripe決済稼働中・解約フロー実装済み・特定商取引法ページ追加済み
 
@@ -84,6 +84,7 @@
 | AI | Anthropic Claude API | Supabase Edge Function経由（APIキー非公開） |
 | PWA | manifest.json + apple-touch-icon | ホーム画面追加対応済み |
 | お問い合わせ | Formspree | エンドポイント: xpqbkdea（Taskraと共有） |
+| アクセス解析 | Google Tag Manager + GA4 | GTM-MB8QQ2GC / index.html・settings.html設置済み |
 | 決済（予定） | Stripe | AI機能有料化時 |
 
 ---
@@ -611,11 +612,32 @@ WHERE id NOT IN (SELECT household_id FROM menu_members);
 
 ### 🟡 次点
 3. ✅ **LPにGTM設置** — GTM-MB8QQ2GC を index.html に追加（v1.5.1完了）
-4. **GA4コンバージョン設定** — プレミアム登録完了イベントを設定
+4. ✅ **GA4コンバージョン設定** — v1.5.2完了（詳細は下記）
 5. **AI提案品質改善** — suggest.htmlのプロンプトに季節・曜日を追加
 
 ---
 
 *このドキュメントはアプリ成長に合わせて随時更新する。*
 
+---
 
+## 22. GTM・GA4設定（v1.5.2）
+
+### GTMコンテナ
+- コンテナID: GTM-MB8QQ2GC
+- 設置ページ: index.html（LP）・settings.html（設定・決済完了）
+
+### コンバージョンイベント
+| イベント名 | 発火タイミング | 主なパラメータ |
+|---|---|---|
+| `purchase_premium` | Stripe決済後、settings.html?plan=success にリダイレクトされた時 | value=480, currency=JPY, item_name=Tavera Premium |
+
+### GTMでの設定手順（手動作業）
+1. GTMダッシュボードで「タグ」→「新規」→「GA4イベント」タグを作成
+   - 測定ID: G-G2Y4SL0LJS
+   - イベント名: `{{Event}}` または固定で `purchase_premium`
+2. トリガー: カスタムイベント → イベント名 `purchase_premium`
+3. GA4ダッシュボードで「コンバージョン」→「新しいコンバージョンイベント」→ `purchase_premium` を登録
+
+### dataLayer実装箇所
+- `settings.html` の `plan=success` 判定ブロック内で `window.dataLayer.push()` を発火
