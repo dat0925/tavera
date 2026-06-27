@@ -2,7 +2,7 @@
 
 **バージョン**: 1.4.1
 **最終更新**: 2026-06-27
-**ステータス**: 一般公開済み・本番Stripe決済稼働中
+**ステータス**: 一般公開済み・本番Stripe決済稼働中・解約フロー実装済み
 
 ---
 
@@ -127,6 +127,11 @@
 | name | text | Google表示名（設定画面ロード時に自動更新） |
 | role | text | owner / member |
 | allergies | text[] | 未使用（family_membersで管理） |
+| plan | text | free / premium |
+| stripe_customer_id | text | Stripe顧客ID |
+| stripe_subscription_id | text | StripeサブスクID |
+| plan_expires_at | timestamptz | プレミアム有効期限 |
+| cancel_at_period_end | boolean | 解約予約フラグ（true=期限まで有効・更新しない） |
 
 ### menu_logs（献立ログ）
 | カラム | 型 | 説明 |
@@ -196,10 +201,11 @@
 | history.html | 履歴 | リスト表示・月間カレンダー表示（切替）・キーワード検索・詳細モーダル |
 | suggest.html | AI提案 | チャット形式・冷蔵庫食材バナー・食材プレビュー・アレルギー警告 |
 | kyushoku.html | 給食インポート | 献立表写真/PDF→AI解析→チェックボックスで選択→lunch記録として一括登録 |
-| settings.html | 設定 | プロフィール・家族メンバー管理（名前・アレルギー）・世帯管理・招待 |
-| terms.html | 利用規約 | |
+| settings.html | 設定 | プロフィール・家族メンバー管理・世帯管理・招待・プランカード（解約済み⏳表示・終了日警告）・Stripeカスタマーポータルへのリンク |
+| terms.html | 利用規約 | ⚠️ 解約・返金ポリシーの追記が必要（タスク登録済み） |
 | privacy.html | プライバシーポリシー | |
 | contact.html | お問い合わせ | Formspree経由 |
+| tokushoho.html | 特定商取引法に基づく表記 | ⚠️ 未作成・法的必須（タスク登録済み） |
 
 ### ページ遷移フロー
 ```
@@ -591,8 +597,27 @@ WHERE id NOT IN (SELECT household_id FROM menu_members);
 - **suggest.htmlの構文エラー歴**: デバッグ用dbg()関数内の改行混入・正規表現のUnicodeエスケープ漏れ・parseDishBlocks未接続など複数のバグがあった。修正済み。
 - **GitHub Pagesのビルド失敗**: 短時間に大量pushすると競合でビルド失敗メールが来ることがある。最終ビルドがsuccessであれば問題なし。GitHub Actions画面で確認する。
 - **tavera-kyushoku Edge Function**: supabase/functions/tavera-kyushoku/index.ts にコードあり。新しい環境では必ずSupabaseコンソールからデプロイすること。
+- **Webhook実装の注意（重要）**: `createClient`（esm.sh / jsr）をEdge Function内でimportすると500エラーになる事例あり。**fetch直呼び（Supabase REST API）で実装すること**。
+- **Stripe新API（2026-04-22.dahlia）の注意**: `current_period_end` がサブスクリプションのトップレベルに存在しないことがある。`sub.current_period_end ?? sub.items?.data?.[0]?.current_period_end` のようにフォールバックで取得すること。
+
+---
+
+## 21. 次回セッションの優先タスク（2026-06-27時点）
+
+### 🔴 最優先（法的必須）
+1. **特定商取引法に基づく表記ページ作成** (`tokushoho.html`)
+   - 販売事業者名・住所・電話番号・価格・支払方法・解約方法を明記
+   - フッターとLPからリンクを追加
+2. **利用規約に解約・返金ポリシーを追記** (`terms.html`)
+   - 月末までの解約→翌月から停止、返金なし、などを明記
+
+### 🟡 次点
+3. **LPにGTM設置** — GTM-MB8QQ2GC を index.html に追加
+4. **GA4コンバージョン設定** — プレミアム登録完了イベントを設定
+5. **AI提案品質改善** — suggest.htmlのプロンプトに季節・曜日を追加
 
 ---
 
 *このドキュメントはアプリ成長に合わせて随時更新する。*
+
 
