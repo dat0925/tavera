@@ -419,7 +419,7 @@ home.html等でrequireAuth()失敗 → index.html（LP）にリダイレクト
 | Edge Function tavera-webhook | ✅ デプロイ済み（Stripe署名検証追加・verify_jwt=off） |
 | Edge Function tavera-suggest | ✅ デプロイ済み（既存上書き） |
 | Stripe決済画面への遷移 | ✅ 動作確認済み（テストカードで決済成功） |
-| Webhook → DB反映 | ⚠️ 動作確認待ち（本番テスト決済で確認） |
+| Webhook → DB反映 | ✅ 動作確認済み（2026-06-27） |
 | **本番キー切替** | ✅ 完了（TAVERA_STRIPE_SECRET_KEY登録済み） |
 
 ### ⚠️ セキュリティ修正（2026-06-27）
@@ -545,7 +545,7 @@ home.html等でrequireAuth()失敗 → index.html（LP）にリダイレクト
 #### 優先度：高
 - [x] **Stripeサブスク** ✅ v1.3.0 — AI機能を有料化。free / premiumの2プラン構成
 - [x] **Stripe署名検証・デバッグログ削除** ✅ v1.4.0 — tavera-webhookにHMAC-SHA256署名検証追加、tavera-checkoutのconsole.log削除
-- [ ] **Stripe本番切替** ⬅️ 次のタスク — 本番キー登録・本番Webhook設定・Supabaseコンソール再デプロイ
+- [x] **Stripe本番切替** ✅ v1.4.0 — 本番キー登録・Webhook動作確認済み。`current_period_end`はStripe新APIでは`items.data[0]`配下にあることに注意（フォールバック実装済み）
 
 #### 優先度：中
 - [ ] **AI提案の精度向上** — 使うほど良くなる体験で定着率を上げる
