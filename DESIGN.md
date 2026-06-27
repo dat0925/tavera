@@ -415,12 +415,12 @@ home.html等でrequireAuth()失敗 → index.html（LP）にリダイレクト
 | Stripe商品・Price ID作成（サンドボックス） | ✅ 完了（`price_1TdMZzB5e5DORDCyeMEYw7un`） |
 | Stripe商品・Price ID作成（**本番**） | ✅ 完了（`price_1TmtslBNAV5e5rhcf4Wxvphw`） |
 | Supabase Secrets登録（テスト用） | ✅ 完了（TAVERA_STRIPE_PRICE_ID・TAVERA_STRIPE_WEBHOOK_SECRET・STRIPE_SECRET_KEY_TEST） |
-| Edge Function tavera-checkout | ✅ コード修正済み（console.log削除・本番キー優先）→ **Supabaseコンソールで再デプロイ必要** |
-| Edge Function tavera-webhook | ✅ コード修正済み（**Stripe署名検証追加**）→ **Supabaseコンソールで再デプロイ必要** |
+| Edge Function tavera-checkout | ✅ デプロイ済み（TAVERA_STRIPE_SECRET_KEY使用・console.log削除） |
+| Edge Function tavera-webhook | ✅ デプロイ済み（Stripe署名検証追加・verify_jwt=off） |
 | Edge Function tavera-suggest | ✅ デプロイ済み（既存上書き） |
 | Stripe決済画面への遷移 | ✅ 動作確認済み（テストカードで決済成功） |
-| Webhook → DB反映 | ⚠️ 未確認（本番切替後に確認） |
-| **本番キー切替** | ❌ 未完了（下記「残作業」参照） |
+| Webhook → DB反映 | ⚠️ 動作確認待ち（本番テスト決済で確認） |
+| **本番キー切替** | ✅ 完了（TAVERA_STRIPE_SECRET_KEY登録済み） |
 
 ### ⚠️ セキュリティ修正（2026-06-27）
 - `tavera-webhook`にStripe署名検証（HMAC-SHA256）を追加。以前は署名なしで任意のリクエストを受け付ける状態だった。
@@ -428,27 +428,22 @@ home.html等でrequireAuth()失敗 → index.html（LP）にリダイレクト
 
 ### 残作業（本番切替）
 
-**Stripeダッシュボード（本番モード）で実施：**
-1. ~~本番モードに切り替えて商品「Tavera Premium」¥480/月を作成~~ ✅ `price_1TmtslBNAV5e5rhcf4Wxvphw`
-2. Webhookエンドポイントを本番で登録: `https://sfhtvtcmgueystyuhzvd.supabase.co/functions/v1/tavera-webhook`
-3. 購読イベント: `customer.subscription.created/updated/deleted`, `invoice.payment_failed`
-4. 本番Webhook Signing Secretをメモ（`whsec_xxx`）
+### 残作業（動作確認）
 
-**Supabase Secretsに登録（本番用）：**
+**本番テスト決済で確認：**
+1. https://tavera.taskra.jp/settings.html を開く
+2. 「プレミアムにアップグレード」ボタンをタップ → Stripe本番決済画面が開くことを確認
+3. 本番カードで決済（¥480）→ settings.htmlでプランが「✨ プレミアム」に変わることを確認
+4. suggest.htmlで残り回数バーが「プレミアム」表示になることを確認
+
+**Supabase Secretsの構成（登録済み）：**
 | Secret名 | 内容 |
 |---|---|
-| `STRIPE_SECRET_KEY` | 本番のStripe Secret Key（`sk_live_xxx`） |
-| `TAVERA_STRIPE_PRICE_ID` | 本番のPrice ID（`price_xxx`）で上書き |
-| `TAVERA_STRIPE_WEBHOOK_SECRET` | 本番Webhook Signing Secret（`whsec_xxx`）で上書き |
-
-**Supabaseコンソールで実施：**
-1. `tavera-checkout` → GitHubのコードをコンソールに貼り付けてデプロイ
-2. `tavera-webhook` → 同上・「Verify JWT」が**オフ**になっていることを確認
-3. テストカード（4242...）で決済 → Webhook受信 → DB反映を確認
-
-**切替後の確認：**
-- settings.htmlでプランが「✨ プレミアム」に変わること
-- suggest.htmlで残り回数バーが「プレミアム」表示になること
+| `ANTHROPIC_API_KEY` | 既存（Taskraと共有） |
+| `TAVERA_STRIPE_SECRET_KEY` | Stripe本番Secret Key（新規・Tavera専用） |
+| `TAVERA_STRIPE_PRICE_ID` | `price_1TmtslBNAV5e5rhcf4Wxvphw`（本番） |
+| `TAVERA_STRIPE_WEBHOOK_SECRET` | `whsec_8x4LMUX008s0rlDd99oidTQBjn6EzDCZ`（本番） |
+| `SUPABASE_SERVICE_ROLE_KEY` | 既存 |
 
 ### トラブルシューティング履歴（参考）
 - CORSエラー: Supabase GatewayはOPTIONSを404で返す問題 → Supabase CLIでデプロイすることで解消
