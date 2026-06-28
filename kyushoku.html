@@ -152,6 +152,12 @@
       align-items: center;
       gap: 6px;
     }
+    .ky-day-memo {
+      font-size: 0.75rem;
+      color: var(--muted);
+      margin-top: 3px;
+      line-height: 1.5;
+    }
     .ky-edit-btn {
       background: none;
       border: none;
@@ -511,6 +517,7 @@
         parsedMenu = data.menu.map(item => ({
           date: item.date,
           dishes: item.dishes || [],
+          memo: item.memo || '',
           checked: !existingDates.has(item.date),
           alreadyExists: existingDates.has(item.date),
         }));
@@ -547,6 +554,7 @@
               <div class="ky-day-dish" id="dish-text-${i}">${dishText}</div>
               <button class="ky-edit-btn" onclick="startEditDish(${i})" title="編集">✏️</button>
             </div>
+            ${item.memo ? `<div class="ky-day-memo">${item.memo}</div>` : ''}
           </div>
         </div>`;
       }).join('');
@@ -635,6 +643,7 @@
           date: item.date,
           meal_type: 'lunch',
           dish_name: dishName,
+          memo: item.memo || null,
           created_by: user.id,
         }, { onConflict: 'household_id,date,meal_type' });
         if (!error) success++;
