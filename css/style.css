@@ -149,15 +149,15 @@ input, textarea, select { font-family: inherit; }
 
 .bottom-nav .nav-add {
   background: var(--terra);
-  border-radius: 14px;
-  width: 50px;
-  height: 50px;
-  min-width: 50px;
-  flex: 1;
+  border-radius: 16px;
+  width: 56px;
+  height: 56px;
+  min-width: 56px;
+  flex: 0 0 56px;
   display: flex;
   align-items: center;
   justify-content: center;
-  margin-top: 5px;
+  margin-top: -16px;
   box-shadow: 0 6px 20px rgba(200,82,42,0.50), 0 2px 8px rgba(200,82,42,0.30);
   color: var(--white) !important;
   transition: transform .15s, box-shadow .15s;
