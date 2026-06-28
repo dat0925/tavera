@@ -217,45 +217,23 @@ a{text-decoration:none;color:inherit;}
       const session = await getSession();
       if (!session) { showToast('ログインが必要です'); return; }
 
-      // Service Role経由でユーザー一覧取得（RPCを使用）
-      const { data: members, error } = await db
-        .from('menu_members')
-        .select('id, plan, plan_expires_at, created_at, nickname');
+      // RPC経由で全ユーザー取得（SECURITY DEFINER）
+      const { data: rows, error } = await db.rpc('admin_get_all_users');
       if (error) throw error;
 
-      // AI利用状況
-      const thisMonth = new Date().toISOString().slice(0, 7);
-      const { data: aiUsage } = await db
-        .from('menu_ai_usage')
-        .select('user_id, count, month');
-
-      // 世帯情報
-      const { data: households } = await db
-        .from('menu_households')
-        .select('id, name, owner_id');
-
-      // マージ
-      allUsers = members.map(m => {
-        const usage = aiUsage?.filter(a => a.user_id === m.id) || [];
-        const totalAi = usage.reduce((s, a) => s + (a.count || 0), 0);
-        const monthAi = usage.find(a => a.month === thisMonth)?.count || 0;
-        const household = households?.find(h => h.owner_id === m.id);
-        return {
-          id: m.id,
-          email: m.nickname || m.id.slice(0, 8) + '...',
-          plan: m.plan || 'free',
-          plan_expires_at: m.plan_expires_at,
-          created_at: m.created_at,
-          ai_total: totalAi,
-          ai_month: monthAi,
-          household_name: household?.name || '-',
-        };
-      });
+      allUsers = rows.map(r => ({
+        id: r.id,
+        email: r.email || r.id.slice(0, 8) + '...',
+        plan: r.plan || 'free',
+        plan_expires_at: r.plan_expires_at,
+        created_at: r.created_at,
+        ai_total: Number(r.ai_total) || 0,
+        ai_month: Number(r.ai_month) || 0,
+        household_name: r.household_name || '-',
+      }));
 
       // サマリー
-      const totalAiMonth = (aiUsage || [])
-        .filter(a => a.month === thisMonth)
-        .reduce((s, a) => s + (a.count || 0), 0);
+      const totalAiMonth = allUsers.reduce((s, u) => s + u.ai_month, 0);
       document.getElementById('sumTotal').textContent = allUsers.length;
       document.getElementById('sumPremium').textContent = allUsers.filter(u => u.plan === 'premium').length;
       document.getElementById('sumAiMonth').textContent = totalAiMonth;
