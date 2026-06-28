@@ -148,16 +148,17 @@ input, textarea, select { font-family: inherit; }
 
 .bottom-nav .nav-add {
   background: var(--terra);
-  border-radius: 50%;
+  border-radius: 16px;
   width: 60px;
   height: 60px;
+  min-width: 60px;
+  flex: 0 0 60px;
   display: flex;
   align-items: center;
   justify-content: center;
   margin-top: -28px;
   box-shadow: 0 6px 20px rgba(200,82,42,0.50), 0 2px 8px rgba(200,82,42,0.30);
   color: var(--white) !important;
-  flex-shrink: 0;
   transition: transform .15s, box-shadow .15s;
   padding: 0;
 }
