@@ -279,24 +279,17 @@
       font-size: 0.75rem; padding: 4px 10px; border-radius: 99px;
       border: 1px solid var(--olive); background: var(--white);
       color: var(--olive); cursor: pointer; font-family: inherit;
-      transition: all .15s;
     }
-    .fridge-scan-btn:active { background: #EEF3E2; }
     .fridge-scan-result {
       background: var(--surface); border: 1px solid var(--border);
       border-radius: var(--radius-md); padding: 14px 16px; margin-top: 10px;
     }
-    .fridge-scan-result-title {
-      font-size: 0.78rem; color: var(--muted); font-weight: 600;
-      margin-bottom: 10px; letter-spacing: 0.04em;
-    }
+    .fridge-scan-result-title { font-size: 0.78rem; color: var(--muted); margin-bottom: 10px; }
     .fridge-scan-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
     .fridge-scan-chip {
-      display: inline-flex; align-items: center; gap: 4px;
       padding: 5px 10px; border-radius: 99px; font-size: 0.8rem;
       background: #EEF3E2; border: 1.5px solid var(--olive);
       color: var(--olive); cursor: pointer; font-family: inherit;
-      transition: all .15s;
     }
     .fridge-scan-chip.deselected {
       background: var(--white); border-color: var(--border);
@@ -304,10 +297,7 @@
     }
     .fridge-scan-actions { display: flex; gap: 8px; }
     .fridge-scan-actions .btn { flex: 1; padding: 9px; font-size: 0.85rem; }
-    .fridge-scanning {
-      display: flex; align-items: center; gap: 8px;
-      font-size: 0.82rem; color: var(--muted); padding: 8px 0;
-    }
+    .fridge-scanning { font-size: 0.82rem; color: var(--muted); padding: 8px 0; }
     .fridge-empty {
       font-size: 0.82rem;
       color: var(--muted);
@@ -368,10 +358,8 @@
           <span style="font-size:0.75rem;color:var(--muted);">AI提案に自動反映</span>
         </div>
       </div>
-      <!-- 隠しinput for camera -->
       <input type="file" id="fridgeScanInput" accept="image/*" capture="environment"
              style="display:none" onchange="handleFridgeScan(event)">
-      <!-- スキャン結果パネル -->
       <div id="fridgeScanResult" class="fridge-scan-result hidden" style="margin:0 20px 12px;">
         <div class="fridge-scan-result-title">📷 認識した食材 — タップして除外</div>
         <div class="fridge-scan-chips" id="fridgeScanChips"></div>
@@ -626,77 +614,6 @@
       };
     }
 
-
-
-
-
-
-    // =====================
-    //  冷蔵庫スキャン
-    // =====================
-    function triggerFridgeScan() {
-      document.getElementById('fridgeScanInput').click();
-    }
-
-    async function handleFridgeScan(e) {
-      const file = e.target.files[0];
-      if (!file) return;
-      const resultEl = document.getElementById('fridgeScanResult');
-      const chipsEl = document.getElementById('fridgeScanChips');
-      const actionsEl = resultEl.querySelector('.fridge-scan-actions');
-      resultEl.classList.remove('hidden');
-      chipsEl.innerHTML = '<div class="fridge-scanning">🔍 認識中...</div>';
-      actionsEl.style.display = 'none';
-      try {
-        const base64data = await new Promise((resolve, reject) => {
-          const reader = new FileReader();
-          reader.onload = () => resolve(reader.result.split(',')[1]);
-          reader.onerror = reject;
-          reader.readAsDataURL(file);
-        });
-        const res = await fetch('https://sfhtvtcmgueystyuhzvd.supabase.co/functions/v1/tavera-fridge-scan', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ image: base64data, mediaType: file.type })
-        });
-        const d = await res.json();
-        const items = d.items || [];
-        if (!items.length) {
-          chipsEl.innerHTML = '<span style="font-size:0.82rem;color:var(--muted)">食材を認識できませんでした。別の写真を試してください。</span>';
-          actionsEl.style.display = 'flex';
-          e.target.value = '';
-          return;
-        }
-        chipsEl.innerHTML = items.map(function(item) {
-          return '<button class="fridge-scan-chip" onclick="this.classList.toggle('deselected')">' + item + '</button>';
-        }).join('');
-        actionsEl.style.display = 'flex';
-      } catch(err) {
-        chipsEl.innerHTML = '<span style="font-size:0.82rem;color:var(--terra)">エラーが発生しました。再度お試しください。</span>';
-        actionsEl.style.display = 'flex';
-      }
-      e.target.value = '';
-    }
-
-    function cancelFridgeScan() {
-      document.getElementById('fridgeScanResult').classList.add('hidden');
-    }
-
-    async function confirmFridgeScan() {
-      const chips = document.querySelectorAll('#fridgeScanChips .fridge-scan-chip:not(.deselected)');
-      const items = Array.from(chips).map(function(c) { return c.textContent.trim(); });
-      if (!items.length) { cancelFridgeScan(); return; }
-      const existing = fridgeItemsCache ? fridgeItemsCache.map(function(i) { return i.name; }) : [];
-      const newItems = items.filter(function(i) { return !existing.includes(i); });
-      for (var n = 0; n < newItems.length; n++) {
-        await addFridgeItem(householdId, newItems[n], null);
-      }
-      cancelFridgeScan();
-      await renderFridgeItems();
-      if (newItems.length) showToast(newItems.length + '件の食材を追加しました 🧊');
-      if (newItems.length < items.length) showToast((items.length - newItems.length) + '件はすでに登録済みです');
-    }
-
     const FRIDGE_MAX = 30;
 
     async function addFridgeItemUI() {
@@ -758,10 +675,67 @@
       `).join('');
     }
 
+    // 冷蔵庫スキャン
+    function triggerFridgeScan() {
+      document.getElementById("fridgeScanInput").click();
+    }
+    async function handleFridgeScan(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+      const resultEl = document.getElementById("fridgeScanResult");
+      const chipsEl = document.getElementById("fridgeScanChips");
+      const actionsEl = resultEl.querySelector(".fridge-scan-actions");
+      resultEl.classList.remove("hidden");
+      chipsEl.innerHTML = "<div class=\"fridge-scanning\">🔍 認識中...</div>";
+      actionsEl.style.display = "none";
+      try {
+        const b64 = await new Promise(function(res, rej) {
+          const r = new FileReader();
+          r.onload = function() { res(r.result.split(",")[1]); };
+          r.onerror = rej;
+          r.readAsDataURL(file);
+        });
+        const resp = await fetch("https://sfhtvtcmgueystyuhzvd.supabase.co/functions/v1/tavera-fridge-scan", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ image: b64, mediaType: file.type })
+        });
+        const d = await resp.json();
+        const items = d.items || [];
+        if (!items.length) {
+          chipsEl.innerHTML = "<span style=\"font-size:0.82rem;color:var(--muted)\">食材を認識できませんでした。別の写真を試してください。</span>";
+          actionsEl.style.display = "flex";
+          e.target.value = "";
+          return;
+        }
+        chipsEl.innerHTML = items.map(function(item) {
+          return "<button class=\"fridge-scan-chip\" onclick=\"this.classList.toggle('deselected')\">" + item + "</button>";
+        }).join("");
+        actionsEl.style.display = "flex";
+      } catch(err) {
+        chipsEl.innerHTML = "<span style=\"font-size:0.82rem;color:var(--terra)\">エラーが発生しました。</span>";
+        actionsEl.style.display = "flex";
+      }
+      e.target.value = "";
+    }
+    function cancelFridgeScan() {
+      document.getElementById("fridgeScanResult").classList.add("hidden");
+    }
+    async function confirmFridgeScan() {
+      const chips = document.querySelectorAll("#fridgeScanChips .fridge-scan-chip:not(.deselected)");
+      const items = Array.from(chips).map(function(c) { return c.textContent.trim(); });
+      if (!items.length) { cancelFridgeScan(); return; }
+      const existing = (await getFridgeItems(householdId)).map(function(i) { return i.name; });
+      const newItems = items.filter(function(i) { return !existing.includes(i); });
+      for (var n = 0; n < newItems.length; n++) {
+        await addFridgeItem(householdId, newItems[n], null);
+      }
+      cancelFridgeScan();
+      await renderFridgeItems();
+      showToast(newItems.length + "件の食材を追加しました 🧊");
+    }
+
     init();
-  
-
   </script>
-
 </body>
 </html>
