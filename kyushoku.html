@@ -35,6 +35,26 @@
     .ky-intro strong { color: var(--terra); }
 
     /* アップロードエリア */
+    .ky-input-tabs { display: flex; gap: 0; margin-bottom: 12px; border-radius: var(--radius-md); overflow: hidden; border: 1px solid var(--border); }
+    .ky-input-tab {
+      flex: 1; padding: 9px 0; font-size: 0.82rem; font-weight: 600;
+      text-align: center; cursor: pointer; background: var(--white);
+      color: var(--muted); border: none; font-family: inherit; transition: all .15s;
+    }
+    .ky-input-tab.active { background: var(--terra); color: #fff; }
+    .ky-url-area { display: flex; gap: 8px; margin-bottom: 4px; }
+    .ky-url-input {
+      flex: 1; padding: 10px 14px; border: 1px solid var(--border);
+      border-radius: var(--radius-md); font-size: 0.85rem; font-family: inherit;
+      color: var(--brown);
+    }
+    .ky-url-input:focus { outline: none; border-color: var(--terra); }
+    .ky-url-load-btn {
+      padding: 10px 16px; background: var(--terra); color: #fff;
+      border: none; border-radius: var(--radius-md); font-size: 0.85rem;
+      font-family: inherit; cursor: pointer; white-space: nowrap;
+    }
+    .ky-url-hint { font-size: 0.75rem; color: var(--muted); margin-top: 4px; }
     .upload-area {
       border: 2px dashed var(--border);
       border-radius: var(--radius-md);
@@ -170,14 +190,33 @@
           <select id="kyMonth"></select>
         </div>
 
-        <!-- アップロードエリア -->
-        <div class="upload-area" id="uploadArea">
-          <input type="file" id="fileInput" accept="image/*,application/pdf" onchange="onFileSelect(event)">
-          <div class="upload-icon">&#128247;</div>
-          <div class="upload-label">献立表をタップして選択</div>
-          <div class="upload-sub">写真・PDF対応</div>
-          <img id="uploadPreview" class="upload-preview" alt="プレビュー">
-          <div id="uploadFilename" class="upload-filename"></div>
+        <!-- 入力方法タブ -->
+        <div class="ky-input-tabs">
+          <button class="ky-input-tab active" id="tabFile" onclick="switchTab('file')">📁 ファイル・写真</button>
+          <button class="ky-input-tab" id="tabUrl" onclick="switchTab('url')">🔗 URLから読み込む</button>
+        </div>
+
+        <!-- ファイルアップロードエリア -->
+        <div id="panelFile">
+          <div class="upload-area" id="uploadArea">
+            <input type="file" id="fileInput" accept="image/*,application/pdf" onchange="onFileSelect(event)">
+            <div class="upload-icon">&#128247;</div>
+            <div class="upload-label">献立表をタップして選択</div>
+            <div class="upload-sub">写真・PDF対応</div>
+            <img id="uploadPreview" class="upload-preview" alt="プレビュー">
+            <div id="uploadFilename" class="upload-filename"></div>
+          </div>
+        </div>
+
+        <!-- URL入力エリア -->
+        <div id="panelUrl" class="hidden">
+          <div class="ky-url-area">
+            <input type="url" id="urlInput" class="ky-url-input"
+                   placeholder="https://example.com/kyushoku.pdf">
+            <button class="ky-url-load-btn" onclick="loadFromUrl()">読み込む</button>
+          </div>
+          <div class="ky-url-hint">PDFまたは画像のURLを入力してください</div>
+          <div id="urlStatus" style="font-size:0.82rem;margin-top:8px;color:var(--muted);"></div>
         </div>
 
         <!-- 解析ボタン -->
@@ -264,6 +303,75 @@
         opt.value = m; opt.textContent = m + '月';
         if (m === now.getMonth() + 1) opt.selected = true;
         monthSel.appendChild(opt);
+      }
+    }
+
+    // =====================
+    //  タブ切り替え
+    // =====================
+    function switchTab(tab) {
+      document.getElementById('tabFile').classList.toggle('active', tab === 'file');
+      document.getElementById('tabUrl').classList.toggle('active', tab === 'url');
+      document.getElementById('panelFile').classList.toggle('hidden', tab !== 'file');
+      document.getElementById('panelUrl').classList.toggle('hidden', tab !== 'url');
+    }
+
+    // =====================
+    //  URLから読み込む
+    // =====================
+    async function loadFromUrl() {
+      const url = document.getElementById('urlInput').value.trim();
+      if (!url) return;
+      const status = document.getElementById('urlStatus');
+      status.textContent = '読み込み中...';
+
+      try {
+        const res = await fetch(url);
+        if (!res.ok) throw new Error('取得できませんでした（' + res.status + '）');
+        const blob = await res.blob();
+        const mediaType = blob.type || (url.endsWith('.pdf') ? 'application/pdf' : 'image/jpeg');
+
+        const b64 = await new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result.split(',')[1]);
+          reader.onerror = reject;
+          reader.readAsDataURL(blob);
+        });
+
+        fileData = { base64: b64, mediaType };
+        status.textContent = '✅ 読み込み完了（' + Math.round(blob.size / 1024) + 'KB）';
+        document.getElementById('parseBtn').disabled = false;
+        document.getElementById('resultsSection').classList.add('hidden');
+        document.getElementById('importBar').style.display = 'none';
+        parsedMenu = [];
+      } catch (err) {
+        // CORSエラーの場合はEdge Function経由でフェッチ
+        if (err.message.includes('Failed to fetch') || err.message.includes('CORS')) {
+          status.textContent = '直接取得できないためサーバー経由で読み込み中...';
+          try {
+            const session = await getSession();
+            const proxyRes = await fetch(SUPABASE_URL + '/functions/v1/tavera-url-fetch', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': 'Bearer ' + (session?.access_token || ''),
+              },
+              body: JSON.stringify({ url })
+            });
+            const proxyData = await proxyRes.json();
+            if (proxyData.error) throw new Error(proxyData.error);
+            fileData = { base64: proxyData.base64, mediaType: proxyData.mediaType };
+            status.textContent = '✅ 読み込み完了（サーバー経由）';
+            document.getElementById('parseBtn').disabled = false;
+            document.getElementById('resultsSection').classList.add('hidden');
+            document.getElementById('importBar').style.display = 'none';
+            parsedMenu = [];
+          } catch (proxyErr) {
+            status.textContent = '❌ ' + proxyErr.message;
+          }
+        } else {
+          status.textContent = '❌ ' + err.message;
+        }
       }
     }
 
