@@ -517,7 +517,7 @@
         parsedMenu = data.menu.map(item => ({
           date: item.date,
           dishes: item.dishes || [],
-          memo: item.memo || '',
+          ingredients: item.ingredients || [],
           checked: !existingDates.has(item.date),
           alreadyExists: existingDates.has(item.date),
         }));
@@ -554,7 +554,7 @@
               <div class="ky-day-dish" id="dish-text-${i}">${dishText}</div>
               <button class="ky-edit-btn" onclick="startEditDish(${i})" title="編集">✏️</button>
             </div>
-            ${item.memo ? `<div class="ky-day-memo">${item.memo}</div>` : ''}
+            ${item.ingredients && item.ingredients.length ? `<div class="ky-day-memo">【材料】${item.ingredients.join('・')}</div>` : ''}
           </div>
         </div>`;
       }).join('');
@@ -643,7 +643,7 @@
           date: item.date,
           meal_type: 'lunch',
           dish_name: dishName,
-          memo: item.memo || null,
+          ingredients: item.ingredients && item.ingredients.length ? item.ingredients : null,
           created_by: user.id,
         }, { onConflict: 'household_id,date,meal_type' });
         if (!error) success++;
@@ -676,3 +676,4 @@
   </script>
 </body>
 </html>
+
