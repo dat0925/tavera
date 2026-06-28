@@ -1,6 +1,6 @@
 # Tavera 設計書・引き継ぎ書
 
-**バージョン**: 1.9.5
+**バージョン**: 1.9.6
 **最終更新**: 2026-06-28
 **ステータス**: 一般公開済み・本番Stripe決済稼働中・解約フロー実装済み
 
@@ -418,7 +418,7 @@ home.htmlがJS構文エラーで画面破損。`</script>`内にHTMLが混入。
 
 ---
 
-## 既知の注意事項（v1.9.5時点）
+## 既知の注意事項（v1.9.6時点）
 
 ### kyushoku.htmlのデバッグ履歴
 - **根本原因だった問題**：`supabase.js`と`kyushoku.html`インラインJSで`const SUPABASE_URL`を二重宣言していたためJSクラッシュ → `switchTab`未定義に見えていた
@@ -460,6 +460,18 @@ home.htmlがJS構文エラーで画面破損。`</script>`内にHTMLが混入。
 - **解決策（v19）**：Gemini APIの`generationConfig.responseSchema`（Structured Output）でJSON配列の構造（date/dishes/ingredientsを持つオブジェクトの配列）をスキーマとして強制する方式に変更。これによりGemini側でJSON構造が保証されるため、文字列内の特殊文字によるパース崩れが原理的に発生しなくなる。プロンプトも「JSON形式で返してください」という冗長な指示が不要になり簡潔化した。
   - 念のため、`JSON.parse(text)`が万が一失敗した場合のフォールバック（正規表現で配列部分を再抽出して再パース）も残している。
 - **教訓**：LLMにJSONを返させる場合、プロンプトでの自然文指示より`responseSchema`によるStructured Outputの方が構造的に堅牢。今後同様のJSON生成タスク（`tavera-fridge-scan`等）でも同方式への切り替えを検討する価値がある。
+
+### 給食一括登録が常に0日分になる重大バグ（v1.9.6・根本原因はDBスキーマ）
+- **症状**：給食インポートで複数日選択し「選択した献立をインポート（N日分）」を実行しても、トーストには常に「0日分の給食を登録しました」と表示される。しかも対象日は無条件で「登録済み」バッジが付くため、見た目上は成功したように見えるが、実際は履歴（home.html等）に何も反映されない。
+- **根本原因**：`menu_logs`テーブルに、コードが前提としていたユニーク制約 `(household_id, date, meal_type)` が**そもそも存在していなかった**。`doImport()`は`db.from('menu_logs').upsert(..., { onConflict: 'household_id,date,meal_type' })`という形でupsertしていたが、対応するUNIQUE制約／インデックスがDB側に無いと、PostgreSQLは`there is no unique or exclusion constraint matching the ON CONFLICT specification`（42P10）エラーを返す。これが**選択した全件で毎回**発生していたため、`success`カウンタが常に0になっていた。
+- **誘発した副次バグ（UI側）**：`doImport()`はupsertの結果（成功/失敗）を見ずに、チェックされていた全項目を無条件で「登録済み」（`alreadyExists = true`）にしていた。そのため実際にはDBへの書き込みが1件も成功していなくても、画面上は「登録済み」と表示されてしまい、不具合の発覚が遅れた。
+- **解決策（v1.9.6）**：
+  1. `ALTER TABLE menu_logs ADD CONSTRAINT menu_logs_household_date_meal_unique UNIQUE (household_id, date, meal_type);` をマイグレーションとして適用（事前に重複行が無いことを確認済み）
+  2. `doImport()`を、各アイテムごとのupsert結果を個別に追跡する実装に変更。成功した項目のインデックスのみ`succeededIndexes`に記録し、その分だけ「登録済み」バッジを表示・チェック解除する。失敗した項目はチェック状態を維持し、再試行可能にする
+  3. 失敗があった場合はトーストに「N日分登録・M日分失敗しました（エラー内容）」と表示し、`console.error`にも詳細を出力するようにした
+- **教訓**：
+  - `upsert`の`onConflict`はDB側に対応するUNIQUE制約／インデックスが存在することが前提。フロントのコードだけ見て「ロジックは正しいはず」と判断せず、**実際のテーブル定義（制約・インデックス）をSupabase側で確認する**ことが重要。今回はコードを何度読んでも問題なく見えたが、`pg_constraint`を見て初めて原因が判明した。
+  - UI側で「成功した前提」で見た目を更新する処理（バッジ表示など）は、必ずAPI呼び出しの結果を見てから行うこと。一括処理（ループでupsertを複数回呼ぶ等）では、成功・失敗を個別に追跡し、失敗時に分かるようにする。
 
 ### 給食インポートボタンのラベル崩れ（v1.9.5・kyushoku.html）
 - **症状**：給食インポート実行後、ボタンのラベルが「&#10003; 選択した献立をインポート（&lt;span id="importCount"&gt;0&lt;/span&gt;日分）」のようにHTMLタグ・実体参照がそのまま画面に表示されてしまう。

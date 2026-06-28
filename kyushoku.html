@@ -635,8 +635,13 @@
 
       const user = await getUser();
       let success = 0;
+      let failCount = 0;
+      let lastErrorMsg = '';
+      const succeededIndexes = [];
+
       for (const item of targets) {
         const dishName = item.dishes.join('・');
+        const idx = parsedMenu.indexOf(item);
         const { error } = await db.from('menu_logs').upsert({
           household_id: householdId,
           date: item.date,
@@ -645,26 +650,37 @@
           ingredients: item.ingredients && item.ingredients.length ? item.ingredients : null,
           created_by: user.id,
         }, { onConflict: 'household_id,date,meal_type' });
-        if (!error) success++;
+        if (!error) {
+          success++;
+          succeededIndexes.push(idx);
+        } else {
+          failCount++;
+          lastErrorMsg = error.message || String(error);
+          console.error('[kyushoku] import failed:', item.date, error);
+        }
       }
 
       btn.disabled = false;
       btn.innerHTML = '&#10003; 選択した献立をインポート（<span id="importCount">0</span>日分）';
-      showToast(success + '日分の給食を登録しました！', 'success');
 
-      // チェック済みを「登録済み」に更新
-      parsedMenu.forEach((m, i) => {
-        if (m.checked) {
-          m.alreadyExists = true;
-          m.checked = false;
-          const card = document.getElementById('card-' + i);
-          if (card) {
-            card.classList.remove('checked');
-            card.querySelector('input').checked = false;
-            const badge = card.querySelector('.ky-already');
-            if (!badge) {
-              card.querySelector('.ky-day-date').insertAdjacentHTML('beforeend', '<span class="ky-already">登録済み</span>');
-            }
+      if (failCount > 0) {
+        showToast(success + '日分登録・' + failCount + '日分失敗しました（' + lastErrorMsg + '）', 'error');
+      } else {
+        showToast(success + '日分の給食を登録しました！', 'success');
+      }
+
+      // 成功した分だけ「登録済み」に更新（失敗分はチェックを保持し再試行できるようにする）
+      succeededIndexes.forEach(function(i) {
+        const m = parsedMenu[i];
+        m.alreadyExists = true;
+        m.checked = false;
+        const card = document.getElementById('card-' + i);
+        if (card) {
+          card.classList.remove('checked');
+          card.querySelector('input').checked = false;
+          const badge = card.querySelector('.ky-already');
+          if (!badge) {
+            card.querySelector('.ky-day-date').insertAdjacentHTML('beforeend', '<span class="ky-already">登録済み</span>');
           }
         }
       });
