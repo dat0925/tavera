@@ -149,26 +149,28 @@ input, textarea, select { font-family: inherit; }
 .bottom-nav .nav-add {
   background: var(--terra);
   border-radius: 50%;
-  width: 56px;
-  height: 56px;
+  width: 60px;
+  height: 60px;
   display: flex;
   align-items: center;
   justify-content: center;
-  margin-top: -20px;
-  box-shadow: 0 4px 16px rgba(200,82,42,0.45);
+  margin-top: -28px;
+  box-shadow: 0 6px 20px rgba(200,82,42,0.50), 0 2px 8px rgba(200,82,42,0.30);
   color: var(--white) !important;
   flex-shrink: 0;
   transition: transform .15s, box-shadow .15s;
+  padding: 0;
 }
-.bottom-nav .nav-add:hover {
-  transform: scale(1.08);
-  box-shadow: 0 6px 20px rgba(200,82,42,0.55);
+.bottom-nav .nav-add:hover,
+.bottom-nav .nav-add:active {
+  transform: scale(1.06);
+  box-shadow: 0 8px 24px rgba(200,82,42,0.60);
 }
 .bottom-nav .nav-add svg {
   stroke: var(--white);
-  width: 26px;
-  height: 26px;
-  stroke-width: 2.2;
+  width: 28px;
+  height: 28px;
+  stroke-width: 2;
 }
 .bottom-nav a.active,
 .bottom-nav a:hover {
