@@ -158,18 +158,10 @@
 
     /* インポートボタン（固定） */
     .ky-import-bar {
-      position: fixed;
-      bottom: calc(60px + env(safe-area-inset-bottom));
-      left: 0; right: 0;
-      padding: 10px 20px;
-      background: var(--white); border-top: 1px solid var(--border);
-      display: none; z-index: 50;
-    }
-    @media (min-width: 769px) {
-      .ky-import-bar {
-        bottom: 0;
-        left: 220px;
-      }
+      padding: 16px 20px 24px;
+      background: var(--white);
+      border-top: 2px solid var(--border);
+      display: none;
     }
     .ky-import-btn {
       width: 100%; padding: 14px;
