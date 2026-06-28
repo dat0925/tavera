@@ -608,3 +608,43 @@ textarea.form-input { resize: vertical; min-height: 80px; }
 .font-bold { font-weight: 700; }
 .divider { height: 1px; background: var(--border); margin: 16px 0; }
 .hidden { display: none !important; }
+
+/* =====================
+   Pull to Refresh
+   ===================== */
+.ptr-indicator {
+  position: fixed;
+  top: -60px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 40px;
+  height: 40px;
+  background: var(--white);
+  border-radius: 50%;
+  box-shadow: 0 2px 12px rgba(0,0,0,.15);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 999;
+  transition: top .2s ease;
+  pointer-events: none;
+}
+.ptr-indicator.visible {
+  top: 16px;
+}
+.ptr-indicator svg {
+  width: 20px;
+  height: 20px;
+  stroke: var(--terra);
+  transition: transform .3s;
+}
+.ptr-indicator.pulling svg {
+  transform: rotate(180deg);
+}
+.ptr-indicator.refreshing svg {
+  animation: ptr-spin .8s linear infinite;
+}
+@keyframes ptr-spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
