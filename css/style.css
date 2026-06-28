@@ -717,6 +717,13 @@ textarea.form-input { resize: vertical; min-height: 80px; }
     height: 100vh;
   }
 
+  /* 履歴画面ツールバー */
+  .toolbar {
+    grid-column: 2;
+    grid-row: 1;
+    top: 0;
+  }
+
   /* ボトムナビ → 左サイドバーナビに変換 */
   .bottom-nav {
     grid-column: 1;
