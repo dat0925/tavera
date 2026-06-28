@@ -200,9 +200,13 @@ a{text-decoration:none;color:inherit;}
     const user = await getUser();
     if (!user) {
       document.getElementById('authStatus').textContent = 'Googleアカウントでログインしてください。';
-      document.getElementById('authStatus').innerHTML =
-        'ログインしてからアクセスしてください。<br><br>' +
-        '<button class="pin-btn" onclick="window.location.href='index.html'">ログインページへ</button>';
+      document.getElementById('authStatus').textContent = 'ログインしてからアクセスしてください。';
+      const loginBtn = document.createElement('button');
+      loginBtn.className = 'pin-btn';
+      loginBtn.textContent = 'ログインページへ';
+      loginBtn.style.marginTop = '16px';
+      loginBtn.onclick = function() { location.href = 'index.html'; };
+      document.getElementById('authStatus').insertAdjacentElement('afterend', loginBtn);
       return;
     }
     if (user.email !== ADMIN_EMAIL) {
