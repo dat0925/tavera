@@ -1,6 +1,6 @@
 # Tavera 設計書・引き継ぎ書
 
-**バージョン**: 1.9.4
+**バージョン**: 1.9.5
 **最終更新**: 2026-06-28
 **ステータス**: 一般公開済み・本番Stripe決済稼働中・解約フロー実装済み
 
@@ -418,7 +418,7 @@ home.htmlがJS構文エラーで画面破損。`</script>`内にHTMLが混入。
 
 ---
 
-## 既知の注意事項（v1.9.4時点）
+## 既知の注意事項（v1.9.5時点）
 
 ### kyushoku.htmlのデバッグ履歴
 - **根本原因だった問題**：`supabase.js`と`kyushoku.html`インラインJSで`const SUPABASE_URL`を二重宣言していたためJSクラッシュ → `switchTab`未定義に見えていた
@@ -460,6 +460,12 @@ home.htmlがJS構文エラーで画面破損。`</script>`内にHTMLが混入。
 - **解決策（v19）**：Gemini APIの`generationConfig.responseSchema`（Structured Output）でJSON配列の構造（date/dishes/ingredientsを持つオブジェクトの配列）をスキーマとして強制する方式に変更。これによりGemini側でJSON構造が保証されるため、文字列内の特殊文字によるパース崩れが原理的に発生しなくなる。プロンプトも「JSON形式で返してください」という冗長な指示が不要になり簡潔化した。
   - 念のため、`JSON.parse(text)`が万が一失敗した場合のフォールバック（正規表現で配列部分を再抽出して再パース）も残している。
 - **教訓**：LLMにJSONを返させる場合、プロンプトでの自然文指示より`responseSchema`によるStructured Outputの方が構造的に堅牢。今後同様のJSON生成タスク（`tavera-fridge-scan`等）でも同方式への切り替えを検討する価値がある。
+
+### 給食インポートボタンのラベル崩れ（v1.9.5・kyushoku.html）
+- **症状**：給食インポート実行後、ボタンのラベルが「&#10003; 選択した献立をインポート（&lt;span id="importCount"&gt;0&lt;/span&gt;日分）」のようにHTMLタグ・実体参照がそのまま画面に表示されてしまう。
+- **原因**：`doImport()`内でボタンラベルを元に戻す際、`btn.textContent = '...(HTMLタグ入り文字列)...'`としていたため、ブラウザがHTMLとして解釈せずプレーンテキストとして表示していた。さらにこの代入により`<span id="importCount">`要素自体がDOMから消滅するため、以降の`updateImportBar()`（`document.getElementById('importCount').textContent = count`）が`null`参照エラーになり、チェック数表示が更新されなくなる副作用もあった。
+- **解決策**：`btn.textContent`→`btn.innerHTML`に変更。1行の修正で表示崩れと`importCount`要素消失の両方を解決。
+- **教訓**：ボタン等のラベルをHTMLタグ込みの文字列で動的に書き換える処理では`innerHTML`を使うこと。`textContent`はHTMLをエスケープして表示するため、タグや`&#xxxx;`形式の実体参照がそのまま見えてしまう。また、内部に`id`付き子要素（`<span id="...">`）を含むラベルを再代入する処理は、その後その`id`を参照するコードが他にないか合わせて確認すること。
 
 ### response_schema導入後もJSONが崩れる問題（v20・最終解決）
 - **症状**：v19（response_schema導入）後も「解析結果の読み取りに失敗しました」エラーが継続。約20秒かかって失敗していた（＝Geminiは何らかの応答をしたが、それでもパースできなかった）。
