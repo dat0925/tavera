@@ -113,7 +113,8 @@ Deno.serve(async (req) => {
       contents: [{ parts: [{ text: prompt }, { inline_data: { mime_type: mediaType, data: image } }] }],
       generationConfig: {
         temperature: 0.1,
-        maxOutputTokens: 8192,
+        maxOutputTokens: 16384,
+        thinkingConfig: { thinkingBudget: 0 },
         responseMimeType: "application/json",
         responseSchema: {
           type: "ARRAY",
@@ -129,7 +130,7 @@ Deno.serve(async (req) => {
         },
       },
     });
-    console.log("[kyushoku] gemini status", geminiRes.status);
+    console.log("[kyushoku] gemini status", geminiRes.status, "finishReason", geminiData.candidates?.[0]?.finishReason);
 
     const text = geminiData.candidates?.[0]?.content?.parts?.[0]?.text || "";
     if (!text) {
@@ -161,9 +162,15 @@ Deno.serve(async (req) => {
         }
       }
       if (!menu) {
-        console.error("[kyushoku] JSON parse failed:", parseErr.message, text.slice(0, 300));
+        const finishReason = geminiData.candidates?.[0]?.finishReason || "unknown";
+        console.error("[kyushoku] JSON parse failed:", parseErr.message, "finishReason:", finishReason, text.slice(0, 300));
         return new Response(
-          JSON.stringify({ error: "解析結果の読み取りに失敗しました。もう一度お試しください。", detail: parseErr.message, raw: text.slice(0, 300) }),
+          JSON.stringify({
+            error: `解析結果の読み取りに失敗しました（${finishReason === "MAX_TOKENS" ? "出力が長すぎて途中で切れました" : "もう一度お試しください"}）。`,
+            detail: parseErr.message,
+            finishReason,
+            raw: text.slice(0, 300),
+          }),
           { status: 500, headers: { ...CORS, "Content-Type": "application/json" } }
         );
       }

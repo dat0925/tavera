@@ -86,7 +86,7 @@
 | tavera-checkout | Stripe Checkout Session生成 | オン | - |
 | tavera-webhook | Stripeイベント受信・DB更新（署名検証あり） | オフ | - |
 | tavera-portal | Stripeカスタマーポータルセッション生成 | オン | - |
-| tavera-kyushoku | 給食献立表の画像/PDF解析（v19・dishes+ingredients・URLモード内部fetch対応・429リトライ＋UA偽装＋マジックバイト判定＋response_schemaでJSON構造強制） | オフ | gemini-2.5-flash |
+| tavera-kyushoku | 給食献立表の画像/PDF解析（v20・dishes+ingredients・URLモード内部fetch対応・429リトライ＋UA偽装＋マジックバイト判定＋response_schemaでJSON構造強制＋thinking無効化） | オフ | gemini-2.5-flash |
 | tavera-fridge-scan | 冷蔵庫写真→食材認識 | オフ | gemini-2.5-flash |
 
 ---
@@ -460,6 +460,15 @@ home.htmlがJS構文エラーで画面破損。`</script>`内にHTMLが混入。
 - **解決策（v19）**：Gemini APIの`generationConfig.responseSchema`（Structured Output）でJSON配列の構造（date/dishes/ingredientsを持つオブジェクトの配列）をスキーマとして強制する方式に変更。これによりGemini側でJSON構造が保証されるため、文字列内の特殊文字によるパース崩れが原理的に発生しなくなる。プロンプトも「JSON形式で返してください」という冗長な指示が不要になり簡潔化した。
   - 念のため、`JSON.parse(text)`が万が一失敗した場合のフォールバック（正規表現で配列部分を再抽出して再パース）も残している。
 - **教訓**：LLMにJSONを返させる場合、プロンプトでの自然文指示より`responseSchema`によるStructured Outputの方が構造的に堅牢。今後同様のJSON生成タスク（`tavera-fridge-scan`等）でも同方式への切り替えを検討する価値がある。
+
+### response_schema導入後もJSONが崩れる問題（v20・最終解決）
+- **症状**：v19（response_schema導入）後も「解析結果の読み取りに失敗しました」エラーが継続。約20秒かかって失敗していた（＝Geminiは何らかの応答をしたが、それでもパースできなかった）。
+- **原因（推定・有力）**：Gemini 2.5 Flashは内部的に「thinking（思考）」トークンを使用する場合があり、これが`maxOutputTokens`の予算を消費してしまう。結果として実際のJSON出力部分が`maxOutputTokens: 8192`の上限で途中で切れ（`finishReason: MAX_TOKENS`）、閉じ括弧が欠けた不完全なJSONになっていた可能性が高い。月間カレンダー全体（約20日分×料理名・食材情報）を一度に出力するため、トークン消費量が多い。
+- **解決策（v20）**：
+  1. `generationConfig.thinkingConfig.thinkingBudget: 0` でthinkingを無効化し、出力トークンを丸ごとJSON生成に使う
+  2. `maxOutputTokens`を8192→16384に増量（安全マージン確保）
+  3. パース失敗時のエラーレスポンスに`finishReason`を含め、`MAX_TOKENS`の場合は「出力が長すぎて途中で切れました」と明示するようにし、今後同種の問題が再発した際に即座に判別できるようにした
+- **教訓**：Gemini 2.5系モデルでJSON構造化出力を使う際は、`thinkingBudget: 0`を明示しないと予期せぬトークン消費でレスポンスが途中で切れることがある。特に出力量が多くなりがちなタスク（月間カレンダー全件抽出など）では要注意。`finishReason`を必ずログ・エラーに含めておくと原因特定が早い。
 
 ### 給食サイトのアクセス制限対策（v1.9.4・防御的改善・上記とは別件）
 - `fetchUrlAsBase64`のUser-Agentを"Bot"を含まないブラウザ相当の文字列に変更
