@@ -148,11 +148,11 @@ input, textarea, select { font-family: inherit; }
 
 .bottom-nav .nav-add {
   background: var(--terra);
-  border-radius: 16px;
-  width: 60px;
-  height: 60px;
-  min-width: 60px;
-  flex: 0 0 60px;
+  border-radius: 14px;
+  width: 54px;
+  height: 54px;
+  min-width: 54px;
+  flex: 0 0 54px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -169,8 +169,8 @@ input, textarea, select { font-family: inherit; }
 }
 .bottom-nav .nav-add svg {
   stroke: var(--white);
-  width: 28px;
-  height: 28px;
+  width: 24px;
+  height: 24px;
   stroke-width: 2;
 }
 .bottom-nav a.active,
