@@ -606,6 +606,11 @@ textarea.form-input { resize: vertical; min-height: 80px; }
 .divider { height: 1px; background: var(--border); margin: 16px 0; }
 .hidden { display: none !important; }
 
+/* サイドバー専用アイテム：スマホでは非表示 */
+.nav-sidebar-only {
+  display: none !important;
+}
+
 /* =====================
    Pull to Refresh
    ===================== */
@@ -793,5 +798,10 @@ textarea.form-input { resize: vertical; min-height: 80px; }
   /* ページのpaddingをボトムナビ分から解放 */
   .page {
     padding-bottom: 40px !important;
+  }
+
+  /* サイドバー専用アイテムを表示 */
+  .nav-sidebar-only {
+    display: flex !important;
   }
 }
