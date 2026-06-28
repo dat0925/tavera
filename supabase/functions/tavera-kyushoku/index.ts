@@ -7,8 +7,6 @@ const CORS = {
 async function fetchUrlAsBase64(url: string): Promise<{ base64: string; mediaType: string }> {
   const res = await fetch(url, {
     headers: {
-      // v15: "Bot"を含むUAだと一部の学校サイト（給食ホスティング）のWAFにブロックされるため、
-      // 通常ブラウザ相当のUAに変更
       "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
       "Accept": "application/pdf,image/*,text/html;q=0.8,*/*;q=0.5",
       "Accept-Language": "ja,en-US;q=0.9,en;q=0.8",
@@ -22,8 +20,7 @@ async function fetchUrlAsBase64(url: string): Promise<{ base64: string; mediaTyp
   const buffer = await res.arrayBuffer();
   const bytes = new Uint8Array(buffer);
 
-  // v15: 拡張子だけでなく、実体のマジックバイトで判定（ブロックページ誤認識対策）
-  const isPdfMagic = bytes.length > 4 && bytes[0] === 0x25 && bytes[1] === 0x50 && bytes[2] === 0x44 && bytes[3] === 0x46; // %PDF
+  const isPdfMagic = bytes.length > 4 && bytes[0] === 0x25 && bytes[1] === 0x50 && bytes[2] === 0x44 && bytes[3] === 0x46;
   const isPngMagic = bytes.length > 8 && bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4e && bytes[3] === 0x47;
   const isJpgMagic = bytes.length > 3 && bytes[0] === 0xff && bytes[1] === 0xd8;
 
@@ -34,9 +31,8 @@ async function fetchUrlAsBase64(url: string): Promise<{ base64: string; mediaTyp
   else if (contentType.includes("pdf")) mediaType = "application/pdf";
   else if (contentType.includes("png")) mediaType = "image/png";
   else if (contentType.includes("jpeg") || contentType.includes("jpg")) mediaType = "image/jpeg";
-  else if (urlLower.includes(".pdf")) mediaType = "application/pdf"; // 最終フォールバック（旧挙動）
+  else if (urlLower.includes(".pdf")) mediaType = "application/pdf";
 
-  // v15: PDF/画像のマジックバイトが無く、HTML（ブロックページ等）に見える場合は明示的にエラー
   const looksLikeHtml =
     contentType.includes("html") ||
     (bytes.length > 15 && new TextDecoder("utf-8", { fatal: false }).decode(bytes.slice(0, 15)).trim().toLowerCase().startsWith("<!doctype"));
@@ -74,7 +70,7 @@ async function callGeminiWithRetry(payload: any): Promise<{ res: Response; data:
     if (res.status !== 429) return { res, data };
     console.log(`[kyushoku] Gemini 429 (rate limit) attempt ${attempt + 1}/${maxAttempts}`);
     if (attempt < maxAttempts - 1) {
-      await new Promise((r) => setTimeout(r, 1500 * (attempt + 1))); // 1.5s, 3s
+      await new Promise((r) => setTimeout(r, 1500 * (attempt + 1)));
     }
   }
   return { res: lastRes!, data: lastData };
@@ -89,7 +85,6 @@ Deno.serve(async (req) => {
     let image: string = body.image;
     let mediaType: string = body.mediaType;
 
-    // URLモード: imageの代わりにurlが渡された場合、サーバー内でfetch
     if (!image && body.url) {
       console.log("[kyushoku] URL mode:", body.url);
       const fetched = await fetchUrlAsBase64(body.url);
@@ -107,24 +102,32 @@ Deno.serve(async (req) => {
     const mm = String(month).padStart(2, "0");
     const prompt = `この画像は${year}年${month}月の給食献立表です。各日付のメニューと材料を抽出してください。
 
-必ずこの形式のJSONのみで返してください（マークダウン不要・説明不要）:
-[
-  {"date":"${year}-${mm}-01","dishes":["料理1","料理2","料理3"],"ingredients":["食材A","食材B","食材C"]},
-  {"date":"${year}-${mm}-02","dishes":["料理1","料理2"],"ingredients":["食材A","食材B"]}
-]
-
 ルール:
-- dateはYYYY-MM-DD形式
+- dateは${year}-${mm}-DD形式（DDは2桁の日付）
 - dishesは料理名の配列（主食・主菜・副菜・汁物など）
-- ingredientsは使用食材・アレルゲン等の補足情報を文字列の配列で（記載がなければ空配列 []）
+- ingredientsは使用食材・アレルゲン等の補足情報の配列（記載がなければ空配列）
 - 土日・祝日・給食なしの日は含めない
-- 料理名・食材名は簡潔に
-- 文字列内にダブルクォートや改行を含めない
-- JSONのみ返すこと`;
+- 料理名・食材名は簡潔に`;
 
     const { res: geminiRes, data: geminiData } = await callGeminiWithRetry({
       contents: [{ parts: [{ text: prompt }, { inline_data: { mime_type: mediaType, data: image } }] }],
-      generationConfig: { temperature: 0.1, maxOutputTokens: 8192 },
+      generationConfig: {
+        temperature: 0.1,
+        maxOutputTokens: 8192,
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: "ARRAY",
+          items: {
+            type: "OBJECT",
+            properties: {
+              date: { type: "STRING" },
+              dishes: { type: "ARRAY", items: { type: "STRING" } },
+              ingredients: { type: "ARRAY", items: { type: "STRING" } },
+            },
+            required: ["date", "dishes", "ingredients"],
+          },
+        },
+      },
     });
     console.log("[kyushoku] gemini status", geminiRes.status);
 
@@ -146,14 +149,25 @@ Deno.serve(async (req) => {
       });
     }
 
-    const match = text.match(/\[[\s\S]*\]/);
-    if (!match) {
-      return new Response(JSON.stringify({ error: "JSON parse failed", raw: text.slice(0, 200) }), {
-        status: 500, headers: { ...CORS, "Content-Type": "application/json" },
-      });
+    let menu: any;
+    try {
+      menu = JSON.parse(text);
+    } catch (parseErr: any) {
+      const match = text.match(/\[[\s\S]*\]/);
+      if (match) {
+        try {
+          menu = JSON.parse(match[0]);
+        } catch {
+        }
+      }
+      if (!menu) {
+        console.error("[kyushoku] JSON parse failed:", parseErr.message, text.slice(0, 300));
+        return new Response(
+          JSON.stringify({ error: "解析結果の読み取りに失敗しました。もう一度お試しください。", detail: parseErr.message, raw: text.slice(0, 300) }),
+          { status: 500, headers: { ...CORS, "Content-Type": "application/json" } }
+        );
+      }
     }
-
-    const menu = JSON.parse(match[0]);
     console.log("[kyushoku] parsed menu items:", menu.length);
 
     return new Response(JSON.stringify({ menu }), {

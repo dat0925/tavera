@@ -72,7 +72,7 @@
 | Secret名 | 内容 |
 |---|---|
 | `ANTHROPIC_API_KEY` | Taskraと共有 |
-| `TAVERA_GEMINI_API_KEY` | Tavera専用Gemini APIキー |
+| `TAVERA_GEMINI_API_KEY` | Tavera専用Gemini APIキー（2026-06-29以降、`flowra-497313`プロジェクト配下のキーに変更。Flowraの前払いデポジット＝Tier1の枠を共有してレート制限を回避） |
 | `TAVERA_STRIPE_SECRET_KEY` | Stripe本番Secret Key |
 | `TAVERA_STRIPE_PRICE_ID` | `price_1TmtslBNAV5e5rhcf4Wxvphw`（本番） |
 | `TAVERA_STRIPE_WEBHOOK_SECRET` | `whsec_8x4LMUX008s0rlDd99oidTQBjn6EzDCZ`（本番） |
@@ -86,7 +86,7 @@
 | tavera-checkout | Stripe Checkout Session生成 | オン | - |
 | tavera-webhook | Stripeイベント受信・DB更新（署名検証あり） | オフ | - |
 | tavera-portal | Stripeカスタマーポータルセッション生成 | オン | - |
-| tavera-kyushoku | 給食献立表の画像/PDF解析（v17・dishes+ingredients・URLモード内部fetch対応・429リトライ＋UA偽装＋マジックバイト判定） | オフ | gemini-2.5-flash |
+| tavera-kyushoku | 給食献立表の画像/PDF解析（v19・dishes+ingredients・URLモード内部fetch対応・429リトライ＋UA偽装＋マジックバイト判定＋response_schemaでJSON構造強制） | オフ | gemini-2.5-flash |
 | tavera-fridge-scan | 冷蔵庫写真→食材認識 | オフ | gemini-2.5-flash |
 
 ---
@@ -449,9 +449,17 @@ home.htmlがJS構文エラーで画面破損。`</script>`内にHTMLが混入。
   - 実行時間が極端に短い失敗（数百ms〜1秒程度）は、Gemini呼び出しの前段（fetch/JSON解析）ではなく、**Gemini API自体が即座にエラーを返している**ケースを最初に疑うべき（429・400等）。
   - デバッグ時は`error`フィールドに`detail`（Geminiの生エラー）の内容を一時的に混ぜて返すと、フロント側のtoastだけで原因を特定できて早い。原因判明後は分かりやすい日本語メッセージに戻すこと。
   - 短時間に同じEdge Functionへ繰り返しテスト呼び出しをすると、自分自身でレート制限を引き起こすことがある（特に無料/低ティアのAPIキー）。Google AI StudioでTAVERA_GEMINI_API_KEYのクォータ・課金プランを確認することを推奨。
-- **最終確認（2026-06-28）**：`TAVERA_GEMINI_API_KEY`（プロジェクト名 `gen-lang-client-0761554430` / Tavera Gemini API Key）はAI Studio上で2026/06/28作成・課金実績なしのため、実質**無料枠（Gemini 2.5 Flashで10RPM/250RPD程度）**で動作していたことが判明。Flowra用キー（CloudTranslationAPIプロジェクト）は既に2,000円の前払いデポジットがあり、こちらは制限が緩い。
-  - **対策案**：Tavera用キーの「My Billing Account」にも前払いデポジットを入れることでTier 1（150〜300RPM程度）に上がり、レート制限を回避できる見込み。デポジットするかはコスト判断のため要相談。
-  - デポジットしない場合は、v17のリトライ機構はRPM（分単位）の一時的な制限には有効だが、RPD（日次上限）を使い切った場合は無効（太平洋時間の深夜にリセット）。
+- **最終確認（2026-06-28）**：`TAVERA_GEMINI_API_KEY`（プロジェクト名 `gen-lang-client-0761554430` / Tavera Gemini API Key）はAI Studio上で2026/06/28作成・課金実績なしのため、実質**無料枠（Gemini 2.5 Flashで10RPM/250RPD程度）**で動作していたことが判明。Flowra用キー（`flowra-497313`プロジェクト）は既に2,000円の前払いデポジットがあり、こちらは制限が緩い。
+- **最終対応（2026-06-29）**：Geminiのレート制限は**APIキー単位ではなくGoogle Cloudプロジェクト単位**であるため、`flowra-497313`プロジェクト配下で新規にAPIキーを発行し、Supabaseの`TAVERA_GEMINI_API_KEY`シークレットをそのキーに更新。Tavera専用にデポジットせず、Flowraの既存デポジット（Tier1）の枠を共有する形でレート制限を解消した。
+  - 同一プロジェクトの請求枠・レート制限をFlowraと共有するため、両アプリを同時にヘビーに使うと理論上は競合し得るが、個人利用規模では問題にならない見込み
+  - シークレット更新はSupabaseダッシュボード側操作のため、Claude側からは直接変更できない
+
+### 「Gemini returned no text」解決後に発生したJSONパースエラー（v1.9.4・v19）
+- **症状**：レート制限解消後、Gemini解析自体は約20秒で完了するようになったが、「エラー: Expected ',' or '}' after property value in JSON at position...」が発生。
+- **原因**：プロンプトで「この形式のJSONのみで返して」と自然文で指示する方式は、料理名・食材名にクォートや特殊文字が混ざった際にGeminiの出力するJSON文字列が壊れることがある（フリーテキスト生成のため構造が保証されない）。
+- **解決策（v19）**：Gemini APIの`generationConfig.responseSchema`（Structured Output）でJSON配列の構造（date/dishes/ingredientsを持つオブジェクトの配列）をスキーマとして強制する方式に変更。これによりGemini側でJSON構造が保証されるため、文字列内の特殊文字によるパース崩れが原理的に発生しなくなる。プロンプトも「JSON形式で返してください」という冗長な指示が不要になり簡潔化した。
+  - 念のため、`JSON.parse(text)`が万が一失敗した場合のフォールバック（正規表現で配列部分を再抽出して再パース）も残している。
+- **教訓**：LLMにJSONを返させる場合、プロンプトでの自然文指示より`responseSchema`によるStructured Outputの方が構造的に堅牢。今後同様のJSON生成タスク（`tavera-fridge-scan`等）でも同方式への切り替えを検討する価値がある。
 
 ### 給食サイトのアクセス制限対策（v1.9.4・防御的改善・上記とは別件）
 - `fetchUrlAsBase64`のUser-Agentを"Bot"を含まないブラウザ相当の文字列に変更
