@@ -374,7 +374,7 @@
         parsedMenu = [];
       } catch (err) {
         // CORSエラーの場合はEdge Function経由でフェッチ
-        if (err.message.includes('Failed to fetch') || err.message.includes('CORS')) {
+        if (err.message.includes('Failed to fetch') || err.message.includes('CORS') || err.message.includes('Load failed') || err.message.includes('NetworkError')) {
           status.textContent = '直接取得できないためサーバー経由で読み込み中...';
           try {
             const session = await getSession();
