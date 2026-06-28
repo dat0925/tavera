@@ -192,14 +192,20 @@
 
     /* インポートボタン（固定） */
     .ky-import-bar {
-      padding: 16px 20px;
-      padding-bottom: calc(16px + env(safe-area-inset-bottom));
+      position: fixed;
+      left: 0;
+      right: 0;
+      bottom: calc(60px + env(safe-area-inset-bottom));
+      padding: 12px 20px;
       background: var(--white);
       border-top: 2px solid var(--border);
-      margin-bottom: calc(60px + env(safe-area-inset-bottom));
+      z-index: 200;
     }
     @media (min-width: 769px) {
-      .ky-import-bar { margin-bottom: 0; }
+      .ky-import-bar {
+        left: 220px;
+        bottom: 0;
+      }
     }
     .ky-import-btn {
       width: 100%; padding: 14px;
