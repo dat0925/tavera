@@ -146,6 +146,30 @@ input, textarea, select { font-family: inherit; }
   transition: color var(--transition);
 }
 
+.bottom-nav .nav-add {
+  background: var(--terra);
+  border-radius: 50%;
+  width: 56px;
+  height: 56px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: -20px;
+  box-shadow: 0 4px 16px rgba(200,82,42,0.45);
+  color: var(--white) !important;
+  flex-shrink: 0;
+  transition: transform .15s, box-shadow .15s;
+}
+.bottom-nav .nav-add:hover {
+  transform: scale(1.08);
+  box-shadow: 0 6px 20px rgba(200,82,42,0.55);
+}
+.bottom-nav .nav-add svg {
+  stroke: var(--white);
+  width: 26px;
+  height: 26px;
+  stroke-width: 2.2;
+}
 .bottom-nav a.active,
 .bottom-nav a:hover {
   color: var(--terra);
