@@ -451,6 +451,11 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
       await renderFamMembers();
       await renderPlanCard();
 
+      // 管理者リンクの表示制御
+      if (user.email === 'mstd0520@gmail.com') {
+        document.getElementById('adminLinkSection').style.display = 'block';
+      }
+
       // plan=successのクエリパラメータがあればトースト表示
       if (location.search.includes('plan=success')) {
         showToast('🎉 プレミアムプランへようこそ！');
