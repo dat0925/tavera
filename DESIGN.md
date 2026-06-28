@@ -1,6 +1,6 @@
 # Tavera 設計書・引き継ぎ書
 
-**バージョン**: 1.9.2
+**バージョン**: 1.9.3
 **最終更新**: 2026-06-28
 **ステータス**: 一般公開済み・本番Stripe決済稼働中・解約フロー実装済み
 
@@ -86,7 +86,7 @@
 | tavera-checkout | Stripe Checkout Session生成 | オン | - |
 | tavera-webhook | Stripeイベント受信・DB更新（署名検証あり） | オフ | - |
 | tavera-portal | Stripeカスタマーポータルセッション生成 | オン | - |
-| tavera-kyushoku | 給食献立表の画像/PDF解析（v12・dishes+ingredients対応） | オフ | gemini-2.5-flash |
+| tavera-kyushoku | 給食献立表の画像/PDF解析（v14・dishes+ingredients・URLモード内部fetch対応） | オフ | gemini-2.5-flash |
 | tavera-fridge-scan | 冷蔵庫写真→食材認識 | オフ | gemini-2.5-flash |
 
 ---
@@ -402,6 +402,8 @@ home.htmlがJS構文エラーで画面破損。`</script>`内にHTMLが混入。
 ### 次のアクション候補
 - [x] **URLから給食PDF読み込み** ✅ v1.9.0 — tavera-url-fetchでCORSバイパス・チャンク処理でスタックオーバーフロー対策
 - [x] **給食インポート材料取得** ✅ v1.9.2 — ingredients配列形式でGeminiから取得・menu_logs.ingredientsに保存
+- [x] **給食インポート一括登録ボタンiPad/PC対応** ✅ v1.9.3 — position:fixedでサイドバーレイアウトでも常時表示（left:220px）
+- [x] **給食URLインポートのサイズ上限問題修正** ✅ v1.9.3 — URLモード時はフロントがbase64を中継せずEdge Functionが直接fetch→Gemini呼び出しに変更
 - [x] **iPad/PCサイドバーレイアウト** ✅ v1.9.0 — ≥769pxで左サイドバー表示・給食メニューも追加
 - [x] **iPad/PC各画面グリッド対応** ✅ v1.9.1 — history(toolbar/listView/calView)・suggest(chat-page)・log(ロゴ表示)
 - [x] **Pull-to-Refresh** ✅ v1.9.0 — PWAモードのみ有効
@@ -415,7 +417,7 @@ home.htmlがJS構文エラーで画面破損。`</script>`内にHTMLが混入。
 
 ---
 
-## 既知の注意事項（v1.9.0時点）
+## 既知の注意事項（v1.9.3時点）
 
 ### kyushoku.htmlのデバッグ履歴
 - **根本原因だった問題**：`supabase.js`と`kyushoku.html`インラインJSで`const SUPABASE_URL`を二重宣言していたためJSクラッシュ → `switchTab`未定義に見えていた
@@ -427,11 +429,19 @@ home.htmlがJS構文エラーで画面破損。`</script>`内にHTMLが混入。
 - 1回のリクエストで dishes+ingredients 両方取得（タイムアウト問題なし）
 - kyushoku.html側でUIに【材料】プレフィックスで表示・doImportで `menu_logs.ingredients` に保存
 
-### CORS回避パターン
+### CORS回避パターン（v1.9.3改訂）
 - 学校給食PDFなど外部サーバーはCORSヘッダーなし → 直接fetchは失敗
-- フロントが`Load failed`/`Failed to fetch`を検知 → `tavera-url-fetch`Edge Function経由にフォールバック
-- Edge FunctionはUser-Agentを設定してサーバー経由でfetch
+- フロントがCORSエラーを検知 → `pendingUrl` にURLをセットして「解析する」ボタンを有効化
+- 「解析する」押下時に `{ url, year, month }` だけを `tavera-kyushoku` に送信
+- `tavera-kyushoku`（v14）がサーバー側でURLをfetch → base64化 → Gemini呼び出しまで完結
+- **重要：フロントにbase64を返さない** → Supabase Edge Functionのリクエストサイズ上限（約6MB）を回避
+- `tavera-url-fetch` はファイルタブの直接fetch成功ケースでは不要になったが関数は残存
 
 ### 大きなPDFのbase64変換
 - `btoa(String.fromCharCode(...bytes))` は大きなファイルでスタックオーバーフロー
-- チャンク処理（8192バイト単位）で対処済み
+- チャンク処理（8192バイト単位）で対処済み（tavera-kyushoku内の`fetchUrlAsBase64`関数）
+
+### 給食インポート一括登録ボタン（iPad/PC）
+- `.ky-import-bar` を `position: fixed` に変更
+- モバイル: `bottom: calc(60px + safe-area-inset-bottom)`（ボトムナビの上）
+- iPad/PC（≥769px）: `left: 220px; bottom: 0`（サイドバー右側・画面最下部）
