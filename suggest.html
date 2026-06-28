@@ -22,6 +22,13 @@
   <script src="js/menu-log.js"></script>
   <style>
     .chat-page { display:flex; flex-direction:column; height:calc(100vh - 57px - 60px); }
+    @media (min-width: 769px) {
+      .chat-page {
+        grid-column: 2;
+        grid-row: 1 / 3;
+        height: 100vh;
+      }
+    }
     .chat-messages { flex:1; overflow-y:auto; padding:16px; display:flex; flex-direction:column; gap:14px; }
     .chat-bubble { animation:fadeInUp 0.3s ease; }
     .quick-chips { display:flex; flex-wrap:wrap; gap:8px; padding:4px 0 8px; }
@@ -93,7 +100,7 @@
     </header>
 
     <!-- 利用回数バー（無料プランのみ表示） -->
-    <div class="usage-bar" id="usageBar" style="display:none">
+    <div class="usage-bar" id="usageBar" style="display:none;grid-column:2;">
       <span>今月のAI提案：<span class="usage-count" id="usageCount">-</span> / 10回</span>
       <a href="settings.html#plan" class="upgrade-link">✨ プレミアムにする</a>
     </div>
