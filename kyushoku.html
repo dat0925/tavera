@@ -161,7 +161,6 @@
       padding: 16px 20px 24px;
       background: var(--white);
       border-top: 2px solid var(--border);
-      display: none;
     }
     .ky-import-btn {
       width: 100%; padding: 14px;
@@ -251,7 +250,7 @@
     </div>
 
     <!-- インポート確定バー -->
-    <div class="ky-import-bar" id="importBar">
+    <div class="ky-import-bar" id="importBar" style="display:none">
       <button class="ky-import-btn" id="importBtn" onclick="doImport()">
         &#10003; 選択した献立をインポート（<span id="importCount">0</span>日分）
       </button>
@@ -542,7 +541,7 @@
       const count = parsedMenu.filter(m => m.checked).length;
       document.getElementById('importCount').textContent = count;
       const bar = document.getElementById('importBar');
-      bar.style.display = count > 0 ? '' : 'none';
+      bar.style.display = count > 0 ? 'block' : 'none';
     }
 
     // =====================
