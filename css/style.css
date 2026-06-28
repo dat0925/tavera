@@ -129,8 +129,10 @@ input, textarea, select { font-family: inherit; }
   border-top: 1px solid var(--border);
   display: flex;
   justify-content: space-around;
+  align-items: flex-start;
   z-index: 100;
-  padding-bottom: env(safe-area-inset-bottom);
+  padding-top: 8px;
+  padding-bottom: calc(8px + env(safe-area-inset-bottom));
 }
 
 .bottom-nav a {
@@ -138,13 +140,14 @@ input, textarea, select { font-family: inherit; }
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
-  padding: 10px 0 8px;
+  justify-content: flex-start;
+  padding: 0;
   gap: 3px;
   color: var(--muted);
   font-size: 0.65rem;
   font-weight: 500;
   transition: color var(--transition);
+  padding-top: 2px;
 }
 
 .bottom-nav .nav-add {
@@ -157,7 +160,7 @@ input, textarea, select { font-family: inherit; }
   display: flex;
   align-items: center;
   justify-content: center;
-  margin-top: -16px;
+  margin-top: -14px;
   box-shadow: 0 6px 20px rgba(200,82,42,0.50), 0 2px 8px rgba(200,82,42,0.30);
   color: var(--white) !important;
   transition: transform .15s, box-shadow .15s;
