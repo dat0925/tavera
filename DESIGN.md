@@ -1,6 +1,6 @@
 # Tavera 設計書・引き継ぎ書
 
-**バージョン**: 1.8.4
+**バージョン**: 1.8.5
 **最終更新**: 2026-06-28
 **ステータス**: 一般公開済み・本番Stripe決済稼働中・解約フロー実装済み
 
@@ -208,7 +208,7 @@
 ### ＋ボタンのCSS仕様（重要）
 - `flex: 0 0 60px`（flex伸張を無効化 → 楕円にならない）
 - `border-radius: 16px`（角丸正方形・Flowra準拠）
-- `width/height: 60px`・`margin-top: -16px`（浮き上がり・-28pxから調整済み）
+- `width/height: 60px`・`margin-bottom: 2px`（Flowra準拠・浮き上がりなし）
 - `box-shadow: 0 6px 20px rgba(200,82,42,0.50), 0 2px 8px rgba(200,82,42,0.30)`
 
 ### アバターアイコン（home.html）
