@@ -88,12 +88,20 @@
       margin-bottom: 8px;
       line-height: 1.6;
     }
+    @media (min-width: 769px) {
+      .btn-ghost { display: none !important; }
+      #sidebarLogo { display: flex !important; }
+    }
   </style>
 </head>
 <body>
   <div class="app-container">
     <header class="app-header">
-      <button class="btn-ghost" onclick="history.back()">← 戻る</button>
+      <button class="btn-ghost" onclick="history.back()" style="flex-shrink:0;">← 戻る</button>
+      <a href="home.html" class="logo" style="display:none;align-items:center;gap:8px;text-decoration:none;" id="sidebarLogo">
+        <img src="assets/logo.png" alt="Tavera" style="width:32px;height:32px;object-fit:contain;">
+        <span class="logo-text">Tavera</span>
+      </a>
       <span class="header-title" id="headerTitle">献立を記録</span>
       <div style="width:60px"></div>
     </header>
