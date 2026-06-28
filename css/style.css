@@ -710,6 +710,13 @@ textarea.form-input { resize: vertical; min-height: 80px; }
     overflow-y: auto;
   }
 
+  /* AI提案チャット画面 */
+  .chat-page {
+    grid-column: 2;
+    grid-row: 1 / 3;
+    height: 100vh;
+  }
+
   /* ボトムナビ → 左サイドバーナビに変換 */
   .bottom-nav {
     grid-column: 1;
