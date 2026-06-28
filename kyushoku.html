@@ -158,9 +158,14 @@
 
     /* インポートボタン（固定） */
     .ky-import-bar {
-      padding: 16px 20px 24px;
+      padding: 16px 20px;
+      padding-bottom: calc(16px + env(safe-area-inset-bottom));
       background: var(--white);
       border-top: 2px solid var(--border);
+      margin-bottom: calc(60px + env(safe-area-inset-bottom));
+    }
+    @media (min-width: 769px) {
+      .ky-import-bar { margin-bottom: 0; }
     }
     .ky-import-btn {
       width: 100%; padding: 14px;
