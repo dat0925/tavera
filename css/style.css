@@ -683,9 +683,17 @@ textarea.form-input { resize: vertical; min-height: 80px; }
     z-index: 100;
   }
 
-  /* ヘッダー右側要素（給食ボタン・アバター）を非表示 */
-  .app-header .header-right {
+  /* ヘッダー右側要素（アバター）を非表示 */
+  .app-header .header-right #userAvatar,
+  .app-header .header-right #accountMenu {
     display: none;
+  }
+
+  /* 給食ボタンをヘッダー内で小さく表示 */
+  .app-header .kyushoku-btn {
+    display: inline-flex;
+    margin-top: 12px;
+    font-size: 0.8rem;
   }
 
   /* ページコンテンツ */
