@@ -1,35 +1,17 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-
-const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY");
+const GEMINI_API_KEY = Deno.env.get("TAVERA_GEMINI_API_KEY")!;
 const CORS = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, content-type",
 };
 
-serve(async (req) => {
+Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: CORS });
 
   try {
     const { image, mediaType, year, month } = await req.json();
     const mm = String(month).padStart(2, "0");
 
-    const contentBlocks: any[] = [];
-
-    if (mediaType === "application/pdf") {
-      contentBlocks.push({
-        type: "document",
-        source: { type: "base64", media_type: "application/pdf", data: image },
-      });
-    } else {
-      contentBlocks.push({
-        type: "image",
-        source: { type: "base64", media_type: mediaType, data: image },
-      });
-    }
-
-    contentBlocks.push({
-      type: "text",
-      text: `この画像は${year}年${month}月の給食献立表です。各日付のメニューを抽出してください。
+    const prompt = `この画像は${year}年${month}月の給食献立表です。各日付のメニューを抽出してください。
 
 必ずこの形式のJSONのみで返してください（マークダウン不要・説明不要）:
 [
@@ -42,25 +24,27 @@ serve(async (req) => {
 - dishesは料理名の配列（主食・主菜・副菜・汁物など）
 - 土日・祝日・給食なしの日は含めない
 - 料理名は簡潔に（補足説明は省略）
-- JSONのみ返すこと`,
-    });
+- JSONのみ返すこと`;
 
-    const res = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-api-key": ANTHROPIC_API_KEY!,
-        "anthropic-version": "2023-06-01",
-      },
-      body: JSON.stringify({
-        model: "claude-haiku-4-5",
-        max_tokens: 2000,
-        messages: [{ role: "user", content: contentBlocks }],
-      }),
-    });
+    const res = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          contents: [{
+            parts: [
+              { text: prompt },
+              { inline_data: { mime_type: mediaType, data: image } },
+            ],
+          }],
+          generationConfig: { temperature: 0.1, maxOutputTokens: 4096 },
+        }),
+      }
+    );
 
     const data = await res.json();
-    const text = data.content?.[0]?.text || "[]";
+    const text = data.candidates?.[0]?.content?.parts?.[0]?.text || "[]";
     const match = text.match(/\[[\s\S]*\]/);
     const menu = match ? JSON.parse(match[0]) : [];
 
