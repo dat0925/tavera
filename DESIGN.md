@@ -1,8 +1,8 @@
 # Tavera 設計書・引き継ぎ書
 
-**バージョン**: 1.8.0
+**バージョン**: 1.8.1
 **最終更新**: 2026-06-28
-**ステータス**: 一般公開済み・本番Stripe決済稼働中・解約フロー実装済み・特定商取引法ページ追加済み
+**ステータス**: 一般公開済み・本番Stripe決済稼働中・解約フロー実装済み
 
 ---
 
@@ -12,10 +12,6 @@
 
 多くの家庭における献立管理は、冷蔵庫の食材・予算・家族の好み・アレルギーなど複数の制約を頭の中で同時に考慮しながら毎日行う、負荷の高いタスクである。従来はホワイトボードや紙への書き出しで運用されることが多く、**ログが残らない・振り返りができない・過去の好評メニューを再現しにくい**という課題があった。
 
-また、食物アレルギーを持つ家族がいる場合、学校給食の献立表を毎月確認し、代替食や持参品の手配を学校側と調整するという業務も発生する。これらはすべてアナログ作業であり、デジタル化・効率化の余地が大きい。
-
-既存の献立管理アプリはオンボーディングが長く設定項目が多いため、継続利用のハードルが高い。**「使い続けられる、シンプルな体験」** を重視し、本プロダクトを開発した。
-
 ### プロダクトのコアバリュー
 
 | # | バリュー | 説明 |
@@ -24,53 +20,28 @@
 | 2 | **AI提案** | 冷蔵庫の食材・直近の履歴・高評価メニューをもとにAIが献立を提案する |
 | 3 | **給食連携** | 給食献立表（写真・PDF）をAI解析して取り込み、アレルギー管理と連動させる |
 
-アレルギー管理・家族共有・予算連携などの拡張機能はコアバリューを損なわない範囲で段階的に追加する。
-
 ### ターゲットユーザー
 
-日常的に家族の食事管理を担う主婦・主夫層。特に、食物アレルギーを持つ家族がいる世帯や、献立の「考える手間」を削減したいと感じているユーザーを主なターゲットとする。
+日常的に家族の食事管理を担う主婦・主夫層。特に食物アレルギーを持つ家族がいる世帯や、献立の「考える手間」を削減したいユーザー。専業主婦のヘビーユーザーはカスタードパイを手作りするなど料理に積極的な層。
 
 ### ビジネスモデル
 
-- **フェーズ1**: 無料公開・ユーザー獲得
-- **フェーズ2**: AI機能を有料化（Stripeサブスク）
-- **フェーズ3**: iOSネイティブアプリ展開（Webアプリで使い勝手を検証後）
+- Free: 無料・AI月10回
+- Premium: ¥480/月・AI月500回
+- 将来: iOSネイティブアプリ展開
 
-### 関連プロダクトとの位置づけ
+### 関連プロダクト
 
-同一開発者による「ra」シリーズの一つ。タスク管理（Taskra）・家計管理（Flowra）と連携させることで、献立・予算・タスクを横断した生活管理プラットフォームへの発展を想定している。将来的にはFlowraの食費データと連携し、予算を考慮した献立提案を実現する。
-
-### 技術選定の理由
-
-| 選定内容 | 理由 |
-|---------|------|
-| Vanilla JS（ビルドレス） | スマートフォン・タブレットのみの開発環境でも編集・デバッグが完結できるため |
-| GitHub Pages | 無料・カスタムドメイン対応・デプロイがgit pushのみで完結 |
-| Supabase（既存PJと共有） | フリープランのプロジェクト上限（2件）を考慮し、テーブルプレフィックスで衝突回避 |
-| Google認証 | 家族間でのアカウント共有・招待フローを最小コストで実現 |
-
-### 開発スタイル
-
-- Claude（AI）とのチャットセッションで設計・実装・デバッグを完結させる
-- GitHub Personal Access Tokenを利用し、AIが直接リポジトリにpushする
-- Supabase SQLの実行・Secretの設定はスマートフォンから実施可能
-- セッション間の文脈を維持するため、本DESIGN.mdを引き継ぎ書として随時更新する
+同一開発者による「ra」シリーズ。Taskra（タスク管理）・Flowra（家計管理）と同シリーズ。
 
 ---
 
 ## 1. プロダクト概要
 
-### ブランド
 - **アプリ名**: Tavera（タベラ）
-- **語源**: 「食べる」から派生。taberu.co.jpが既存企業のため綴り変更。
-- **シリーズ**: Taskra（タスク管理）・Flowra（家計管理）と同じ「ra」シリーズ
 - **公開URL**: https://tavera.taskra.jp
 - **GitHubリポジトリ**: https://github.com/dat0925/tavera
-- **ロゴ**: テラコッタ×アンバー×オリーブグリーン。GPT生成。
-
-### コンセプト
-「冷蔵庫の前で悩む時間をゼロにする」献立管理Webアプリ。
-献立のログ蓄積・過去メニューの振り返り・AIによる提案を三本柱とする。
+- **管理画面**: https://tavera.taskra.jp/admin.html（mstd0520@gmail.comのみアクセス可）
 
 ---
 
@@ -78,39 +49,51 @@
 
 | 領域 | 技術 | 備考 |
 |------|------|------|
-| フロントエンド | Vanilla JS + HTML/CSS | ビルドレス。GitHub Pages対応。 |
+| フロントエンド | Vanilla JS + HTML/CSS | ビルドレス。GitHub Pages対応 |
 | ホスティング | GitHub Pages + カスタムドメイン | tavera.taskra.jp |
-| 認証・DB | Supabase（Taskraと同一PJ） | テーブルプレフィックス menu_ で衝突回避 |
-| AI | Anthropic Claude API | Supabase Edge Function経由（APIキー非公開） |
-| PWA | manifest.json + apple-touch-icon | ホーム画面追加対応済み |
-| お問い合わせ | Formspree | エンドポイント: xpqbkdea（Taskraと共有） |
-| アクセス解析 | Google Tag Manager + GA4 | GTM-ML7NKTDR / index.html・settings.html設置済み |
-| 決済（予定） | Stripe | AI機能有料化時 |
+| 認証・DB | Supabase（Taskraと同一PJ） | プレフィックス menu_ で衝突回避 |
+| AI提案 | Anthropic Claude Haiku 4.5 | Edge Function経由 |
+| 画像認識 | Gemini 2.5 Flash | 給食スキャン・冷蔵庫スキャン |
+| 決済 | Stripe | 本番稼働中 |
+| アクセス解析 | GTM（GTM-ML7NKTDR）+ GA4（G-XWVMN30LFD） | index.html・settings.html設置済み |
+| お問い合わせ | Formspree（xpqbkdea） | Taskraと共有 |
 
 ---
 
 ## 3. Supabase設定
 
-- **プロジェクト名**: Taskra（既存と共有）
+- **プロジェクト**: Taskraと共有（sfhtvtcmgueystyuhzvd）
 - **URL**: https://sfhtvtcmgueystyuhzvd.supabase.co
-- **Anon Key**: js/supabase.js に記載
 - **Site URL**: https://app.taskra.jp（Taskraと共有のため変更不可）
-- **Redirect URLs追加済み**: https://tavera.taskra.jp/home.html
-- **Google OAuth**: 有効
+- **Redirect URLs**: https://tavera.taskra.jp/home.html 追加済み
+
+### Supabase Secrets
+
+| Secret名 | 内容 |
+|---|---|
+| `ANTHROPIC_API_KEY` | Taskraと共有 |
+| `TAVERA_GEMINI_API_KEY` | Tavera専用Gemini APIキー |
+| `TAVERA_STRIPE_SECRET_KEY` | Stripe本番Secret Key |
+| `TAVERA_STRIPE_PRICE_ID` | `price_1TmtslBNAV5e5rhcf4Wxvphw`（本番） |
+| `TAVERA_STRIPE_WEBHOOK_SECRET` | `whsec_8x4LMUX008s0rlDd99oidTQBjn6EzDCZ`（本番） |
+| `SUPABASE_SERVICE_ROLE_KEY` | 既存 |
 
 ### Edge Functions
-| 関数名 | 用途 | JWT検証 | モデル |
-|--------|------|---------|--------|
-| tavera-suggest | AI献立提案（Claude API呼び出し） | オフ | - |
-| tavera-kyushoku | 給食献立表の画像/PDF解析 | オフ | claude-haiku-4-5 |
 
-- Secret名: ANTHROPIC_API_KEY（TaskraのSecretを共有）
+| 関数名 | 用途 | JWT | モデル |
+|--------|------|-----|--------|
+| tavera-suggest | AI献立提案・プラン判定・利用回数制限 | オン | claude-haiku-4-5 |
+| tavera-checkout | Stripe Checkout Session生成 | オン | - |
+| tavera-webhook | Stripeイベント受信・DB更新（署名検証あり） | オフ | - |
+| tavera-portal | Stripeカスタマーポータルセッション生成 | オン | - |
+| tavera-kyushoku | 給食献立表の画像/PDF解析 | オフ | gemini-2.5-flash |
+| tavera-fridge-scan | 冷蔵庫写真→食材認識 | オフ | gemini-2.5-flash |
 
 ---
 
 ## 4. データベース設計
 
-全テーブルにプレフィックス menu_ を付与。RLS設定済み。
+全テーブルにプレフィックス `menu_` を付与。RLS設定済み。
 
 ### menu_households（世帯）
 | カラム | 型 | 説明 |
@@ -125,14 +108,13 @@
 |--------|-----|------|
 | id | uuid PK | auth.users.idと一致 |
 | household_id | uuid FK | |
-| name | text | Google表示名（設定画面ロード時に自動更新） |
+| name | text | Google表示名 |
 | role | text | owner / member |
-| allergies | text[] | 未使用（family_membersで管理） |
 | plan | text | free / premium |
-| stripe_customer_id | text | Stripe顧客ID |
-| stripe_subscription_id | text | StripeサブスクID |
 | plan_expires_at | timestamptz | プレミアム有効期限 |
-| cancel_at_period_end | boolean | 解約予約フラグ（true=期限まで有効・更新しない） |
+| stripe_customer_id | text | |
+| stripe_subscription_id | text | |
+| cancel_at_period_end | boolean | 解約予約フラグ |
 
 ### menu_logs（献立ログ）
 | カラム | 型 | 説明 |
@@ -141,7 +123,7 @@
 | household_id | uuid FK | |
 | date | date | 献立日 |
 | meal_type | text | breakfast / lunch / dinner |
-| dish_name | text | 料理名（給食インポート時は「料理1・料理2・料理3」形式） |
+| dish_name | text | 料理名 |
 | memo | text | |
 | rating | int | 1〜5（5=また食べたい） |
 | ingredients | text[] | 使用食材 |
@@ -154,42 +136,36 @@
 | id | uuid PK | |
 | household_id | uuid FK | |
 | name | text | 食材名（最大20文字） |
-| expires_on | date | 消費期限（任意）★UI追加済み |
+| expires_on | date | 消費期限（任意） |
 | created_by | uuid | |
 | created_at | timestamptz | |
 
-### menu_ai_history（AI提案履歴）
+### menu_family_members（家族メンバー）
 | カラム | 型 | 説明 |
 |--------|-----|------|
 | id | uuid PK | |
 | household_id | uuid FK | |
-| prompt_summary | text | |
-| response | text | |
-| used | boolean | 採用したか |
-| created_at | timestamptz | |
-
-### menu_family_members（家族メンバー）★v1.1.0追加
-| カラム | 型 | 説明 |
-|--------|-----|------|
-| id | uuid PK | |
-| household_id | uuid FK | |
-| nickname | text | 表示名（例：ママ・太郎） |
+| nickname | text | 表示名 |
 | allergies | text[] | アレルギー食材リスト |
-| goals | text[] | 目標・体質タグ（v1.6.0追加） |
+| goals | text[] | 目標・体質タグ（🏃スポーツ・📚受験・🥗ダイエットなど） |
+| age_group | text | 年齢層（任意・例：🏫 小学生（7〜12歳）） |
+| gender | text | 性別（任意・男性/女性/指定しない） |
 | created_by | uuid | |
 | created_at | timestamptz | |
 
-### RLSポリシー
+### menu_ai_usage（AI利用回数）
+| カラム | 型 | 説明 |
+|--------|-----|------|
+| user_id | uuid | |
+| month | text | YYYY-MM形式 |
+| count | int | 月次利用回数 |
+| day_count | int | 当日利用回数 |
+| last_day | text | 最終利用日 |
 
-**menu_family_members**
-| ポリシー名 | 操作 | 条件 |
-|---|---|---|
-| fam_select | SELECT | household_id = get_my_household_id() |
-| fam_insert | INSERT | household_id = get_my_household_id() |
-| fam_update | UPDATE | household_id = get_my_household_id() |
-| fam_delete | DELETE | household_id = get_my_household_id() |
-
-（他テーブルのRLSは従来通り）
+### 管理用RPC
+| 関数名 | 用途 |
+|---|---|
+| `admin_get_all_users()` | 全ユーザー一覧（SECURITY DEFINER） |
 
 ---
 
@@ -197,497 +173,30 @@
 
 | ファイル | 画面 | 主な機能 |
 |----------|------|---------|
-| index.html | LP | 機能紹介・AIモック・CTA・Googleログイン・ログイン済みなら自動でhome.htmlへ |
-| home.html | ホーム | 7日間日付ストリップ・朝昼夜グリッド・🧊冷蔵庫食材メモ（期限入力対応）・また食べたいランキング・給食インポートへのリンク |
-| log.html | 献立記録/編集 | URLパラメータで動作が変わる・食材入力・アレルギーリアルタイム警告 |
-| history.html | 履歴 | リスト表示・月間カレンダー表示（切替）・キーワード検索・詳細モーダル |
-| suggest.html | AI提案 | チャット形式・冷蔵庫食材バナー・食材プレビュー・アレルギー警告 |
-| kyushoku.html | 給食インポート | 献立表写真/PDF→AI解析→チェックボックスで選択→lunch記録として一括登録 |
-| settings.html | 設定 | プロフィール・家族メンバー管理・世帯管理・招待・プランカード（解約済み⏳表示・終了日警告）・Stripeカスタマーポータルへのリンク |
-| terms.html | 利用規約 | ⚠️ 解約・返金ポリシーの追記が必要（タスク登録済み） |
+| index.html | LP | 機能紹介・Googleログイン・`?lp=1`でログイン済みでもLP表示 |
+| home.html | ホーム | 7日間日付ストリップ・朝昼夜グリッド・冷蔵庫食材（写真スキャン対応）・また食べたいランキング |
+| log.html | 献立追加/編集 | URLパラメータで動作変化・食材入力・アレルギー警告 |
+| history.html | ログ | リスト/カレンダー切替・キーワード検索・詳細モーダル |
+| suggest.html | AI提案 | チャット形式・冷蔵庫食材反映・アレルギー警告 |
+| kyushoku.html | 給食インポート | ファイル/URLタブ・写真/PDF→Gemini解析→一括登録 |
+| settings.html | 設定 | プロフィール・家族メンバー管理・世帯管理・プランカード・管理者リンク（admin専用） |
+| admin.html | 管理画面 | Google認証（mstd0520@gmail.comのみ）・ユーザー一覧・AI利用状況・プラン変更 |
+| terms.html | 利用規約 | 第11条に解約・返金ポリシーあり |
 | privacy.html | プライバシーポリシー | |
 | contact.html | お問い合わせ | Formspree経由 |
-| tokushoho.html | 特定商取引法に基づく表記 | ✅ v1.5.0追加済み |
+| tokushoho.html | 特定商取引法 | |
 
-### ページ遷移フロー
-```
-未ログイン → index.html（LP）→ Googleログインボタン → Google認証 → home.html
-ログイン済み → index.html → 自動でhome.htmlにリダイレクト
-home.html等でrequireAuth()失敗 → index.html（LP）にリダイレクト
-```
-
-### log.htmlのURLパラメータ仕様
-| パターン | モード | 説明 |
-|---|---|---|
-| `/log.html` | 新規記録 | 今日の夕食がデフォルト |
-| `?date=X&meal=Y` | 新規記録 | 日付・食事タイプ指定 |
-| `?date=X&meal=Y&dish=Z` | 新規記録（料理名プリセット） | AI提案・今日も作る経由 |
-| `?date=X&meal=Y&dish=Z&ingredients=A,B,C` | 新規記録（料理名＋食材プリセット） | AI提案経由 |
-| `?date=X&meal=Y&dish=Z&ingredients=A,B,C&memo=M` | 新規記録（全プリセット） | AI提案経由 |
-| `?date=X&meal=Y&edit=1` | **編集モード** | 履歴「編集する」経由 |
+### LP（index.html）の注意点
+- ログイン済みの場合 `home.html` に自動リダイレクト
+- `?lp=1` パラメータがあればリダイレクトしない
+- 各LPページ（privacy/terms/contact/tokushoho）のロゴも `/?lp=1` に遷移
 
 ---
 
-## 6. 履歴詳細モーダルの仕様
-
-- 履歴アイテムをタップ → 下からシート表示
-- 表示内容: 料理名・日付・食事タイプ・食材・メモ・**また食べたい度**（旧「評価」）
-- **「編集する」**: `log.html?date=X&meal=Y&edit=1` に遷移
-- **「今日も作る」**: `log.html?date=今日&meal=dinner&dish=料理名` に遷移
-- オーバーレイタップで閉じる
-
----
-
-## 7. AI提案の仕組み（v0.9.0）
-
-### フロー
-1. suggest.htmlが起動時に今週のログ・高評価メニュー・冷蔵庫食材・家族メンバー（アレルギー）を並行取得
-2. 冷蔵庫食材がある場合：緑色バナーで食材表示 + 「🧊 冷蔵庫の食材を使いたい」チップを最優先表示
-3. メッセージ送信 → `{ messages, likedDishes, recentDishes, fridgeItems }` をEdge Functionに送信
-4. tavera-suggestがsystemPromptで返答フォーマットを指定してClaude APIを呼び出し
-5. 返答を `parseDishBlocks()` で解析し、料理名・食材・説明文を抽出
-6. 記録ボタン下に食材プレビューを表示 + **アレルギー警告を表示**
-7. ボタンタップで `log.html` に遷移
-
----
-
-## 8. 冷蔵庫食材メモの仕様（v1.1.0更新）
-
-- **思想**: 常備調味料は登録不要。賞味期限が近いもの・使い切りたいものだけ登録する運用
-- **登録場所**: ホーム画面（🧊 冷蔵庫の食材セクション）
-- **操作**: 食材名入力 → Enterで追加（期限なし） / チップ内の📅ボタンをタップ → インライン期限ピッカーを展開 → 保存 / ✕ボタンで削除。期限設定済みの場合は日付＋✏️アイコンを表示
-- **期限表示**:
-  - 期限あり（余裕）: チップに `(06/15)` の形式で薄く表示
-  - 3日以内: `(あと2日)` でオレンジ色警告
-  - 期限切れ: `(期限切れ)` 表示
-- **上限**: 30個。残り5個以下でガイドメッセージ。
-- **家族共有**: household_id単位で管理
-- **AI連携**: suggest.htmlがfridgeItemsを取得してEdge Functionに送信
-
----
-
-## 9. また食べたい度の仕組み（v0.9.3・v1.0.3更新）
-
-- rating = 5 を「また食べたい」として扱う
-- 履歴画面の🤍ボタンをタップ → rating を5に更新 → ❤️に変化
-- ❤️をタップ → rating を3に戻す
-- ホームのランキングは rating >= 4 のメニューを表示
-- log.htmlの評価欄ラベル：「また食べたい度」（星2rem）
-- history.htmlの詳細モーダルのラベル：「また食べたい度」（旧「評価」から統一済み）
-
----
-
-## 10. 月間カレンダービュー（v1.1.0追加）
-
-- 履歴画面（history.html）右上のトグルで「リスト」「カレンダー」を切り替え
-- 月グリッド（7列×6行、日曜始まり）で朝昼夜の献立を色分けチップ表示
-  - 朝食: 黄系、昼食: 水色系、夕食: 青紫系
-- 前月・翌月ナビゲーション（‹ / › ボタン）
-- 日付タップ → 下部に当日の献立詳細パネルを展開（再タップで閉じる）
-- 詳細パネルの料理名タップ → 既存の詳細モーダルを表示
-- カレンダー表示中は検索欄を非表示
-- Supabaseから月単位でデータ取得（月ごとにキャッシュ）
-
----
-
-## 11. 家族メンバー管理（v1.1.0追加）
-
-- 設定画面（settings.html）の「家族メンバー」セクションで管理
-- **登録対象**: Taveraアカウントを持たない家族（子供など）も登録可能
-- **管理内容**: ニックネーム + アレルギー食材リスト（タグ形式）
-- **CRUD**: 追加・編集・削除すべて対応
-- DBテーブル: `menu_family_members`（household_id単位でRLS管理）
-- JS関数: `getFamilyMembers(householdId)` / `checkAllergies(ingredients, familyMembers)`
-
----
-
-## 12. アレルギー照合・NGアラート（v1.1.0追加）
-
-### 照合ロジック
-- `checkAllergies(ingredients, familyMembers)` がsimple部分一致で照合
-  - ingredient.includes(allergen) または allergen.includes(ingredient)
-- 戻り値: `[{ memberName, allergen }, ...]`
-
-### 発火タイミング
-| 場所 | タイミング | 表示 |
-|------|-----------|------|
-| log.html | 食材タグ追加/削除のたびにリアルタイム | 食材タグ直下に警告バナー |
-| suggest.html | AI提案の解析結果表示時 | 各料理ボタン直下にテキスト |
-
-### 表示例
-```
-⚠️ 太郎：卵 が含まれています
-⚠️ 花子：小麦・乳 が含まれています
-```
-
----
-
-## 13. 給食献立インポート（v1.1.0追加）
-
-### 概要
-給食の献立表（写真・PDF）をAIに読み取らせてlunch記録として一括登録する機能。
-
-### フロー
-1. `kyushoku.html` を開く（ホーム右上の「📋 給食」ボタンからアクセス）
-2. 対象年月を選択
-3. 献立表の写真またはPDFを選択
-4. 「AIで解析する」→ Edge Function `tavera-kyushoku` がClaude Haikuに送信
-5. 日付・料理名のリストが表示される（既存登録済みにはバッジ）
-6. チェックボックスで選択 → 「インポート」でmenu_logsに一括登録
-7. 料理名はその日のすべての料理を「・」区切りで1件のlunch記録として保存
-
-### Edge Function: tavera-kyushoku
-- モデル: claude-haiku-4-5
-- 入力: `{ image: base64, mediaType, year, month }`
-- 出力: `{ menu: [{ date: "YYYY-MM-DD", dishes: ["料理1", "料理2"] }] }`
-- JWT検証: オフ（他のtaveraと同様）
-- 既存登録との重複: `upsert`で上書き（onConflict: household_id,date,meal_type）
-
----
-
-## 14. 家族共有の仕組み
-
-### 招待フロー
-1. オーナーが設定画面「📤 家族を招待する」→ 8桁コードをコピー
-2. 招待される側が設定画面「📥 招待コードで参加する」→ コード入力
-3. RPC `find_household_by_code` でUUID前方一致検索
-4. `menu_members`の`household_id`と`role`をUPDATE（role = 'member'に）
-5. ページリロードで世帯が切り替わる
-
-### 権限設計
-| 操作 | オーナー | メンバー |
-|---|---|---|
-| 世帯名の変更 | ✅ | ✗ |
-| 家族を招待 | ✅ | ✅ |
-| 世帯を離れる | ✗ | ✅ |
-| 家族メンバー管理 | ✅ | ✅ |
-
----
-
-## 15. ファイル構成
-
-```
-/
-├── index.html       # LP（ランディングページ）兼ログイン処理
-├── home.html        # ホーム（冷蔵庫期限UI・給食リンク追加済み）
-├── log.html         # 献立記録/編集（アレルギー警告追加済み）
-├── history.html     # 履歴（月間カレンダービュー追加済み）
-├── suggest.html     # AI提案（アレルギー警告追加済み）
-├── kyushoku.html    # 給食献立インポート ★v1.1.0追加
-├── settings.html    # 設定（家族メンバー管理追加済み）
-├── terms.html
-├── privacy.html
-├── contact.html
-├── manifest.json
-├── DESIGN.md
-├── README.md
-├── assets/
-│   ├── logo.png
-│   ├── icon-32.png
-│   ├── icon-180.png
-│   ├── icon-192.png
-│   └── icon-512.png
-├── css/
-│   └── style.css    # 星サイズ2rem・冷蔵庫期限スタイル追加済み
-├── js/
-│   ├── supabase.js
-│   ├── auth.js
-│   ├── menu-log.js  # getFamilyMembers・checkAllergies追加済み
-│   └── suggest.js   # 未使用
-└── supabase/
-    └── functions/
-        └── tavera-kyushoku/
-            └── index.ts  # ★v1.1.0追加（要デプロイ）
-```
-
----
-
-## 16. Stripeサブスク設計（v1.3.0）
-
-### プラン構成
-| プラン | 月額 | AI提案 |
-|---|---|---|
-| Free | 無料 | 月10回・1日3回まで |
-| Premium | ¥480 | 月500回・1日50回（体感ほぼ無制限・攻撃対策） |
-
-### 原価試算（claude-haiku-4-5ベース）
-- 1回あたり約0.5円（入力1,100 + 出力600トークン）
-- ヘビー利用（月90回）でも約50円 → 利益率約90%
-- プレミアム上限フル利用（月500回）でも約250円 → 利益率約48%（現実的な利用では90%前後）
-
-### デプロイ状況（2026-06-27時点）
-
-| 項目 | 状況 |
-|---|---|
-| DBマイグレーション（stripe_setup.sql） | ✅ 実行済み |
-| Stripe商品・Price ID作成（サンドボックス） | ✅ 完了（`price_1TdMZzB5e5DORDCyeMEYw7un`） |
-| Stripe商品・Price ID作成（**本番**） | ✅ 完了（`price_1TmtslBNAV5e5rhcf4Wxvphw`） |
-| Supabase Secrets登録（テスト用） | ✅ 完了（TAVERA_STRIPE_PRICE_ID・TAVERA_STRIPE_WEBHOOK_SECRET・STRIPE_SECRET_KEY_TEST） |
-| Edge Function tavera-checkout | ✅ デプロイ済み（TAVERA_STRIPE_SECRET_KEY使用・console.log削除） |
-| Edge Function tavera-webhook | ✅ デプロイ済み（Stripe署名検証追加・verify_jwt=off） |
-| Edge Function tavera-suggest | ✅ デプロイ済み（既存上書き） |
-| Stripe決済画面への遷移 | ✅ 動作確認済み（テストカードで決済成功） |
-| Webhook → DB反映 | ✅ 動作確認済み（2026-06-27） |
-| **本番キー切替** | ✅ 完了（TAVERA_STRIPE_SECRET_KEY登録済み） |
-
-### ⚠️ セキュリティ修正（2026-06-27）
-- `tavera-webhook`にStripe署名検証（HMAC-SHA256）を追加。以前は署名なしで任意のリクエストを受け付ける状態だった。
-- `tavera-checkout`のデバッグ用`console.log`をすべて削除。
-
-### 残作業（本番切替）
-
-### 残作業（動作確認）
-
-**本番テスト決済で確認：**
-1. https://tavera.taskra.jp/settings.html を開く
-2. 「プレミアムにアップグレード」ボタンをタップ → Stripe本番決済画面が開くことを確認
-3. 本番カードで決済（¥480）→ settings.htmlでプランが「✨ プレミアム」に変わることを確認
-4. suggest.htmlで残り回数バーが「プレミアム」表示になることを確認
-
-**Supabase Secretsの構成（登録済み）：**
-| Secret名 | 内容 |
-|---|---|
-| `ANTHROPIC_API_KEY` | 既存（Taskraと共有） |
-| `TAVERA_GEMINI_API_KEY` | Tavera専用Gemini APIキー（v1.7.0追加） |
-| `TAVERA_STRIPE_SECRET_KEY` | Stripe本番Secret Key（新規・Tavera専用） |
-| `TAVERA_STRIPE_PRICE_ID` | `price_1TmtslBNAV5e5rhcf4Wxvphw`（本番） |
-| `TAVERA_STRIPE_WEBHOOK_SECRET` | `whsec_8x4LMUX008s0rlDd99oidTQBjn6EzDCZ`（本番） |
-| `SUPABASE_SERVICE_ROLE_KEY` | 既存 |
-
-### トラブルシューティング履歴（参考）
-- CORSエラー: Supabase GatewayはOPTIONSを404で返す問題 → Supabase CLIでデプロイすることで解消
-- CORS_HEADERSに`x-client-info, apikey`が必要
-- `menu_ai_usage`未存在時の406エラー → `.single()`を`.maybeSingle()`に変更
-- Stripe顧客作成のmetadata形式: `metadata[supabase_user_id]`（フラット形式）
-- STRIPE_SECRET_KEYはTaskraの本番キーが登録済みのため、`STRIPE_SECRET_KEY_TEST`を別途登録
-
-### 必要なStripe設定（手動作業）
-1. Stripeダッシュボードで商品「Tavera Premium」を作成（¥480/月）
-2. Price IDをSupabase SecretにSTRIPE_PREMIUM_PRICE_IDとして登録
-3. Stripe Secret KeyをSTRIPE_SECRET_KEYとして登録
-4. Webhookエンドポイントを登録: `https://sfhtvtcmgueystyuhzvd.supabase.co/functions/v1/tavera-webhook`
-5. 購読するWebhookイベント: customer.subscription.created/updated/deleted, invoice.payment_failed
-6. Webhook SigningSecretをSTRIPE_WEBHOOK_SECRETとして登録
-
-### 必要なSupabase Secrets
-| Secret名 | 内容 |
-|---|---|
-| ANTHROPIC_API_KEY | 既存（Taskraと共有） |
-| STRIPE_SECRET_KEY | Stripeダッシュボードから取得 |
-| TAVERA_STRIPE_PRICE_ID | Stripeで作成した価格のID（price_xxx）※Taskraと別名 |
-| TAVERA_STRIPE_WEBHOOK_SECRET | Stripe Webhookの署名シークレット（whsec_xxx）※Taskraと別名 |
-| SUPABASE_SERVICE_ROLE_KEY | SupabaseプロジェクトのService Role Key |
-
-### Edge Functions（4本）
-| 関数名 | 用途 | JWT検証 |
-|---|---|---|
-| tavera-suggest | AI提案・プラン判定・利用回数制限 | オン |
-| tavera-checkout | Stripe Checkout Session生成 | オン |
-| tavera-webhook | Stripeイベント受信・DB更新（署名検証なし・fetch直呼び） | オフ |
-| tavera-kyushoku | 給食献立表解析 | オフ |
-| tavera-fridge-scan | 冷蔵庫写真→食材認識（Gemini 2.0 Flash） | オフ |
-| tavera-portal | Stripeカスタマーポータルセッション生成 | オン |
-
-### Webhook実装上の注意（2026-06-27）
-- `createClient`（esm.sh）を使うと500エラーになる。**fetch直呼び（REST API）で実装すること**
-- Stripe新API（2026-04-22.dahlia）では `current_period_end` がトップレベルになく `items.data[0]` 配下にある。両方フォールバックで取得すること
-- `cancel_at_period_end=true` のとき解約予約状態。DBの `cancel_at_period_end` カラムに保存してUIで表示
-
-### DBスキーマ追加（stripe_setup.sql参照）
-- menu_members: plan, stripe_customer_id, stripe_subscription_id, plan_expires_at
-- menu_ai_usage: user_id, month(YYYY-MM), count
-
----
-
-## 18. デザインシステム
-
-| 変数 | 値 | 用途 |
-|------|-----|------|
-| --terra | #C8522A | メインカラー・CTA |
-| --amber | #E8932A | アクセント・また食べたい度の星 |
-| --cream | #FDF6EC | 背景 |
-| --olive | #6B7A3A | サブアクセント・冷蔵庫UI・インポートボタン |
-| --brown | #4A2E1A | テキスト |
-| --muted | #9B8878 | サブテキスト |
-| --border | #EAD9C8 | ボーダー |
-
-フォント: 見出し Kaisei Decol / 本文 Zen Kaku Gothic New（Google Fonts）
-
----
-
-## 18. 開発ロードマップ
-
-### Phase 1（完了）MVP
-- Google認証・献立ログCRUD・ホーム・履歴・AI提案・PWA・カスタムドメイン
-
-### Phase 2（完了）使い勝手の向上
-- 記録後ホーム自動遷移 ✅
-- また食べたいボタン（履歴の🤍） ✅
-- 履歴詳細モーダル（編集・今日も作る） ✅
-- log.htmlの編集モード対応（edit=1パラメータ） ✅
-- AI提案のパーソナライズ（今週の履歴から動的クイックチップ） ✅
-- 家族招待フロー（招待コード発行・参加・離脱・世帯名変更） ✅
-- 冷蔵庫食材メモ（常備食材登録・AI提案に自動反映） ✅ v0.7.0
-- AI提案から食材を自動抽出してlog.htmlにプリセット表示 ✅ v0.8.0
-- 食材プレビュー表示のバグ修正（parseDishBlocks未接続） ✅ v0.8.1
-- AI説明文をメモ欄に「【AI提案より】」形式でプリセット ✅ v0.9.0
-- 食材入力の全角/半角スペース分割バグ修正・ラベルUX改善 ✅ v0.9.1
-- 冷蔵庫食材の+ボタン廃止（Enterのみ）・上限30個・プレースホルダー変更 ✅ v0.9.2
-- 食材ツールチップ追加・星評価を大型化（2rem）・「また食べたい度」に改称 ✅ v0.9.3
-- 月間カレンダービュー（history.html） ✅ v1.1.0
-- 冷蔵庫食材の期限入力UI（日付ピッカー・期限表示） ✅ v1.1.0
-- 冷蔵庫食材の期限入力をインラインChip方式に刷新（主フローを汚染しないプログレッシブ・ディスクロージャー設計） ✅ v1.2.0
-- 冷蔵庫食材チップのアフォーダンス改善・保存バグ修正（📅アイコンで期限設定を明示、onclick属性競合をaddEventListenerバインドで解消） ✅ v1.2.1
-- 冷蔵庫食材の期限編集UIをボトムシート方式に刷新（チップタップ→画面下からシート展開・保存/期限削除/食材削除を1UIに集約） ✅ v1.3.3
-- 履歴画面リスト/カレンダー切替トグルを常に右端固定（margin-left:autoで検索欄の表示状態に依存しない配置に修正） ✅ v1.2.2
-- カレンダービューの7列オーバーフロー修正（cal-cellにmin-width:0追加）・末尾空行を除去（必要行数のみ表示） ✅ v1.2.3
-- リスト/カレンダー切替時のツールバー縦揺れを修正（検索欄をdisplay:noneからvisibility:hiddenに変更し高さを保持） ✅ v1.2.4
-
-### v1.0.0 一般公開対応（完了）
-- LP・利用規約・プライバシーポリシー・お問い合わせ・ログイン処理 ✅ v1.0.0〜v1.0.1
-
-### Phase 3（完了）アレルギー・給食対応
-- 家族メンバー管理（ニックネーム・アレルギー設定） ✅ v1.1.0
-- アレルギー照合・NGアラート（記録画面・AI提案画面） ✅ v1.1.0
-- 給食献立インポート（写真/PDF→AI解析→一括登録） ✅ v1.1.0
-
-### Phase 4 マネタイズ・改善（優先順位見直し済み）
-
-> **方針変更（2026-06-01）**
-> Flowra連携・LINE連携は「作れるが使われない」リスクが高いと判断し優先度を下げた。
-> Flowra連携はFlowra自体の普及が前提であり時期尚早。LINE連携は毎日使うアプリには体験上不向き。
-> 代わりに定着率向上・AI改善・早期マネタイズを優先する。
-
-#### 優先度：高
-- [x] **Stripeサブスク** ✅ v1.3.0 — AI機能を有料化。free / premiumの2プラン構成
-- [x] **Stripe署名検証・デバッグログ削除** ✅ v1.4.0 — tavera-webhookにHMAC-SHA256署名検証追加、tavera-checkoutのconsole.log削除
-- [x] **Stripe本番切替** ✅ v1.4.0 — 本番キー登録・Webhook動作確認済み。`current_period_end`はStripe新APIでは`items.data[0]`配下にあることに注意（フォールバック実装済み）
-- [x] **カスタマーポータル・解約フロー** ✅ v1.4.1
-- [x] **特定商取引法ページ作成・利用規約に解約返金ポリシー追記** ✅ v1.5.0 — tokushoho.html新規作成、terms.html第11条追加、全フッターにリンク追加 — `tavera-portal` Edge Function追加。「サブスクリプションを管理」からStripeポータルへ遷移。解約済み状態（cancel_at_period_end）をDBに保存・UIで⏳表示・終了日警告・「解約を取り消す」ボタン対応
-
-#### 優先度：中
-- [x] **AI提案の精度向上（家族ゴールタグ）** ✅ v1.6.0 — 家族メンバーに目標・体質タグを追加。AI提案プロンプトに自動反映
-  - タグ例：🏃スポーツ・📚受験・🥗ダイエット・💪筋トレ・👶小食偏食・🤰妊娠授乳・❤️健康維持
-  - ⚠️ tavera-suggest Edge Functionのデプロイが必要
-- [x] **冷蔵庫食材の写真スキャン入力** ✅ v1.7.1 — 📷ボタンでiOS選択シート表示→Gemini 2.0 Flash認識→確認チップ→一括登録
-  - capture属性なし（写真ライブラリ/カメラ/ファイル選択の3択）
-- [ ] **記録ハードルの低減** — 3日以内の離脱を防ぐ
-  - ホーム画面からワンタップ記録
-  - 「昨日と同じ」ボタンなど繰り返し入力の簡略化
-
-#### 優先度：低（将来検討）
-- [ ] Flowra連携（Flowra普及後に再検討）
-- [ ] LINE連携（ユーザーニーズ確認後に検討）
-- [ ] iOSネイティブアプリ（Webで十分な定着確認後）
-
----
-
-## 19. 本番運用前にやること（済）
-
-```sql
--- テスト中に大量作成された不要な「わが家」世帯を削除
-DELETE FROM menu_households
-WHERE id NOT IN (SELECT household_id FROM menu_members);
-```
-
----
-
-## 20. 開発運用・注意事項
-
-- **開発スタイル**: Claudeとのチャットで開発。GitHubのPATを渡してpushまで完結。
-- **引き継ぎ**: 本DESIGN.mdを新しいClaudeセッションに共有する。
-- **Supabase SQL**: 管理コンソールのSQLエディタで手動実行（スマホ・iPad可）。
-- **Edge Function**: Supabaseコンソールから編集・デプロイ（iPad可）。
-- **別アカウントでのテスト**: シークレット/プライベートウィンドウを使う（prompt:select_accountはPKCEフローと干渉するため不可）。
-- **キャッシュ問題**: 全HTMLにno-cacheメタタグ追加済み。残る場合はSafari設定からWebデータ削除。
-- **JS生成の注意**: シェルのヒアドキュメントで日本語・正規表現・クォートが壊れる事故が多発。**必ずPythonスクリプトでファイル生成 → node --checkで構文確認 → pushの順で行う。**
-- **suggest.htmlの構文エラー歴**: デバッグ用dbg()関数内の改行混入・正規表現のUnicodeエスケープ漏れ・parseDishBlocks未接続など複数のバグがあった。修正済み。
-- **GitHub Pagesのビルド失敗**: 短時間に大量pushすると競合でビルド失敗メールが来ることがある。最終ビルドがsuccessであれば問題なし。GitHub Actions画面で確認する。
-- **tavera-kyushoku Edge Function**: supabase/functions/tavera-kyushoku/index.ts にコードあり。新しい環境では必ずSupabaseコンソールからデプロイすること。
-- **Webhook実装の注意（重要）**: `createClient`（esm.sh / jsr）をEdge Function内でimportすると500エラーになる事例あり。**fetch直呼び（Supabase REST API）で実装すること**。
-- **Stripe新API（2026-04-22.dahlia）の注意**: `current_period_end` がサブスクリプションのトップレベルに存在しないことがある。`sub.current_period_end ?? sub.items?.data?.[0]?.current_period_end` のようにフォールバックで取得すること。
-
----
-
-## 21. 次回セッションの優先タスク（2026-06-27時点）
-
-### 🔴 最優先（法的必須）
-1. ✅ **特定商取引法に基づく表記ページ作成** (`tokushoho.html`) — v1.5.0完了
-2. ✅ **利用規約に解約・返金ポリシーを追記** (`terms.html`) — v1.5.0完了（第11条として追加）
-
-### 🟡 次点
-3. ✅ **LPにGTM設置** — GTM-ML7NKTDR を index.html に追加（v1.5.1完了）
-4. ✅ **GA4コンバージョン設定** — v1.5.2完了（詳細は下記）
-5. ✅ **AI提案品質改善（家族ゴールタグ）** — v1.6.0完了
-   - ⚠️ tavera-suggest Edge FunctionをSupabaseコンソールからデプロイすること
-
----
-
-*このドキュメントはアプリ成長に合わせて随時更新する。*
-
----
-
-## 22. GTM・GA4設定（v1.5.2）
-
-### GTMコンテナ
-- コンテナID: GTM-ML7NKTDR
-- 設置ページ: index.html（LP）・settings.html（設定・決済完了）
-
-### コンバージョンイベント
-| イベント名 | 発火タイミング | 主なパラメータ |
-|---|---|---|
-| `purchase_premium` | Stripe決済後、settings.html?plan=success にリダイレクトされた時 | value=480, currency=JPY, item_name=Tavera Premium |
-
-### GTMでの設定手順（手動作業）
-1. GTMダッシュボードで「タグ」→「新規」→「GA4イベント」タグを作成
-   - 測定ID: G-XWVMN30LFD
-   - イベント名: `{{Event}}` または固定で `purchase_premium`
-2. トリガー: カスタムイベント → イベント名 `purchase_premium`
-3. GA4ダッシュボードで「コンバージョン」→「新しいコンバージョンイベント」→ `purchase_premium` を登録
-
-### dataLayer実装箇所
-- `settings.html` の `plan=success` 判定ブロック内で `window.dataLayer.push()` を発火
-
----
-
-## 開発ルール・障害履歴
-
-### ⚠️ 2026-06-28 home.html画面破損インシデント
-
-**原因：** JSコード挿入の失敗が無音で連鎖し、`</script>`内にHTMLが混入して構文エラー
-
-**経緯：**
-1. `content.replace(old, new)` がファイルの実文字列と微妙に不一致で挿入失敗（エラーなし）
-2. 失敗に気づかず別のアプローチで再試行を繰り返し、残骸コードが蓄積
-3. `</script>` 直前に挿入しようとした際にHTMLがJS内に混入
-4. JS全体が構文エラーとなりホーム画面が機能不全
-
-**再発防止ルール（必須）：**
-
-```
-1. content.replace() 後は必ず置換が成功したか確認する
-   → if old not in content: print("ERROR: 挿入ポイントが見つからない")
-
-2. JSを含むHTMLをpushする前に必ずnodeで構文チェックする
-   → node --check /tmp/extracted_js.js
-
-3. 挿入に失敗したら即ロールバック（再試行しない）
-   → git APIで前のコミットのSHAを取得してrevert
-
-4. 複数回の修正が必要な場合はクリーンなコミットのファイルをベースに再構築する
-   → GitHub APIで特定コミットのファイルを取得: ?ref={sha}
-```
-
-**復旧方法：**
-- `git log --oneline` で破損前のコミットSHAを特定
-- GitHub API `GET /contents/file?ref={sha}` でファイルを取得
-- その内容をベースに修正を加えてpush
-
----
-
-## ナビゲーション設計（v1.8.0）
+## 6. ナビゲーション設計（v1.8.0）
 
 ### ボトムナビ構成（Flowra準拠）
+
 | 位置 | ラベル | リンク | 備考 |
 |---|---|---|---|
 | 1 | ホーム | home.html | |
@@ -699,3 +208,194 @@ WHERE id NOT IN (SELECT household_id FROM menu_members);
 - FABフローティングボタン廃止（冗長だったため）
 - 「記録」タブ廃止 → ＋ボタンに一本化
 - 「履歴」→「ログ」にリネーム（行為と一覧の言葉の混乱を解消）
+
+---
+
+## 7. AI提案の仕組み
+
+### フロー
+1. 起動時に今週のログ・高評価メニュー・冷蔵庫食材・家族メンバーを並行取得
+2. `{ messages, likedDishes, recentDishes, fridgeItems, familyMembers }` をEdge Functionに送信
+3. `tavera-suggest` がsystemPromptにコンテキストを付加してClaude APIを呼び出し
+
+### プロンプトに含まれるコンテキスト
+- 【今週の献立】最近の料理名（重複なし・上位7件）
+- 【また食べたいメニュー】高評価メニュー（上位5件）
+- 【冷蔵庫の食材】登録中の食材
+- 【家族構成】メンバーごとに年齢層・性別・目標タグ・アレルギーを付加
+  - 例：`太郎（🏫 小学生・男性・🏃スポーツ・運動量多め・卵NG）`
+
+### 利用制限
+| プラン | 月次上限 | 日次上限 |
+|---|---|---|
+| Free | 10回 | 3回 |
+| Premium | 500回 | 50回 |
+
+---
+
+## 8. 冷蔵庫食材スキャン（v1.7.1）
+
+- ホーム画面「📷 写真で入力」ボタンをタップ
+- iOSシート（写真ライブラリ/カメラ/ファイル選択）が表示
+- Gemini 2.5 Flashが食材を認識しJSON配列で返却
+- 認識結果をチップ表示 → タップで除外 → 「追加する」で一括登録
+- Edge Function: `tavera-fridge-scan`（JWT検証オフ・`TAVERA_GEMINI_API_KEY`使用）
+
+---
+
+## 9. 給食献立インポート
+
+### フロー
+1. `kyushoku.html` を開く（ホーム右上「📋 給食」ボタン）
+2. 対象年月を選択
+3. **ファイルタブ**: 写真・PDFを選択 / **URLタブ**: PDFのURLを入力して読み込み
+4. 「AIで解析する」→ `tavera-kyushoku`（Gemini 2.5 Flash）
+5. 日付・料理名リストを確認 → チェックで選択 → 一括登録
+6. 料理名は「・」区切りで1件のlunch記録として保存
+
+### URLタブの注意
+- 直接fetchできないCORSエラーの場合、`tavera-url-fetch` Edge Functionを使ったサーバー経由fetchにフォールバック（※`tavera-url-fetch`は未実装・必要になったら作成）
+
+---
+
+## 10. Stripeサブスク設計
+
+### プラン
+| プラン | 月額 | AI提案 |
+|---|---|---|
+| Free | 無料 | 月10回・1日3回まで |
+| Premium | ¥480 | 月500回・1日50回 |
+
+### 本番稼働状況
+- Stripe本番キー登録済み・Webhook署名検証済み
+- Price ID: `price_1TmtslBNAV5e5rhcf4Wxvphw`
+- Webhookエンドポイント: `https://sfhtvtcmgueystyuhzvd.supabase.co/functions/v1/tavera-webhook`
+
+### 重要な実装上の注意
+- **Webhook実装**: `createClient`（esm.sh）を使うと500エラー → **fetch直呼び（Supabase REST API）で実装すること**
+- **Stripe新API（2026-04-22.dahlia）**: `current_period_end` がトップレベルにない場合がある → `sub.current_period_end ?? sub.items?.data?.[0]?.current_period_end` でフォールバック
+
+---
+
+## 11. 管理画面（admin.html）
+
+### アクセス制御
+- Google認証済みかつ `mstd0520@gmail.com` のみアクセス可
+- 他のアカウントは「アクセス権限がありません」表示
+- 未ログインはログインページへ誘導
+
+### 機能
+- サマリー：総ユーザー数・Premiumユーザー数・今月のAI利用回数
+- ユーザーカード：メール・登録日・プラン・AI今月/累計・世帯名
+- プラン変更（Free↔Premium）
+- メール検索・プランフィルター
+- 10件/ページのページネーション
+
+### データ取得
+- RPC `admin_get_all_users()`（SECURITY DEFINER）で全ユーザー情報を取得
+
+---
+
+## 12. デザインシステム
+
+| 変数 | 値 | 用途 |
+|------|-----|------|
+| --terra | #C8522A | メインカラー・CTA・＋ボタン |
+| --amber | #E8932A | アクセント・また食べたい度の星 |
+| --olive | #6B7A3A | サブアクセント・冷蔵庫UI |
+| --brown | #4A2E1A | テキスト |
+| --muted | #9B8878 | サブテキスト |
+| --border | #EAD9C8 | ボーダー |
+
+フォント: 見出し Kaisei Decol / 本文 Zen Kaku Gothic New（Google Fonts）
+
+---
+
+## 13. ファイル構成
+
+```
+/
+├── index.html       # LP兼ログイン（?lp=1でリダイレクト無効）
+├── home.html        # ホーム（冷蔵庫写真スキャン対応）
+├── log.html         # 献立追加/編集
+├── history.html     # ログ（旧：履歴）
+├── suggest.html     # AI提案
+├── kyushoku.html    # 給食献立インポート（ファイル/URLタブ）
+├── settings.html    # 設定
+├── admin.html       # 管理画面（admin専用）
+├── terms.html       # 利用規約（第11条：解約・返金ポリシーあり）
+├── privacy.html
+├── contact.html
+├── tokushoho.html   # 特定商取引法
+├── manifest.json
+├── DESIGN.md
+├── css/
+│   └── style.css    # nav-addスタイル追加済み
+├── js/
+│   ├── supabase.js
+│   ├── auth.js
+│   └── menu-log.js
+└── supabase/
+    └── functions/
+        ├── tavera-suggest/
+        ├── tavera-checkout/
+        ├── tavera-webhook/
+        ├── tavera-portal/
+        ├── tavera-kyushoku/   # gemini-2.5-flash
+        └── tavera-fridge-scan/ # gemini-2.5-flash
+```
+
+---
+
+## 14. 開発ルール（重要）
+
+### コード変更の手順（必須）
+```
+1. content.replace() 後は必ず置換が成功したか確認する
+   → assert old in content, "ERROR: 挿入ポイントが見つからない"
+
+2. JSを含むHTMLをpushする前に必ずnodeで構文チェック
+   → node --check /tmp/extracted_js.js
+   → インラインscriptのみ抽出する（外部scriptタグは除く）
+
+3. 挿入に失敗したら即ロールバック（再試行しない）
+   → GitHub API: GET /contents/file?ref={sha} で特定コミットから取得
+
+4. 複数回修正が必要な場合はクリーンなコミットのファイルをベースに再構築
+```
+
+### その他の注意事項
+- **JS生成**: シェルのヒアドキュメントは日本語・クォートが壊れる → **必ずPythonスクリプトで生成**
+- **Edge Function**: Supabase MCPコネクタで直接デプロイ可能（`Supabase:deploy_edge_function`）
+- **別アカウントテスト**: シークレット/プライベートウィンドウを使う
+- **GitHub Pages**: 短時間に大量pushすると競合することがある。最終ビルドがsuccessならOK
+
+### 障害履歴（2026-06-28）
+home.htmlがJS構文エラーで画面破損。`</script>`内にHTMLが混入。原因は`content.replace()`の無音失敗が連鎖したこと。上記ルールを策定して再発防止済み。
+
+---
+
+## 15. 開発ロードマップ
+
+### 完了済み
+- MVP（認証・ログCRUD・ホーム・履歴・AI提案・PWA）
+- 月間カレンダービュー
+- 冷蔵庫食材メモ（消費期限・ボトムシート・写真スキャン）
+- 家族メンバー管理（アレルギー・ゴールタグ・年齢層・性別）
+- アレルギー照合・NGアラート
+- 給食献立インポート（ファイル/URLタブ・Gemini 2.5 Flash）
+- Stripeサブスク（本番稼働中・カスタマーポータル・解約フロー）
+- 法的ページ（tokushoho・terms解約ポリシー）
+- GTM・GA4設置（コンバージョン計測）
+- 管理画面（ユーザー管理・プラン変更・AI利用状況）
+- ナビゲーション刷新（Flowra準拠・＋中央・「ログ」リネーム）
+- AI提案精度向上（家族ゴールタグ・年齢層・性別をプロンプトに反映）
+
+### 次のアクション候補
+- [ ] 記録ハードルの低減（ホームからワンタップ・「昨日と同じ」ボタン）
+- [ ] Flowra連携（食費データと連動した予算考慮の献立提案）
+- [ ] iOSネイティブアプリ（Webで定着確認後）
+
+---
+
+*このドキュメントはClaudeとのセッション間の文脈維持のために随時更新する。*
