@@ -128,7 +128,7 @@ input, textarea, select { font-family: inherit; }
   background: var(--white);
   border-top: 1px solid var(--border);
   display: flex;
-  justify-content: space-around;
+  justify-content: space-between;
   align-items: flex-start;
   z-index: 100;
   padding-top: 8px;
@@ -151,23 +151,27 @@ input, textarea, select { font-family: inherit; }
 }
 
 .bottom-nav .nav-add {
-  background: var(--terra);
-  border-radius: 16px;
-  width: 56px;
-  height: 56px;
-  min-width: 56px;
-  flex: 0 0 56px;
+  flex: 1;
   display: flex;
   align-items: center;
   justify-content: center;
-  margin-top: -14px;
-  box-shadow: 0 6px 20px rgba(200,82,42,0.50), 0 2px 8px rgba(200,82,42,0.30);
-  color: var(--white) !important;
-  transition: transform .15s, box-shadow .15s;
   padding: 0;
+  margin-top: 0;
 }
-.bottom-nav .nav-add:hover,
-.bottom-nav .nav-add:active {
+.bottom-nav .nav-add-inner {
+  background: var(--terra);
+  border-radius: 16px;
+  width: 52px;
+  height: 52px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: -16px;
+  box-shadow: 0 6px 20px rgba(200,82,42,0.50), 0 2px 8px rgba(200,82,42,0.30);
+  transition: transform .15s, box-shadow .15s;
+}
+.bottom-nav .nav-add:hover .nav-add-inner,
+.bottom-nav .nav-add:active .nav-add-inner {
   transform: scale(1.06);
   box-shadow: 0 8px 24px rgba(200,82,42,0.60);
 }
