@@ -335,7 +335,8 @@
     const MONTH_NAMES = ['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月'];
 
     let householdId = null;
-    let fileData = null;   // { base64, mediaType }
+    let fileData = null;   // { base64, mediaType } or null if URL mode
+    let pendingUrl = null; // URLモード時にセット
     let parsedMenu = [];   // [{ date, dishes, checked, alreadyExists }]
 
     // =====================
@@ -412,6 +413,7 @@
         });
 
         fileData = { base64: b64, mediaType };
+        pendingUrl = null;
         status.textContent = '✅ 読み込み完了（' + Math.round(blob.size / 1024) + 'KB）';
         document.getElementById('parseBtn').disabled = false;
         document.getElementById('resultsSection').classList.add('hidden');
@@ -420,28 +422,14 @@
       } catch (err) {
         // CORSエラーの場合はEdge Function経由でフェッチ
         if (err.message.includes('Failed to fetch') || err.message.includes('CORS') || err.message.includes('Load failed') || err.message.includes('NetworkError')) {
-          status.textContent = '直接取得できないためサーバー経由で読み込み中...';
-          try {
-            const session = await getSession();
-            const proxyRes = await fetch(SUPABASE_URL + '/functions/v1/tavera-url-fetch', {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                'Authorization': 'Bearer ' + (session?.access_token || ''),
-              },
-              body: JSON.stringify({ url })
-            });
-            const proxyData = await proxyRes.json();
-            if (proxyData.error) throw new Error(proxyData.error);
-            fileData = { base64: proxyData.base64, mediaType: proxyData.mediaType };
-            status.textContent = '✅ 読み込み完了（サーバー経由）';
-            document.getElementById('parseBtn').disabled = false;
-            document.getElementById('resultsSection').classList.add('hidden');
-            document.getElementById('importBar').style.display = 'none';
-            parsedMenu = [];
-          } catch (proxyErr) {
-            status.textContent = '❌ ' + proxyErr.message;
-          }
+          // base64をフロントに戻さず、URLをEdge Functionに直接渡すモードで保存
+          pendingUrl = url;
+          fileData = null;
+          status.textContent = '✅ 読み込み完了（サーバー経由で解析します）';
+          document.getElementById('parseBtn').disabled = false;
+          document.getElementById('resultsSection').classList.add('hidden');
+          document.getElementById('importBar').style.display = 'none';
+          parsedMenu = [];
         } else {
           status.textContent = '❌ ' + err.message;
         }
@@ -459,6 +447,7 @@
         const result = ev.target.result; // data:xxx;base64,yyy
         const base64 = result.split(',')[1];
         fileData = { base64, mediaType: file.type };
+        pendingUrl = null;
 
         // プレビュー
         const preview  = document.getElementById('uploadPreview');
@@ -485,7 +474,7 @@
     //  AI解析
     // =====================
     async function parseMenu() {
-      if (!fileData) return;
+      if (!fileData && !pendingUrl) return;
       const btn = document.getElementById('parseBtn');
       btn.disabled = true;
       btn.textContent = '解析中...'
@@ -494,13 +483,17 @@
 
       try {
         const session = await getSession();
+        // URLモード: base64をフロントに経由させずEdge Functionが直接fetch
+        const bodyPayload = pendingUrl
+          ? { url: pendingUrl, year, month }
+          : { image: fileData.base64, mediaType: fileData.mediaType, year, month };
         const res = await fetch(SUPABASE_URL + '/functions/v1/tavera-kyushoku', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
             'Authorization': 'Bearer ' + (session?.access_token || ''),
           },
-          body: JSON.stringify({ image: fileData.base64, mediaType: fileData.mediaType, year, month }),
+          body: JSON.stringify(bodyPayload),
         });
         const data = await res.json();
         if (data.error) throw new Error(data.error);
