@@ -649,6 +649,7 @@
           dish_name: dishName,
           ingredients: item.ingredients && item.ingredients.length ? item.ingredients : null,
           created_by: user.id,
+          source: 'kyushoku',
         }, { onConflict: 'household_id,date,meal_type' });
         if (!error) {
           success++;

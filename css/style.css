@@ -823,3 +823,18 @@ textarea.form-input { resize: vertical; min-height: 80px; }
     display: flex !important;
   }
 }
+
+/* 給食インポート由来バッジ（menu_logs.source = 'kyushoku'） */
+.src-badge-kyushoku {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  font-size: 0.7rem;
+  color: var(--muted);
+  background: var(--border);
+  padding: 1px 7px;
+  border-radius: 99px;
+  margin-left: 6px;
+  white-space: nowrap;
+  vertical-align: middle;
+}

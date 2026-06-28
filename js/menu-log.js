@@ -295,3 +295,9 @@ function checkAllergies(ingredients, familyMembers) {
   });
   return hits;
 }
+
+// 給食インポート由来の記録に付けるバッジHTML（source='kyushoku'の時のみ表示）
+function srcBadge(log) {
+  if (!log || log.source !== 'kyushoku') return '';
+  return '<span class="src-badge-kyushoku">🍱 給食</span>';
+}

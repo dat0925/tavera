@@ -508,7 +508,7 @@
                onclick="location.href='log.html?date=${dateStr}&meal=${type}'">
             <div class="meal-type">${labels[type]}</div>
             ${log
-              ? `<div class="meal-name">${log.dish_name}</div>`
+              ? `<div class="meal-name">${log.dish_name}${srcBadge(log)}</div>`
               : `<div class="meal-empty">タップして登録</div>`
             }
           </div>

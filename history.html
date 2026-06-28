@@ -429,7 +429,7 @@
               <div class="day">${d.getDate()}</div>
             </div>
             <span class="history-meal-badge ${badgeClass}">${label}</span>
-            <div class="history-dish">${log.dish_name}</div>
+            <div class="history-dish">${log.dish_name}${srcBadge(log)}</div>
             ${log.rating ? `<div class="history-rating">${'&#9733;'.repeat(log.rating)}</div>` : ''}
             <button class="heart-btn ${isLoved ? 'loved' : ''}"
               onclick="event.stopPropagation(); toggleLove('${log.id}', ${isLoved}, this)">
@@ -546,7 +546,7 @@
         const clickFn = idx >= 0 ? `openModal(allLogs[${idx}])` : `openModalDirect(${JSON.stringify(log).replace(/"/g,'&quot;')})`;
         return `<div class="cal-detail-item" onclick="${clickFn}">
           <span class="history-meal-badge ${badgeClass}">${label}</span>
-          <span style="flex:1;font-size:0.9rem;color:var(--brown)">${log.dish_name}</span>
+          <span style="flex:1;font-size:0.9rem;color:var(--brown)">${log.dish_name}${srcBadge(log)}</span>
           ${log.rating ? `<span style="font-size:0.75rem;color:var(--amber)">${'&#9733;'.repeat(log.rating)}</span>` : ''}
         </div>`;
       }).join('');
@@ -585,6 +585,7 @@
       const d = new Date(log.date + 'T00:00:00');
       const [label] = MEAL_BADGE[log.meal_type] || ['?'];
       document.getElementById('modalDishName').textContent = log.dish_name;
+      document.getElementById('modalSrcBadge').classList.toggle('hidden', log.source !== 'kyushoku');
       document.getElementById('modalMeta').textContent =
         `${d.getMonth()+1}月${d.getDate()}日（${DAY_LABELS_H[d.getDay()]}）${label}`;
 
@@ -648,7 +649,7 @@
   <div class="modal-overlay hidden" id="detailModal" onclick="closeModal(event)">
     <div class="modal-sheet">
       <div class="modal-handle"></div>
-      <div class="modal-title" id="modalDishName"></div>
+      <div class="modal-title" id="modalDishName"></div><span class="src-badge-kyushoku hidden" id="modalSrcBadge">🍱 給食</span>
       <div class="modal-meta" id="modalMeta"></div>
       <div class="modal-section" id="modalIngredientsWrap">
         <div class="modal-section-label">使用食材</div>
