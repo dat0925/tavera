@@ -1,6 +1,6 @@
 # Tavera 設計書・引き継ぎ書
 
-**バージョン**: 1.9.6
+**バージョン**: 1.9.7
 **最終更新**: 2026-06-28
 **ステータス**: 一般公開済み・本番Stripe決済稼働中・解約フロー実装済み
 
@@ -127,8 +127,11 @@
 | memo | text | |
 | rating | int | 1〜5（5=また食べたい） |
 | ingredients | text[] | 使用食材 |
+| source | text | manual（既定）/ kyushoku。給食インポート由来かどうかのフラグ。🍱バッジ表示に使用（v1.9.7） |
 | created_by | uuid | |
 | created_at | timestamptz | |
+
+UNIQUE制約: `(household_id, date, meal_type)` ※v1.9.6で追加。これが無いと給食一括登録のupsertが全件失敗する（既知の注意事項参照）
 
 ### menu_fridge_items（冷蔵庫食材）
 | カラム | 型 | 説明 |
@@ -405,6 +408,8 @@ home.htmlがJS構文エラーで画面破損。`</script>`内にHTMLが混入。
 - [x] **給食インポート一括登録ボタンiPad/PC対応** ✅ v1.9.3 — position:fixedでサイドバーレイアウトでも常時表示（left:220px）
 - [x] **給食URLインポートのサイズ上限問題修正** ✅ v1.9.3 — URLモード時はフロントがbase64を中継せずEdge Functionが直接fetch→Gemini呼び出しに変更
 - [x] **給食URLインポート：「Gemini returned no text」エラー解決** ✅ v1.9.4 — 真因はGemini APIのレート制限(429)。リトライ＋分かりやすいエラーメッセージで対応（下記参照）
+- [x] **給食一括登録が常に0件失敗するバグ修正** ✅ v1.9.6 — menu_logsにUNIQUE制約が無く全件upsert失敗していた。制約追加＋成否を個別追跡するUIに修正（下記参照）
+- [x] **給食インポート由来の記録に🍱バッジ表示** ✅ v1.9.7 — menu_logsにsource列追加(manual/kyushoku)。料理名は汚さずhome/history/カレンダー/詳細モーダルにバッジ表示
 - [x] **iPad/PCサイドバーレイアウト** ✅ v1.9.0 — ≥769pxで左サイドバー表示・給食メニューも追加
 - [x] **iPad/PC各画面グリッド対応** ✅ v1.9.1 — history(toolbar/listView/calView)・suggest(chat-page)・log(ロゴ表示)
 - [x] **Pull-to-Refresh** ✅ v1.9.0 — PWAモードのみ有効
