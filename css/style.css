@@ -645,3 +645,145 @@ textarea.form-input { resize: vertical; min-height: 80px; }
   from { transform: rotate(0deg); }
   to   { transform: rotate(360deg); }
 }
+
+/* =====================
+   iPad / PC レイアウト（≥769px）
+   ===================== */
+@media (min-width: 769px) {
+  body {
+    display: flex;
+    justify-content: center;
+    background: var(--cream);
+  }
+
+  .app-container {
+    max-width: 100%;
+    width: 100%;
+    max-width: 1080px;
+    display: grid;
+    grid-template-columns: 220px 1fr;
+    grid-template-rows: auto 1fr;
+    min-height: 100vh;
+    box-shadow: 0 0 60px rgba(0,0,0,.08);
+  }
+
+  /* ヘッダーをサイドバー上部に */
+  .app-header {
+    grid-column: 1;
+    grid-row: 1;
+    position: sticky;
+    top: 0;
+    height: auto;
+    flex-direction: column;
+    align-items: flex-start;
+    padding: 24px 20px 16px;
+    border-bottom: none;
+    border-right: 1px solid var(--border);
+    background: var(--surface);
+    z-index: 100;
+  }
+
+  /* ヘッダー右側要素（給食ボタン・アバター）を非表示 */
+  .app-header .header-right {
+    display: none;
+  }
+
+  /* ページコンテンツ */
+  .page {
+    grid-column: 2;
+    grid-row: 1 / 3;
+    padding: 0 0 40px;
+    min-height: 100vh;
+    overflow-y: auto;
+  }
+
+  /* ボトムナビ → 左サイドバーナビに変換 */
+  .bottom-nav {
+    grid-column: 1;
+    grid-row: 2;
+    position: sticky;
+    top: 80px;
+    bottom: auto;
+    left: auto;
+    transform: none;
+    max-width: none;
+    width: 100%;
+    height: auto;
+    flex-direction: column;
+    justify-content: flex-start;
+    align-items: stretch;
+    border-top: none;
+    border-right: 1px solid var(--border);
+    background: var(--surface);
+    padding: 12px 12px 24px;
+    gap: 4px;
+    z-index: 90;
+  }
+
+  .bottom-nav a {
+    flex: none;
+    flex-direction: row;
+    justify-content: flex-start;
+    height: auto;
+    padding: 10px 14px;
+    border-radius: 10px;
+    gap: 10px;
+    font-size: 0.88rem;
+  }
+
+  .bottom-nav a:hover {
+    background: var(--border);
+    color: var(--brown);
+  }
+
+  .bottom-nav a.active {
+    background: #FEF3EC;
+    color: var(--terra);
+  }
+
+  .bottom-nav a svg {
+    width: 18px;
+    height: 18px;
+    flex-shrink: 0;
+  }
+
+  /* ＋ボタン → サイドバー内のボタンに */
+  .bottom-nav .nav-add {
+    flex: none;
+    height: auto;
+    justify-content: flex-start;
+    padding: 0;
+    margin-top: 8px;
+    margin-bottom: 4px;
+  }
+
+  .bottom-nav .nav-add-inner {
+    width: 100%;
+    height: auto;
+    border-radius: 10px;
+    padding: 10px 14px;
+    flex-direction: row;
+    justify-content: flex-start;
+    gap: 10px;
+    margin-top: 0;
+    box-shadow: none;
+  }
+
+  .bottom-nav .nav-add-inner::after {
+    content: "献立を追加";
+    font-size: 0.88rem;
+    font-weight: 500;
+    color: var(--white);
+  }
+
+  .bottom-nav .nav-add svg {
+    width: 18px;
+    height: 18px;
+    flex-shrink: 0;
+  }
+
+  /* ページのpaddingをボトムナビ分から解放 */
+  .page {
+    padding-bottom: 40px !important;
+  }
+}
