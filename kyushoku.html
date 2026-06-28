@@ -36,11 +36,15 @@
 
     /* アップロードエリア */
     .hidden { display: none !important; }
-    .ky-input-tabs { display: flex; gap: 0; margin-bottom: 12px; border-radius: var(--radius-md); overflow: hidden; border: 1px solid var(--border); }
+    .ky-input-tabs { display: flex; gap: 0; margin-bottom: 12px; border-radius: var(--radius-md); border: 1px solid var(--border); }
     .ky-input-tab {
       flex: 1; padding: 9px 0; font-size: 0.82rem; font-weight: 600;
       text-align: center; cursor: pointer; background: var(--white);
       color: var(--muted); border: none; font-family: inherit; transition: all .15s;
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+      -webkit-user-select: none;
+      touch-action: manipulation;
     }
     .ky-input-tab.active { background: var(--terra); color: #fff; }
     .ky-url-area { display: flex; gap: 8px; margin-bottom: 4px; }
@@ -197,8 +201,12 @@
 
         <!-- 入力方法タブ -->
         <div class="ky-input-tabs">
-          <button class="ky-input-tab active" id="tabFile" onclick="switchTab('file')">📁 ファイル・写真</button>
-          <button class="ky-input-tab" id="tabUrl" onclick="switchTab('url')">🔗 URLから読み込む</button>
+          <button class="ky-input-tab active" id="tabFile"
+            onclick="switchTab('file')"
+            ontouchend="event.preventDefault();switchTab('file')">📁 ファイル・写真</button>
+          <button class="ky-input-tab" id="tabUrl"
+            onclick="switchTab('url')"
+            ontouchend="event.preventDefault();switchTab('url')">🔗 URLから読み込む</button>
         </div>
 
         <!-- ファイルアップロードエリア -->
@@ -316,10 +324,21 @@
     //  タブ切り替え
     // =====================
     function switchTab(tab) {
-      document.getElementById('tabFile').classList.toggle('active', tab === 'file');
-      document.getElementById('tabUrl').classList.toggle('active', tab === 'url');
-      document.getElementById('panelFile').classList.toggle('hidden', tab !== 'file');
-      document.getElementById('panelUrl').classList.toggle('hidden', tab !== 'url');
+      var tabFile = document.getElementById('tabFile');
+      var tabUrl = document.getElementById('tabUrl');
+      var panelFile = document.getElementById('panelFile');
+      var panelUrl = document.getElementById('panelUrl');
+      if (tab === 'file') {
+        tabFile.classList.add('active');
+        tabUrl.classList.remove('active');
+        panelFile.classList.remove('hidden');
+        panelUrl.classList.add('hidden');
+      } else {
+        tabUrl.classList.add('active');
+        tabFile.classList.remove('active');
+        panelUrl.classList.remove('hidden');
+        panelFile.classList.add('hidden');
+      }
     }
 
     // =====================
