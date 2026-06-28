@@ -86,7 +86,7 @@
 | tavera-checkout | Stripe Checkout Session生成 | オン | - |
 | tavera-webhook | Stripeイベント受信・DB更新（署名検証あり） | オフ | - |
 | tavera-portal | Stripeカスタマーポータルセッション生成 | オン | - |
-| tavera-kyushoku | 給食献立表の画像/PDF解析（v15・dishes+ingredients・URLモード内部fetch対応・UA偽装＋マジックバイト判定） | オフ | gemini-2.5-flash |
+| tavera-kyushoku | 給食献立表の画像/PDF解析（v17・dishes+ingredients・URLモード内部fetch対応・429リトライ＋UA偽装＋マジックバイト判定） | オフ | gemini-2.5-flash |
 | tavera-fridge-scan | 冷蔵庫写真→食材認識 | オフ | gemini-2.5-flash |
 
 ---
@@ -404,7 +404,7 @@ home.htmlがJS構文エラーで画面破損。`</script>`内にHTMLが混入。
 - [x] **給食インポート材料取得** ✅ v1.9.2 — ingredients配列形式でGeminiから取得・menu_logs.ingredientsに保存
 - [x] **給食インポート一括登録ボタンiPad/PC対応** ✅ v1.9.3 — position:fixedでサイドバーレイアウトでも常時表示（left:220px）
 - [x] **給食URLインポートのサイズ上限問題修正** ✅ v1.9.3 — URLモード時はフロントがbase64を中継せずEdge Functionが直接fetch→Gemini呼び出しに変更
-- [x] **給食URLインポート：UAブロック対策** ✅ v1.9.4 — 一部学校サイトでBot UAがブロックされ「Gemini returned no text」が発生する問題を修正（下記参照）
+- [x] **給食URLインポート：「Gemini returned no text」エラー解決** ✅ v1.9.4 — 真因はGemini APIのレート制限(429)。リトライ＋分かりやすいエラーメッセージで対応（下記参照）
 - [x] **iPad/PCサイドバーレイアウト** ✅ v1.9.0 — ≥769pxで左サイドバー表示・給食メニューも追加
 - [x] **iPad/PC各画面グリッド対応** ✅ v1.9.1 — history(toolbar/listView/calView)・suggest(chat-page)・log(ロゴ表示)
 - [x] **Pull-to-Refresh** ✅ v1.9.0 — PWAモードのみ有効
@@ -434,18 +434,27 @@ home.htmlがJS構文エラーで画面破損。`</script>`内にHTMLが混入。
 - 学校給食PDFなど外部サーバーはCORSヘッダーなし → 直接fetchは失敗
 - フロントがCORSエラーを検知 → `pendingUrl` にURLをセットして「解析する」ボタンを有効化
 - 「解析する」押下時に `{ url, year, month }` だけを `tavera-kyushoku` に送信
-- `tavera-kyushoku`（v15）がサーバー側でURLをfetch → base64化 → Gemini呼び出しまで完結
+- `tavera-kyushoku`（v17）がサーバー側でURLをfetch → base64化 → Gemini呼び出しまで完結
 - **重要：フロントにbase64を返さない** → Supabase Edge Functionのリクエストサイズ上限（約6MB）を回避
 - `tavera-url-fetch` はファイルタブの直接fetch成功ケースでは不要になったが関数は残存
 
-### 給食サイトのBot UAブロック問題（v1.9.4・重要）
-- **症状**：特定の学校（給食ホスティングc4th.jp等）のPDF URLを読み込むと「エラー: Gemini returned no text」が発生。実行時間が0.4〜0.6秒と短く、Gemini解析（通常18〜40秒）に到達する前に失敗していた。
-- **原因**：`fetchUrlAsBase64`内のUser-Agentが`"TaveraBot/1.0"`という文字列を含んでおり、給食サイト側のWAF/bot対策に引っかかってブロックページ（HTML）が返されていた。旧コードはURL拡張子が`.pdf`であれば無条件に`mediaType: "application/pdf"`を確定させていたため、実体がHTMLのブロックページであってもPDFとしてGeminiに送信 → Geminiが解析不能で空候補（no candidates）を返していた。
-- **解決策（v15）**：
-  1. User-Agentを通常ブラウザ相当の文字列に変更（"Bot"を含めない）
-  2. 拡張子に依存せず、取得したバイト列の先頭（マジックバイト：`%PDF`・PNG・JPEG signature）で実体を判定
-  3. マジックバイトがPDF/画像と一致せず、HTMLらしき内容（`<!doctype`等）の場合は「URLからPDF/画像を取得できませんでした（サーバーがHTMLを返却・アクセス制限の可能性があります）」と明示的にエラーを返す
-- **教訓**：外部サイトの自動fetchで原因不明のエラーが出た場合、まず「実際にサーバーが何を返しているか（HTML化していないか）」を疑う。UA文字列に"Bot"を含めるのは危険（多くのWAFがシグネチャとして検出する）。
+### 給食URLインポートで「Gemini returned no text」が出る問題（v1.9.4・重要・原因再特定）
+- **症状**：特定のURLでPDFを読み込むと「エラー: Gemini returned no text」が発生。実行時間が0.4〜1.3秒と短く、Gemini解析（通常18〜40秒）に到達する前に失敗していた。
+- **誤った仮説（v15で対応・実際は無関係）**：当初はUser-Agentの`"Bot"`文字列が給食サイトのWAFにブロックされ、HTMLブロックページがPDFとして送られているのでは、と推測。User-Agentをブラウザ相当に変更し、拡張子だけでなくマジックバイト（`%PDF`等）で実体を判定する処理を追加（v15）。これ自体は妥当な防御的改善だが、**今回の問題の真因ではなかった**。
+- **真の原因（v17で特定・解決）**：実際はGemini API側の**レート制限（429 RESOURCE_EXHAUSTED）**。エラーレスポンスに`https://ai.google.dev/gemini-api/docs/rate-limits`への案内が含まれていたことで判明。短時間に複数回テストを繰り返したことで、`TAVERA_GEMINI_API_KEY`のRPM/RPD上限に達していた可能性が高い。
+- **解決策（v17）**：
+  1. Gemini呼び出しを`callGeminiWithRetry()`でラップし、429時に1.5秒→3秒のバックオフで最大3回リトライ
+  2. リトライしても解決しない場合は、`detail`にGeminiの生エラーを残しつつ、ユーザー向けには「AI解析の利用が集中しているため処理できませんでした。1〜2分待ってから再試行してください。」という分かりやすいメッセージを返す
+- **教訓**：
+  - 実行時間が極端に短い失敗（数百ms〜1秒程度）は、Gemini呼び出しの前段（fetch/JSON解析）ではなく、**Gemini API自体が即座にエラーを返している**ケースを最初に疑うべき（429・400等）。
+  - デバッグ時は`error`フィールドに`detail`（Geminiの生エラー）の内容を一時的に混ぜて返すと、フロント側のtoastだけで原因を特定できて早い。原因判明後は分かりやすい日本語メッセージに戻すこと。
+  - 短時間に同じEdge Functionへ繰り返しテスト呼び出しをすると、自分自身でレート制限を引き起こすことがある（特に無料/低ティアのAPIキー）。Google AI StudioでTAVERA_GEMINI_API_KEYのクォータ・課金プランを確認することを推奨。
+
+### 給食サイトのアクセス制限対策（v1.9.4・防御的改善・上記とは別件）
+- `fetchUrlAsBase64`のUser-Agentを"Bot"を含まないブラウザ相当の文字列に変更
+- 拡張子だけでなく、取得したバイト列のマジックバイト（`%PDF`・PNG・JPEG signature）で実体を判定
+- マジックバイトがPDF/画像と一致せず、HTMLらしき内容（`<!doctype`等）の場合は「URLからPDF/画像を取得できませんでした（サーバーがHTMLを返却・アクセス制限の可能性があります）」と明示的にエラーを返す
+- これは実際に起きた不具合の直接的な原因ではなかったが、今後同様のサイトブロックが発生した際の防御として残している
 
 ### 大きなPDFのbase64変換
 - `btoa(String.fromCharCode(...bytes))` は大きなファイルでスタックオーバーフロー

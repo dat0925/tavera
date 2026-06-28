@@ -55,6 +55,31 @@ async function fetchUrlAsBase64(url: string): Promise<{ base64: string; mediaTyp
   return { base64: btoa(binary), mediaType };
 }
 
+async function callGeminiWithRetry(payload: any): Promise<{ res: Response; data: any }> {
+  const maxAttempts = 3;
+  let lastRes: Response | null = null;
+  let lastData: any = null;
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    const res = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      }
+    );
+    const data = await res.json();
+    lastRes = res;
+    lastData = data;
+    if (res.status !== 429) return { res, data };
+    console.log(`[kyushoku] Gemini 429 (rate limit) attempt ${attempt + 1}/${maxAttempts}`);
+    if (attempt < maxAttempts - 1) {
+      await new Promise((r) => setTimeout(r, 1500 * (attempt + 1))); // 1.5s, 3s
+    }
+  }
+  return { res: lastRes!, data: lastData };
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: CORS });
 
@@ -97,26 +122,26 @@ Deno.serve(async (req) => {
 - 文字列内にダブルクォートや改行を含めない
 - JSONのみ返すこと`;
 
-    const geminiRes = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: prompt }, { inline_data: { mime_type: mediaType, data: image } }] }],
-          generationConfig: { temperature: 0.1, maxOutputTokens: 8192 },
-        }),
-      }
-    );
-
-    const geminiData = await geminiRes.json();
+    const { res: geminiRes, data: geminiData } = await callGeminiWithRetry({
+      contents: [{ parts: [{ text: prompt }, { inline_data: { mime_type: mediaType, data: image } }] }],
+      generationConfig: { temperature: 0.1, maxOutputTokens: 8192 },
+    });
     console.log("[kyushoku] gemini status", geminiRes.status);
 
     const text = geminiData.candidates?.[0]?.content?.parts?.[0]?.text || "";
     if (!text) {
       const errDetail = geminiData.error || geminiData.promptFeedback || "no candidates";
-      console.error("[kyushoku] no text:", JSON.stringify(errDetail));
-      return new Response(JSON.stringify({ error: "Gemini returned no text", detail: errDetail }), {
+      const errStr = JSON.stringify(errDetail);
+      const isRateLimit =
+        geminiRes.status === 429 ||
+        errStr.includes("RESOURCE_EXHAUSTED") ||
+        errStr.includes("rate-limit") ||
+        errStr.toLowerCase().includes("quota");
+      const userMessage = isRateLimit
+        ? "AI解析の利用が集中しているため処理できませんでした。1〜2分待ってから再試行してください。"
+        : "AIが献立を読み取れませんでした。画像/PDFの内容を確認して再試行してください。";
+      console.error("[kyushoku] no text:", errStr);
+      return new Response(JSON.stringify({ error: userMessage, detail: errDetail }), {
         status: 500, headers: { ...CORS, "Content-Type": "application/json" },
       });
     }
