@@ -1,6 +1,6 @@
 # Tavera 設計書・引き継ぎ書
 
-**バージョン**: 1.8.5
+**バージョン**: 1.9.2
 **最終更新**: 2026-06-28
 **ステータス**: 一般公開済み・本番Stripe決済稼働中・解約フロー実装済み
 
@@ -86,7 +86,7 @@
 | tavera-checkout | Stripe Checkout Session生成 | オン | - |
 | tavera-webhook | Stripeイベント受信・DB更新（署名検証あり） | オフ | - |
 | tavera-portal | Stripeカスタマーポータルセッション生成 | オン | - |
-| tavera-kyushoku | 給食献立表の画像/PDF解析（v11・dishesのみ安定版） | オフ | gemini-2.5-flash |
+| tavera-kyushoku | 給食献立表の画像/PDF解析（v12・dishes+ingredients対応） | オフ | gemini-2.5-flash |
 | tavera-fridge-scan | 冷蔵庫写真→食材認識 | オフ | gemini-2.5-flash |
 
 ---
@@ -401,6 +401,7 @@ home.htmlがJS構文エラーで画面破損。`</script>`内にHTMLが混入。
 
 ### 次のアクション候補
 - [x] **URLから給食PDF読み込み** ✅ v1.9.0 — tavera-url-fetchでCORSバイパス・チャンク処理でスタックオーバーフロー対策
+- [x] **給食インポート材料取得** ✅ v1.9.2 — ingredients配列形式でGeminiから取得・menu_logs.ingredientsに保存
 - [x] **iPad/PCサイドバーレイアウト** ✅ v1.9.0 — ≥769pxで左サイドバー表示・給食メニューも追加
 - [x] **iPad/PC各画面グリッド対応** ✅ v1.9.1 — history(toolbar/listView/calView)・suggest(chat-page)・log(ロゴ表示)
 - [x] **Pull-to-Refresh** ✅ v1.9.0 — PWAモードのみ有効
@@ -420,12 +421,11 @@ home.htmlがJS構文エラーで画面破損。`</script>`内にHTMLが混入。
 - **根本原因だった問題**：`supabase.js`と`kyushoku.html`インラインJSで`const SUPABASE_URL`を二重宣言していたためJSクラッシュ → `switchTab`未定義に見えていた
 - **教訓**：タブが反応しない系のバグは必ずブラウザコンソールを確認すること
 
-### tavera-kyushokuのmemo実装の教訓
-- Geminiのmemoフィールドはダブルクォート・改行・バックスラッシュを含むためJSONパースが不安定
-- 2回呼び出し（Step1: dishes、Step2: memo）はEdge Functionの60秒タイムアウトに引っかかる
-- テキスト形式（DATE/DISHES/MEMO）での返却も試みたが不安定
-- **現状（v11）：dishesのみ・シンプルJSON・安定動作を優先**
-- memo取得の再挑戦は別セッションで設計から見直す
+### tavera-kyushokuのingredients実装の教訓
+- Geminiのmemoフィールド（自由文字列）はダブルクォート・改行を含みJSONパースが不安定
+- **解決策（v12）：ingredientsを文字列配列（text[]）で返す** → 配列はJSONが安定・DBの`ingredients text[]`カラムに直接格納可能
+- 1回のリクエストで dishes+ingredients 両方取得（タイムアウト問題なし）
+- kyushoku.html側でUIに【材料】プレフィックスで表示・doImportで `menu_logs.ingredients` に保存
 
 ### CORS回避パターン
 - 学校給食PDFなど外部サーバーはCORSヘッダーなし → 直接fetchは失敗
