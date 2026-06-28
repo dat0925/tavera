@@ -147,6 +147,34 @@
       font-size: 0.82rem; font-weight: 700; color: var(--muted);
       margin-bottom: 4px;
     }
+    .ky-day-dish-wrap {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .ky-edit-btn {
+      background: none;
+      border: none;
+      cursor: pointer;
+      font-size: 0.75rem;
+      color: var(--muted);
+      padding: 2px 4px;
+      border-radius: 4px;
+      flex-shrink: 0;
+      opacity: 0.6;
+    }
+    .ky-edit-btn:hover { opacity: 1; color: var(--terra); }
+    .ky-dish-input {
+      width: 100%;
+      border: 1.5px solid var(--terra);
+      border-radius: 6px;
+      padding: 4px 8px;
+      font-size: 0.85rem;
+      font-family: inherit;
+      color: var(--brown);
+      background: var(--white);
+    }
+    .ky-dish-input:focus { outline: none; }
     .ky-day-dish {
       font-size: 0.92rem; color: var(--brown); line-height: 1.5;
     }
@@ -515,7 +543,10 @@
           <input type="checkbox" ${item.checked ? 'checked' : ''} onchange="toggleCheck(${i}, this.checked)">
           <div class="ky-day-info">
             <div class="ky-day-date">${dateLabel}${badge}</div>
-            <div class="ky-day-dish">${dishText}</div>
+            <div class="ky-day-dish-wrap">
+              <div class="ky-day-dish" id="dish-text-${i}">${dishText}</div>
+              <button class="ky-edit-btn" onclick="startEditDish(${i})" title="編集">✏️</button>
+            </div>
           </div>
         </div>`;
       }).join('');
@@ -529,6 +560,42 @@
       const card = document.getElementById('card-' + i);
       card.classList.toggle('checked', checked);
       updateImportBar();
+    }
+
+    function startEditDish(i) {
+      const wrap = document.getElementById('card-' + i).querySelector('.ky-day-dish-wrap');
+      const dishText = parsedMenu[i].dishes.join('・');
+      wrap.innerHTML =
+        '<input type="text" class="ky-dish-input" id="dish-input-' + i + '" value="' + dishText.replace(/"/g, '&quot;') + '">' +
+        '<button class="ky-edit-btn" onclick="saveDish(' + i + ')" title="保存">✅</button>';
+      const input = document.getElementById('dish-input-' + i);
+      input.focus();
+      input.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') saveDish(i);
+        if (e.key === 'Escape') cancelEditDish(i);
+      });
+    }
+
+    function saveDish(i) {
+      const input = document.getElementById('dish-input-' + i);
+      if (!input) return;
+      const newText = input.value.trim();
+      if (newText) {
+        parsedMenu[i].dishes = newText.split('・').map(function(d) { return d.trim(); }).filter(Boolean);
+      }
+      renderDishCell(i);
+    }
+
+    function cancelEditDish(i) {
+      renderDishCell(i);
+    }
+
+    function renderDishCell(i) {
+      const wrap = document.getElementById('card-' + i).querySelector('.ky-day-dish-wrap');
+      const dishText = parsedMenu[i].dishes.join('・');
+      wrap.innerHTML =
+        '<div class="ky-day-dish" id="dish-text-' + i + '">' + dishText + '</div>' +
+        '<button class="ky-edit-btn" onclick="startEditDish(' + i + ')" title="編集">✏️</button>';
     }
 
     function toggleSelectAll() {
