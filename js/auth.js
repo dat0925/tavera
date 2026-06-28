@@ -70,3 +70,57 @@ function showToast(message, type = 'info') {
   document.body.appendChild(toast);
   setTimeout(() => toast.remove(), 3000);
 }
+
+// =====================
+//  Pull to Refresh
+// =====================
+function initPullToRefresh(onRefresh) {
+  // PWAモードのみ有効（スタンドアローン or display-mode）
+  const isStandalone = window.navigator.standalone ||
+    window.matchMedia('(display-mode: standalone)').matches;
+  if (!isStandalone) return;
+
+  // インジケーターを挿入
+  const indicator = document.createElement('div');
+  indicator.className = 'ptr-indicator';
+  indicator.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M23 4v6h-6"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>';
+  document.body.appendChild(indicator);
+
+  let startY = 0;
+  let pulling = false;
+  const THRESHOLD = 72;
+
+  document.addEventListener('touchstart', (e) => {
+    if (window.scrollY === 0) {
+      startY = e.touches[0].clientY;
+      pulling = true;
+    }
+  }, { passive: true });
+
+  document.addEventListener('touchmove', (e) => {
+    if (!pulling) return;
+    const diff = e.touches[0].clientY - startY;
+    if (diff > 10) {
+      indicator.classList.add('visible');
+      if (diff > THRESHOLD) {
+        indicator.classList.add('pulling');
+      } else {
+        indicator.classList.remove('pulling');
+      }
+    }
+  }, { passive: true });
+
+  document.addEventListener('touchend', async (e) => {
+    if (!pulling) return;
+    pulling = false;
+    const diff = e.changedTouches[0].clientY - startY;
+    if (diff > THRESHOLD) {
+      indicator.classList.add('refreshing');
+      indicator.classList.remove('pulling');
+      await onRefresh();
+      indicator.classList.remove('refreshing', 'visible');
+    } else {
+      indicator.classList.remove('visible', 'pulling');
+    }
+  }, { passive: true });
+}
