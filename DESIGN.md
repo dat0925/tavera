@@ -1,6 +1,6 @@
 # Tavera 設計書・引き継ぎ書
 
-**バージョン**: 1.9.3
+**バージョン**: 1.9.4
 **最終更新**: 2026-06-28
 **ステータス**: 一般公開済み・本番Stripe決済稼働中・解約フロー実装済み
 
@@ -86,7 +86,7 @@
 | tavera-checkout | Stripe Checkout Session生成 | オン | - |
 | tavera-webhook | Stripeイベント受信・DB更新（署名検証あり） | オフ | - |
 | tavera-portal | Stripeカスタマーポータルセッション生成 | オン | - |
-| tavera-kyushoku | 給食献立表の画像/PDF解析（v14・dishes+ingredients・URLモード内部fetch対応） | オフ | gemini-2.5-flash |
+| tavera-kyushoku | 給食献立表の画像/PDF解析（v15・dishes+ingredients・URLモード内部fetch対応・UA偽装＋マジックバイト判定） | オフ | gemini-2.5-flash |
 | tavera-fridge-scan | 冷蔵庫写真→食材認識 | オフ | gemini-2.5-flash |
 
 ---
@@ -374,7 +374,7 @@
 
 ### その他の注意事項
 - **JS生成**: シェルのヒアドキュメントは日本語・クォートが壊れる → **必ずPythonスクリプトで生成**
-- **Edge Function**: Supabase MCPコネクタで直接デプロイ可能（`Supabase:deploy_edge_function`）
+- **Edge Function**: Supabase MCPコネクタで直接デプロイ可能（`Supabase:deploy_edge_function`）。デプロイ後はリポジトリ内の`supabase/functions/*/index.ts`もコミットして同期すること（実際にv1〜v14がリポジトリに反映されておらず、デプロイ済みコードとgitが食い違っていた事例があった）
 - **別アカウントテスト**: シークレット/プライベートウィンドウを使う
 - **GitHub Pages**: 短時間に大量pushすると競合することがある。最終ビルドがsuccessならOK
 
@@ -404,6 +404,7 @@ home.htmlがJS構文エラーで画面破損。`</script>`内にHTMLが混入。
 - [x] **給食インポート材料取得** ✅ v1.9.2 — ingredients配列形式でGeminiから取得・menu_logs.ingredientsに保存
 - [x] **給食インポート一括登録ボタンiPad/PC対応** ✅ v1.9.3 — position:fixedでサイドバーレイアウトでも常時表示（left:220px）
 - [x] **給食URLインポートのサイズ上限問題修正** ✅ v1.9.3 — URLモード時はフロントがbase64を中継せずEdge Functionが直接fetch→Gemini呼び出しに変更
+- [x] **給食URLインポート：UAブロック対策** ✅ v1.9.4 — 一部学校サイトでBot UAがブロックされ「Gemini returned no text」が発生する問題を修正（下記参照）
 - [x] **iPad/PCサイドバーレイアウト** ✅ v1.9.0 — ≥769pxで左サイドバー表示・給食メニューも追加
 - [x] **iPad/PC各画面グリッド対応** ✅ v1.9.1 — history(toolbar/listView/calView)・suggest(chat-page)・log(ロゴ表示)
 - [x] **Pull-to-Refresh** ✅ v1.9.0 — PWAモードのみ有効
@@ -417,7 +418,7 @@ home.htmlがJS構文エラーで画面破損。`</script>`内にHTMLが混入。
 
 ---
 
-## 既知の注意事項（v1.9.3時点）
+## 既知の注意事項（v1.9.4時点）
 
 ### kyushoku.htmlのデバッグ履歴
 - **根本原因だった問題**：`supabase.js`と`kyushoku.html`インラインJSで`const SUPABASE_URL`を二重宣言していたためJSクラッシュ → `switchTab`未定義に見えていた
@@ -433,9 +434,18 @@ home.htmlがJS構文エラーで画面破損。`</script>`内にHTMLが混入。
 - 学校給食PDFなど外部サーバーはCORSヘッダーなし → 直接fetchは失敗
 - フロントがCORSエラーを検知 → `pendingUrl` にURLをセットして「解析する」ボタンを有効化
 - 「解析する」押下時に `{ url, year, month }` だけを `tavera-kyushoku` に送信
-- `tavera-kyushoku`（v14）がサーバー側でURLをfetch → base64化 → Gemini呼び出しまで完結
+- `tavera-kyushoku`（v15）がサーバー側でURLをfetch → base64化 → Gemini呼び出しまで完結
 - **重要：フロントにbase64を返さない** → Supabase Edge Functionのリクエストサイズ上限（約6MB）を回避
 - `tavera-url-fetch` はファイルタブの直接fetch成功ケースでは不要になったが関数は残存
+
+### 給食サイトのBot UAブロック問題（v1.9.4・重要）
+- **症状**：特定の学校（給食ホスティングc4th.jp等）のPDF URLを読み込むと「エラー: Gemini returned no text」が発生。実行時間が0.4〜0.6秒と短く、Gemini解析（通常18〜40秒）に到達する前に失敗していた。
+- **原因**：`fetchUrlAsBase64`内のUser-Agentが`"TaveraBot/1.0"`という文字列を含んでおり、給食サイト側のWAF/bot対策に引っかかってブロックページ（HTML）が返されていた。旧コードはURL拡張子が`.pdf`であれば無条件に`mediaType: "application/pdf"`を確定させていたため、実体がHTMLのブロックページであってもPDFとしてGeminiに送信 → Geminiが解析不能で空候補（no candidates）を返していた。
+- **解決策（v15）**：
+  1. User-Agentを通常ブラウザ相当の文字列に変更（"Bot"を含めない）
+  2. 拡張子に依存せず、取得したバイト列の先頭（マジックバイト：`%PDF`・PNG・JPEG signature）で実体を判定
+  3. マジックバイトがPDF/画像と一致せず、HTMLらしき内容（`<!doctype`等）の場合は「URLからPDF/画像を取得できませんでした（サーバーがHTMLを返却・アクセス制限の可能性があります）」と明示的にエラーを返す
+- **教訓**：外部サイトの自動fetchで原因不明のエラーが出た場合、まず「実際にサーバーが何を返しているか（HTML化していないか）」を疑う。UA文字列に"Bot"を含めるのは危険（多くのWAFがシグネチャとして検出する）。
 
 ### 大きなPDFのbase64変換
 - `btoa(String.fromCharCode(...bytes))` は大きなファイルでスタックオーバーフロー
