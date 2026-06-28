@@ -41,6 +41,7 @@ a{text-decoration:none;color:inherit;}
   border:none;border-radius:10px;font-size:1rem;cursor:pointer;font-family:var(--font-body);
 }
 .pin-error{color:var(--terra);font-size:0.82rem;margin-top:8px;}
+.pin-btn{width:100%;padding:12px;background:var(--terra);color:#fff;border:none;border-radius:10px;font-size:1rem;cursor:pointer;font-family:var(--font-body);}
 
 /* 管理画面 */
 .admin-wrap{display:none;min-height:100vh;}
@@ -125,15 +126,13 @@ a{text-decoration:none;color:inherit;}
 </head>
 <body>
 
-<!-- PIN認証 -->
+<!-- 認証待機画面 -->
 <div class="pin-screen" id="pinScreen">
   <div class="pin-box">
     <div class="pin-logo">🍽️</div>
     <div class="pin-title">Tavera Admin</div>
-    <input type="password" class="pin-input" id="pinInput" placeholder="••••"
-           maxlength="6" onkeydown="if(event.key==='Enter')checkPin()">
-    <button class="pin-btn" onclick="checkPin()">ログイン</button>
-    <div class="pin-error hidden" id="pinError">PINが正しくありません</div>
+    <div id="authStatus" style="font-size:0.85rem;color:var(--muted);margin-bottom:16px;">認証を確認中...</div>
+    <div id="authError" class="pin-error hidden">このアカウントにアクセス権限がありません</div>
   </div>
 </div>
 
@@ -187,7 +186,7 @@ a{text-decoration:none;color:inherit;}
 <div class="toast" id="toast"></div>
 
 <script>
-  const ADMIN_PIN = '2759';
+  const ADMIN_EMAIL = 'mstd0520@gmail.com';
   const PER_PAGE = 10;
   const SUPABASE_URL = 'https://sfhtvtcmgueystyuhzvd.supabase.co';
   const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNmaHR2dGNtZ3VleXN0eXVoenZkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MTI4MjYxMjksImV4cCI6MjAyODQwMjEyOX0.qNNmYFSmQj2YHhEtpWFzoTiP2qfm7BNiM1UMhFkEBhQ';
@@ -196,17 +195,25 @@ a{text-decoration:none;color:inherit;}
   let filteredUsers = [];
   let currentPage = 1;
 
-  // PIN認証
-  function checkPin() {
-    const pin = document.getElementById('pinInput').value;
-    if (pin === ADMIN_PIN) {
-      document.getElementById('pinScreen').style.display = 'none';
-      document.getElementById('adminWrap').style.display = 'block';
-      loadUsers();
-    } else {
-      document.getElementById('pinError').classList.remove('hidden');
-      document.getElementById('pinInput').value = '';
+  // Google認証チェック
+  async function checkAuth() {
+    const user = await getUser();
+    if (!user) {
+      document.getElementById('authStatus').textContent = 'Googleアカウントでログインしてください。';
+      document.getElementById('authStatus').innerHTML =
+        'ログインしてからアクセスしてください。<br><br>' +
+        '<button class="pin-btn" onclick="window.location.href='index.html'">ログインページへ</button>';
+      return;
     }
+    if (user.email !== ADMIN_EMAIL) {
+      document.getElementById('authStatus').textContent = '';
+      document.getElementById('authError').classList.remove('hidden');
+      return;
+    }
+    // 認証OK
+    document.getElementById('pinScreen').style.display = 'none';
+    document.getElementById('adminWrap').style.display = 'block';
+    loadUsers();
   }
 
   // ユーザー読み込み
@@ -346,8 +353,8 @@ a{text-decoration:none;color:inherit;}
     setTimeout(() => t.classList.remove('show'), 2500);
   }
 
-  // Enterキーでもログイン
-  document.getElementById('pinInput').focus();
+  // 認証チェック実行
+  checkAuth();
 </script>
 </body>
 </html>
