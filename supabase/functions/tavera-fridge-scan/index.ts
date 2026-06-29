@@ -11,6 +11,31 @@ const FEATURE = "fridge";
 const FREE_LIMIT = 30;
 const PREMIUM_LIMIT = 100;
 
+async function callGeminiWithRetry(GEMINI_API_KEY: string, payload: any): Promise<{ res: Response; data: any }> {
+  const maxAttempts = 3;
+  let lastRes: Response | null = null;
+  let lastData: any = null;
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    const res = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      }
+    );
+    const data = await res.json();
+    lastRes = res;
+    lastData = data;
+    if (res.status !== 429) return { res, data };
+    console.log(`[fridge-scan] Gemini 429 (rate limit) attempt ${attempt + 1}/${maxAttempts}`);
+    if (attempt < maxAttempts - 1) {
+      await new Promise((r) => setTimeout(r, 1500 * (attempt + 1)));
+    }
+  }
+  return { res: lastRes!, data: lastData };
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: CORS });
 
@@ -72,27 +97,41 @@ Deno.serve(async (req) => {
 - はっきり見えないものは含めない
 - JSON配列のみ返し、説明文は不要`;
 
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          contents: [{
-            parts: [
-              { text: prompt },
-              { inline_data: { mime_type: mediaType, data: image } },
-            ],
-          }],
-          generationConfig: { temperature: 0.1, maxOutputTokens: 512 },
-        }),
-      }
-    );
+    const { res: response, data: result } = await callGeminiWithRetry(GEMINI_API_KEY, {
+      contents: [{
+        parts: [
+          { text: prompt },
+          { inline_data: { mime_type: mediaType, data: image } },
+        ],
+      }],
+      generationConfig: {
+        temperature: 0.1,
+        maxOutputTokens: 1024,
+        thinkingConfig: { thinkingBudget: 0 },
+      },
+    });
+    console.log("[fridge-scan] gemini status", response.status, "finishReason", result.candidates?.[0]?.finishReason);
 
-    const result = await response.json();
-    const text = result.candidates?.[0]?.content?.parts?.[0]?.text || "[]";
+    const text = result.candidates?.[0]?.content?.parts?.[0]?.text || "";
+    if (!text) {
+      const errDetail = result.error || result.promptFeedback || "no candidates";
+      const errStr = JSON.stringify(errDetail);
+      const isRateLimit =
+        response.status === 429 ||
+        errStr.includes("RESOURCE_EXHAUSTED") ||
+        errStr.includes("rate-limit") ||
+        errStr.toLowerCase().includes("quota");
+      console.error("[fridge-scan] no text:", errStr);
+      return new Response(JSON.stringify({
+        error: isRateLimit
+          ? "AI解析の利用が集中しているため処理できませんでした。1〜2分待ってから再試行してください。"
+          : "AIが画像を解析できませんでした。もう一度お試しください。",
+        detail: errDetail,
+        finishReason: result.candidates?.[0]?.finishReason || "unknown",
+      }), { status: 500, headers: { ...CORS, "Content-Type": "application/json" } });
+    }
 
-    const match = text.match(/\[[\s\S]*?\]/);
+    const match = text.match(/\[[\s\S]*\]/);
     let items: string[] = [];
     if (match) {
       try { items = JSON.parse(match[0]); } catch { items = []; }
@@ -100,7 +139,9 @@ Deno.serve(async (req) => {
 
     if (!items.length) {
       // 食材を認識できなかった場合は利用回数を消費しない
-      return new Response(JSON.stringify({ items }), {
+      const finishReason = result.candidates?.[0]?.finishReason || "unknown";
+      console.error("[fridge-scan] empty items. finishReason:", finishReason, "text:", text.slice(0, 300));
+      return new Response(JSON.stringify({ items, finishReason, rawPreview: text.slice(0, 300) }), {
         headers: { ...CORS, "Content-Type": "application/json" },
       });
     }
