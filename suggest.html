@@ -99,10 +99,10 @@
       <span class="header-title">✨ AI献立提案</span>
     </header>
 
-    <!-- 利用回数バー（無料プランのみ表示） -->
+    <!-- 利用回数バー -->
     <div class="usage-bar" id="usageBar" style="display:none;grid-column:2;">
-      <span>今月のAI提案：<span class="usage-count" id="usageCount">-</span> / 10回</span>
-      <a href="settings.html#plan" class="upgrade-link">✨ プレミアムにする</a>
+      <span>今月のAI提案：<span class="usage-count" id="usageCount">-</span> / <span id="usageLimit">10</span>回</span>
+      <a href="settings.html#plan" class="upgrade-link" id="upgradeLink">✨ プレミアムにする</a>
     </div>
 
     <div class="chat-page">
@@ -152,25 +152,30 @@
     var familyMembers = [];
     var isLoading = false;
 
-    function updateUsageBar(used, remaining) {
+    function updateUsageBar(used, remaining, limit, plan) {
       var bar = document.getElementById('usageBar');
       var cnt = document.getElementById('usageCount');
+      var limitEl = document.getElementById('usageLimit');
+      var upgradeLink = document.getElementById('upgradeLink');
       bar.style.display = 'flex';
       cnt.textContent = used;
+      limitEl.textContent = limit;
+      upgradeLink.style.display = plan === 'premium' ? 'none' : '';
       if (remaining <= 0) {
         cnt.style.color = 'var(--terra)';
-      } else if (remaining <= 3) {
+      } else if (remaining <= Math.max(3, limit * 0.1)) {
         cnt.style.color = '#E8932A';
       } else {
         cnt.style.color = 'var(--brown)';
       }
     }
 
-    function showPaywall() {
+    function showPaywall(limit, plan) {
       var c = document.getElementById('chatMessages');
       var div = document.createElement('div');
       div.className = 'paywall-msg';
-      div.innerHTML = '<p>今月のAI提案（無料：10回）を使い切りました。<br>プレミアムプランなら<strong>無制限</strong>でご利用いただけます。</p>' +
+      div.innerHTML = '<p>今月のAI提案（' + (limit || 10) + '回）を使い切りました。<br>' +
+        (plan === 'premium' ? '来月また利用できます。' : 'プレミアムプランなら月300回までご利用いただけます。') + '</p>' +
         '<a href="settings.html#plan" class="paywall-btn">✨ プレミアムにアップグレード</a>';
       c.appendChild(div);
       c.scrollTop = 999999;
@@ -357,8 +362,9 @@
 
         // 上限超過チェック
         if (res.status === 429) {
+          const errData = await res.json().catch(function() { return {}; });
           lb.remove();
-          showPaywall();
+          showPaywall(errData.limit, errData.plan);
           isLoading = false;
           document.getElementById('sendBtn').disabled = false;
           return;
@@ -366,11 +372,9 @@
 
         var data = await res.json();
 
-        // 残り回数バー更新
-        if (data.plan === 'free' && data.remaining !== null && data.remaining !== undefined) {
-          updateUsageBar(10 - data.remaining, data.remaining);
-        } else if (data.plan === 'premium') {
-          document.getElementById('usageBar').style.display = 'none';
+        // 残り回数バー更新（プラン問わず正確な上限/残数を表示）
+        if (data.limit !== null && data.limit !== undefined && data.remaining !== null && data.remaining !== undefined) {
+          updateUsageBar(data.limit - data.remaining, data.remaining, data.limit, data.plan);
         }
 
         var reply = data.reply || '提案の取得に失敗しました。';

@@ -134,19 +134,16 @@ serve(async (req) => {
     const data = await response.json();
     const reply = data.content?.[0]?.text || "提案を生成できませんでした。";
 
-    let remaining = null;
-    if (!isPremium) {
-      const { data: latestUsage } = await supabase
-        .from("menu_ai_usage")
-        .select("count")
-        .eq("user_id", user.id)
-        .eq("month", month)
-        .eq("feature", FEATURE)
-        .maybeSingle();
-      remaining = FREE_LIMIT - (latestUsage?.count || 0);
-    }
+    const { data: latestUsage } = await supabase
+      .from("menu_ai_usage")
+      .select("count")
+      .eq("user_id", user.id)
+      .eq("month", month)
+      .eq("feature", FEATURE)
+      .maybeSingle();
+    const remaining = monthLimit - (latestUsage?.count || 0);
 
-    return new Response(JSON.stringify({ reply, remaining, plan }), {
+    return new Response(JSON.stringify({ reply, remaining, limit: monthLimit, plan }), {
       headers: { ...CORS, "Content-Type": "application/json" },
     });
 
