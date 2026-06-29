@@ -66,14 +66,27 @@ a{text-decoration:none;color:inherit;}
 .admin-nav-item:hover{background:var(--border);}
 .admin-nav-item.active{background:#FEF3EC;color:var(--terra);font-weight:700;}
 
-/* モバイル用タブ切替（サイドバーの代わり） */
-.admin-mobile-tabs{display:flex;gap:8px;padding:14px 16px 0;}
-.admin-mobile-tabs button{
-  flex:1;padding:10px;border-radius:10px;border:1px solid var(--border);
-  background:var(--white);font-size:0.82rem;font-family:var(--font-body);
-  color:var(--muted);cursor:pointer;
+/* モバイル用ハンバーガーメニュー */
+.admin-hamburger-btn{
+  background:rgba(255,255,255,.15);border:none;color:#fff;
+  width:34px;height:34px;border-radius:8px;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+  font-size:1.2rem;flex-shrink:0;
 }
-.admin-mobile-tabs button.active{background:var(--terra);color:#fff;border-color:var(--terra);}
+.admin-sidebar-backdrop{
+  display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:199;
+}
+@media (max-width:768px){
+  .admin-sidebar.mobile-open{
+    display:flex !important;flex-direction:column;gap:4px;
+    position:fixed;top:0;left:0;bottom:0;width:240px;
+    background:var(--surface);z-index:200;padding:20px 14px;
+    box-shadow:4px 0 24px rgba(0,0,0,.2);
+    animation:adminSlideIn .2s ease;overflow-y:auto;
+  }
+  .admin-sidebar-backdrop.open{display:block;}
+}
+@keyframes adminSlideIn{ from{transform:translateX(-100%);} to{transform:translateX(0);} }
 
 @media (min-width:769px){
   .admin-wrap{display:grid !important;grid-template-columns:220px 1fr;grid-template-rows:auto 1fr;min-height:100vh;}
@@ -86,7 +99,8 @@ a{text-decoration:none;color:inherit;}
   }
   .admin-main{grid-column:2;grid-row:2;overflow-y:auto;}
   .admin-body{max-width:960px;margin:0;padding:24px 28px 80px;}
-  .admin-mobile-tabs{display:none !important;}
+  .admin-hamburger-btn{display:none !important;}
+  .admin-sidebar-backdrop{display:none !important;}
 }
 
 /* AIモデルセクション */
@@ -200,9 +214,12 @@ a{text-decoration:none;color:inherit;}
 <!-- 管理画面 -->
 <div class="admin-wrap" id="adminWrap">
   <header class="admin-header">
-    <div>
-      <div class="admin-header-title">🍽️ Tavera Admin</div>
-      <div class="admin-header-sub" id="headerSub">読み込み中...</div>
+    <div style="display:flex;align-items:center;gap:10px;">
+      <button class="admin-hamburger-btn" onclick="toggleAdminSidebar()" aria-label="メニュー">☰</button>
+      <div>
+        <div class="admin-header-title">🍽️ Tavera Admin</div>
+        <div class="admin-header-sub" id="headerSub">読み込み中...</div>
+      </div>
     </div>
     <div style="display:flex;flex-direction:column;align-items:flex-end;gap:5px;">
       <button onclick="loadUsers()" style="background:rgba(255,255,255,.15);border:none;color:#fff;padding:6px 12px;border-radius:8px;cursor:pointer;font-size:0.78rem;">更新</button>
@@ -210,21 +227,17 @@ a{text-decoration:none;color:inherit;}
     </div>
   </header>
 
-  <!-- サイドバー（iPad/PC） -->
-  <nav class="admin-sidebar">
+  <!-- モバイルドロワーの背景オーバーレイ -->
+  <div class="admin-sidebar-backdrop" id="adminSidebarBackdrop" onclick="closeAdminSidebar()"></div>
+
+  <!-- サイドバー（iPad/PC：常時表示／モバイル：ハンバーガーで開閉するドロワー） -->
+  <nav class="admin-sidebar" id="adminSidebar">
     <button class="admin-nav-item active" data-section="users" onclick="showSection('users')">👥 ユーザー管理</button>
     <button class="admin-nav-item" data-section="aimodel" onclick="showSection('aimodel')">🤖 AIモデル</button>
     <button class="admin-nav-item" data-section="revenue" onclick="showSection('revenue')">📊 収益構造</button>
   </nav>
 
   <main class="admin-main">
-    <!-- タブ（モバイル） -->
-    <div class="admin-mobile-tabs">
-      <button class="active" data-section="users" onclick="showSection('users')">👥 ユーザー</button>
-      <button data-section="aimodel" onclick="showSection('aimodel')">🤖 AIモデル</button>
-      <button data-section="revenue" onclick="showSection('revenue')">📊 収益</button>
-    </div>
-
     <!-- ユーザー管理セクション -->
     <div class="admin-body" id="section-users">
       <!-- サマリー -->
@@ -507,14 +520,30 @@ a{text-decoration:none;color:inherit;}
     setTimeout(() => t.classList.remove('show'), 2500);
   }
 
+  function toggleAdminSidebar() {
+    document.getElementById('adminSidebar').classList.toggle('mobile-open');
+    document.getElementById('adminSidebarBackdrop').classList.toggle('open');
+  }
+
+  function closeAdminSidebar() {
+    document.getElementById('adminSidebar').classList.remove('mobile-open');
+    document.getElementById('adminSidebarBackdrop').classList.remove('open');
+  }
+
   function showSection(name) {
     document.getElementById('section-users').classList.toggle('hidden', name !== 'users');
     document.getElementById('section-aimodel').classList.toggle('hidden', name !== 'aimodel');
     document.getElementById('section-revenue').classList.toggle('hidden', name !== 'revenue');
-    document.querySelectorAll('.admin-nav-item, .admin-mobile-tabs button').forEach(function(btn) {
+    document.querySelectorAll('.admin-nav-item').forEach(function(btn) {
       btn.classList.toggle('active', btn.dataset.section === name);
     });
+    closeAdminSidebar();
+    window.scrollTo(0, 0);
   }
+
+  window.addEventListener('resize', function() {
+    if (window.innerWidth >= 769) closeAdminSidebar();
+  });
 
   // 認証チェック実行
   checkAuth();
