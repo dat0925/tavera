@@ -11,11 +11,11 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { status: 200, headers: CORS });
 
   try {
-    // Tavera専用本番キー → テストキーの順でフォールバック
-    const STRIPE_SECRET_KEY = Deno.env.get("TAVERA_STRIPE_SECRET_KEY") || Deno.env.get("STRIPE_SECRET_KEY_TEST")!;
-    const STRIPE_PRICE_ID   = Deno.env.get("TAVERA_STRIPE_PRICE_ID")!;
-    const SUPABASE_URL      = Deno.env.get("SUPABASE_URL")!;
-    const SUPABASE_KEY      = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const STRIPE_SECRET_KEY     = Deno.env.get("TAVERA_STRIPE_SECRET_KEY") || Deno.env.get("STRIPE_SECRET_KEY_TEST")!;
+    const STRIPE_PRICE_MONTHLY  = Deno.env.get("TAVERA_STRIPE_PRICE_ID")!;
+    const STRIPE_PRICE_YEARLY   = Deno.env.get("TAVERA_STRIPE_YEARLY_PRICE_ID")!;
+    const SUPABASE_URL          = Deno.env.get("SUPABASE_URL")!;
+    const SUPABASE_KEY          = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
     // JWT認証
     const authHeader = req.headers.get("Authorization") || "";
@@ -26,7 +26,11 @@ serve(async (req) => {
       return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: CORS });
     }
 
-    const { successUrl, cancelUrl } = await req.json();
+    const body = await req.json();
+    const { successUrl, cancelUrl, billingCycle } = body;
+
+    // billingCycle: "monthly"(デフォルト) or "yearly"
+    const STRIPE_PRICE_ID = billingCycle === "yearly" ? STRIPE_PRICE_YEARLY : STRIPE_PRICE_MONTHLY;
 
     // 既存のStripe顧客IDを取得
     const { data: member } = await supabase
