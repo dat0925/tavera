@@ -686,12 +686,17 @@
           r.onerror = rej;
           r.readAsDataURL(file);
         });
+        const session = await getSession();
         const resp = await fetch("https://sfhtvtcmgueystyuhzvd.supabase.co/functions/v1/tavera-fridge-scan", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": "Bearer " + (session?.access_token || ""),
+          },
           body: JSON.stringify({ image: b64, mediaType: file.type })
         });
         const d = await resp.json();
+        if (d.error) throw new Error(d.error);
         const items = d.items || [];
         if (!items.length) {
           chipsEl.innerHTML = "<span style=\"font-size:0.82rem;color:var(--muted)\">食材を認識できませんでした。別の写真を試してください。</span>";
@@ -704,7 +709,7 @@
         }).join("");
         actionsEl.style.display = "flex";
       } catch(err) {
-        chipsEl.innerHTML = "<span style=\"font-size:0.82rem;color:var(--terra)\">エラーが発生しました。</span>";
+        chipsEl.innerHTML = "<span style=\"font-size:0.82rem;color:var(--terra)\">" + (err.message || "エラーが発生しました。") + "</span>";
         actionsEl.style.display = "flex";
       }
       e.target.value = "";

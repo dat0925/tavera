@@ -1,13 +1,60 @@
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+
+const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
+const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const CORS = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, content-type",
 };
+
+const FEATURE = "fridge";
+const FREE_LIMIT = 30;
+const PREMIUM_LIMIT = 100;
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: CORS });
 
   try {
     const GEMINI_API_KEY = Deno.env.get("TAVERA_GEMINI_API_KEY")!;
+
+    // ===== 認証・プラン別利用回数チェック =====
+    const authHeader = req.headers.get("Authorization") || "";
+    const token = authHeader.replace("Bearer ", "");
+    const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+    const { data: { user }, error: authErr } = await supabase.auth.getUser(token);
+    if (authErr || !user) {
+      return new Response(JSON.stringify({ error: "ログインが必要です" }), {
+        status: 401, headers: { ...CORS, "Content-Type": "application/json" },
+      });
+    }
+
+    const { data: member } = await supabase
+      .from("menu_members")
+      .select("plan, plan_expires_at")
+      .eq("id", user.id)
+      .single();
+    const plan = member?.plan || "free";
+    const isPremium = plan === "premium" &&
+      (!member?.plan_expires_at || new Date(member.plan_expires_at) > new Date());
+    const limit = isPremium ? PREMIUM_LIMIT : FREE_LIMIT;
+
+    const now = new Date();
+    const month = now.toISOString().slice(0, 7);
+    const { data: usageRow } = await supabase
+      .from("menu_ai_usage")
+      .select("count")
+      .eq("user_id", user.id)
+      .eq("month", month)
+      .eq("feature", FEATURE)
+      .maybeSingle();
+    const used = usageRow?.count || 0;
+
+    if (used >= limit) {
+      return new Response(JSON.stringify({
+        error: `今月の食材取り込み回数の上限（${limit}回）に達しました。${isPremium ? "" : "プレミアムプランなら月" + PREMIUM_LIMIT + "回まで利用できます。"}`,
+        count: used, limit, plan: isPremium ? "premium" : "free",
+      }), { status: 429, headers: { ...CORS, "Content-Type": "application/json" } });
+    }
 
     const { image, mediaType } = await req.json();
     if (!image || !mediaType) {
@@ -51,7 +98,20 @@ Deno.serve(async (req) => {
       try { items = JSON.parse(match[0]); } catch { items = []; }
     }
 
-    return new Response(JSON.stringify({ items }), {
+    if (!items.length) {
+      // 食材を認識できなかった場合は利用回数を消費しない
+      return new Response(JSON.stringify({ items }), {
+        headers: { ...CORS, "Content-Type": "application/json" },
+      });
+    }
+
+    // ===== 成功時のみ利用回数をカウントアップ =====
+    await supabase.from("menu_ai_usage").upsert({
+      user_id: user.id, month, feature: FEATURE,
+      count: used + 1, updated_at: now.toISOString(),
+    }, { onConflict: "user_id,month,feature" });
+
+    return new Response(JSON.stringify({ items, remaining: limit - (used + 1), plan: isPremium ? "premium" : "free" }), {
       headers: { ...CORS, "Content-Type": "application/json" },
     });
 

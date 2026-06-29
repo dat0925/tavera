@@ -331,7 +331,7 @@ a{text-decoration:none;color:inherit;}
     <!-- 収益構造セクション -->
     <div class="admin-body hidden" id="section-revenue">
       <div class="rev-warning">
-        💡 各機能の「上限回数」は編集できます。数値を変えると原価・粗利・利益率がリアルタイムに再計算されます。<strong>献立取り込み</strong>と<strong>食材を写真で取り込み</strong>は現状コード上の上限が無いため、デフォルトは「無制限」チェック状態です。チェックを外すと数値で試算できます。
+        ✅ 2026年6月29日より、3機能すべてに実際の利用回数上限を実装済みです。各機能の「上限回数」は編集して試算できます（編集してもここでは実際の制限値は変わりません。実際に変更する場合は別途Edge Functionの再デプロイが必要です）。
       </div>
 
       <table class="rev-table" id="revTable">
@@ -344,51 +344,51 @@ a{text-decoration:none;color:inherit;}
           <tr>
             <td>💬 AI相談 上限回数/月</td>
             <td><input type="number" class="rev-input" id="limit-free-ai" value="10" min="0" oninput="recalcRevenue()"> 回</td>
-            <td><input type="number" class="rev-input" id="limit-premium-ai" value="500" min="0" oninput="recalcRevenue()"> 回</td>
+            <td><input type="number" class="rev-input" id="limit-premium-ai" value="300" min="0" oninput="recalcRevenue()"> 回</td>
           </tr>
           <tr>
             <td>　└ 原価（¥0.4/回）</td>
             <td id="cost-free-ai">¥4</td>
-            <td id="cost-premium-ai">¥200</td>
+            <td id="cost-premium-ai">¥120</td>
           </tr>
 
-          <tr class="rev-warn-row">
+          <tr>
             <td>📋 献立取り込み 上限回数/月</td>
             <td>
-              <label class="rev-unlimited-label"><input type="checkbox" id="unlimited-free-kyu" checked onchange="recalcRevenue()"> 無制限</label>
-              <input type="number" class="rev-input" id="limit-free-kyu" value="20" min="0" disabled oninput="recalcRevenue()"> 回
+              <label class="rev-unlimited-label"><input type="checkbox" id="unlimited-free-kyu" onchange="recalcRevenue()"> 無制限</label>
+              <input type="number" class="rev-input" id="limit-free-kyu" value="3" min="0" oninput="recalcRevenue()"> 回
             </td>
             <td>
-              <label class="rev-unlimited-label"><input type="checkbox" id="unlimited-premium-kyu" checked onchange="recalcRevenue()"> 無制限</label>
-              <input type="number" class="rev-input" id="limit-premium-kyu" value="50" min="0" disabled oninput="recalcRevenue()"> 回
+              <label class="rev-unlimited-label"><input type="checkbox" id="unlimited-premium-kyu" onchange="recalcRevenue()"> 無制限</label>
+              <input type="number" class="rev-input" id="limit-premium-kyu" value="30" min="0" oninput="recalcRevenue()"> 回
             </td>
           </tr>
           <tr>
             <td>　└ 原価（¥1.4/回）</td>
-            <td id="cost-free-kyu">上限なし</td>
-            <td id="cost-premium-kyu">上限なし</td>
+            <td id="cost-free-kyu">¥4.2</td>
+            <td id="cost-premium-kyu">¥42</td>
           </tr>
 
-          <tr class="rev-warn-row">
+          <tr>
             <td>📷 食材取り込み 上限回数/月</td>
             <td>
-              <label class="rev-unlimited-label"><input type="checkbox" id="unlimited-free-mat" checked onchange="recalcRevenue()"> 無制限</label>
-              <input type="number" class="rev-input" id="limit-free-mat" value="30" min="0" disabled oninput="recalcRevenue()"> 回
+              <label class="rev-unlimited-label"><input type="checkbox" id="unlimited-free-mat" onchange="recalcRevenue()"> 無制限</label>
+              <input type="number" class="rev-input" id="limit-free-mat" value="30" min="0" oninput="recalcRevenue()"> 回
             </td>
             <td>
-              <label class="rev-unlimited-label"><input type="checkbox" id="unlimited-premium-mat" checked onchange="recalcRevenue()"> 無制限</label>
-              <input type="number" class="rev-input" id="limit-premium-mat" value="100" min="0" disabled oninput="recalcRevenue()"> 回
+              <label class="rev-unlimited-label"><input type="checkbox" id="unlimited-premium-mat" onchange="recalcRevenue()"> 無制限</label>
+              <input type="number" class="rev-input" id="limit-premium-mat" value="100" min="0" oninput="recalcRevenue()"> 回
             </td>
           </tr>
           <tr>
             <td>　└ 原価（¥0.07/回）</td>
-            <td id="cost-free-mat">上限なし</td>
-            <td id="cost-premium-mat">上限なし</td>
+            <td id="cost-free-mat">¥2.1</td>
+            <td id="cost-premium-mat">¥7</td>
           </tr>
 
-          <tr class="rev-highlight"><td>原価合計</td><td id="total-cost-free">¥4</td><td id="total-cost-premium">¥200</td></tr>
-          <tr class="rev-highlight"><td>粗利</td><td id="profit-free">−¥4</td><td id="profit-premium">¥280</td></tr>
-          <tr class="rev-highlight"><td>利益率</td><td id="margin-free">―</td><td id="margin-premium">58.3%</td></tr>
+          <tr class="rev-highlight"><td>原価合計</td><td id="total-cost-free">¥10.3</td><td id="total-cost-premium">¥169</td></tr>
+          <tr class="rev-highlight"><td>粗利</td><td id="profit-free">−¥10.3</td><td id="profit-premium">¥311</td></tr>
+          <tr class="rev-highlight"><td>利益率</td><td id="margin-free">―</td><td id="margin-premium">64.8%</td></tr>
         </tbody>
       </table>
 
@@ -397,7 +397,7 @@ a{text-decoration:none;color:inherit;}
       <div style="font-size:0.72rem;color:var(--muted);line-height:1.7;">
         ※為替レートは$1=¥160で計算（2026年6月時点の実勢相場は$1≒¥161〜162）<br>
         ※1回あたり原価は「AIモデル」タブの想定単価：AI相談¥0.4／献立取り込み¥1.4／食材取り込み¥0.07<br>
-        ※「無制限」チェックを外していない機能がある場合、原価合計・粗利・利益率は「その機能を除いた確定分」を表示します（行に⚠️が出ます）<br>
+        ※「無制限」チェックを入れた機能がある場合、原価合計・粗利・利益率は「その機能を除いた確定分」を表示します（行に⚠️が出ます）<br>
         ※Stripe決済手数料（約3.6%）はこの表に含めていません<br>
         ※無料プランは売価¥0のため、AI相談分はそのまま会社のコストとして発生します（粗利・利益率はマイナス/算出不可）
       </div>
@@ -582,11 +582,11 @@ a{text-decoration:none;color:inherit;}
   const REV_RATE_PER_USE = { ai: 0.4, kyu: 1.4, mat: 0.07 }; // 円/回（AIモデルタブの1回あたり目安）
   const REV_PRICE = { free: 0, premium: 480 };
   const REV_DEFAULTS = {
-    'limit-free-ai': 10, 'limit-premium-ai': 500,
-    'unlimited-free-kyu': true, 'limit-free-kyu': 20,
-    'unlimited-premium-kyu': true, 'limit-premium-kyu': 50,
-    'unlimited-free-mat': true, 'limit-free-mat': 30,
-    'unlimited-premium-mat': true, 'limit-premium-mat': 100,
+    'limit-free-ai': 10, 'limit-premium-ai': 300,
+    'unlimited-free-kyu': false, 'limit-free-kyu': 3,
+    'unlimited-premium-kyu': false, 'limit-premium-kyu': 30,
+    'unlimited-free-mat': false, 'limit-free-mat': 30,
+    'unlimited-premium-mat': false, 'limit-premium-mat': 100,
   };
 
   function yen(n) {

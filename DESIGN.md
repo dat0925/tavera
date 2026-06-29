@@ -1,6 +1,6 @@
 # Tavera 設計書・引き継ぎ書
 
-**バージョン**: 1.12.0
+**バージョン**: 1.13.0
 **最終更新**: 2026-06-28
 **ステータス**: 一般公開済み・本番Stripe決済稼働中・解約フロー実装済み
 
@@ -86,8 +86,8 @@
 | tavera-checkout | Stripe Checkout Session生成 | オン | - |
 | tavera-webhook | Stripeイベント受信・DB更新（署名検証あり） | オフ | - |
 | tavera-portal | Stripeカスタマーポータルセッション生成 | オン | - |
-| tavera-kyushoku | 給食献立表の画像/PDF解析（v20・dishes+ingredients・URLモード内部fetch対応・429リトライ＋UA偽装＋マジックバイト判定＋response_schemaでJSON構造強制＋thinking無効化） | オフ | gemini-2.5-flash |
-| tavera-fridge-scan | 冷蔵庫写真→食材認識 | オフ | gemini-2.5-flash |
+| tavera-kyushoku | 給食献立表の画像/PDF解析（v21・dishes+ingredients・URLモード内部fetch対応・429リトライ＋UA偽装＋マジックバイト判定＋response_schemaでJSON構造強制＋thinking無効化＋認証/利用回数制限） | オン | gemini-2.5-flash |
+| tavera-fridge-scan | 冷蔵庫写真→食材認識・認証/利用回数制限 | オン | gemini-2.5-flash |
 
 ---
 
@@ -161,9 +161,10 @@ UNIQUE制約: `(household_id, date, meal_type)` ※v1.9.6で追加。これが�
 |--------|-----|------|
 | user_id | uuid | |
 | month | text | YYYY-MM形式 |
-| count | int | 月次利用回数 |
-| day_count | int | 当日利用回数 |
-| last_day | text | 最終利用日 |
+| feature | text | 'suggest'（AI相談）/ 'kyushoku'（献立取り込み）/ 'fridge'（食材取り込み）。v1.13.0で追加。UNIQUE制約は`(user_id, month, feature)` |
+| count | int | 月次利用回数（成功時のみカウント） |
+| day_count | int | 当日利用回数（'suggest'のみ使用。kyushoku/fridgeは日次制限なし） |
+| last_day | text | 最終利用日（'suggest'のみ使用） |
 
 ### 管理用RPC
 | 関数名 | 用途 |
@@ -250,7 +251,7 @@ UNIQUE制約: `(household_id, date, meal_type)` ※v1.9.6で追加。これが�
 - iOSシート（写真ライブラリ/カメラ/ファイル選択）が表示
 - Gemini 2.5 Flashが食材を認識しJSON配列で返却
 - 認識結果をチップ表示 → タップで除外 → 「追加する」で一括登録
-- Edge Function: `tavera-fridge-scan`（JWT検証オフ・`TAVERA_GEMINI_API_KEY`使用）
+- Edge Function: `tavera-fridge-scan`（v1.13.0よりJWT検証オン・認証必須・`TAVERA_GEMINI_API_KEY`使用）
 
 ---
 
@@ -326,30 +327,30 @@ UNIQUE制約: `(household_id, date, meal_type)` ※v1.9.6で追加。これが�
 ### データ取得
 - RPC `admin_get_all_users()`（SECURITY DEFINER）で全ユーザー情報を取得
 
-### 機能（収益構造セクション・v1.11.0新設、v1.12.0で編集可能なシミュレーターに変更）
+### 機能（収益構造セクション・v1.11.0新設、v1.12.0で編集可能なシミュレーターに変更、v1.13.0で実際の上限値に同期）
 - フリープラン・プレミアムプランそれぞれの売価・原価・粗利・利益率を表で比較
-- 価格はLP（index.html `#pricing`）と同じ値を使用（**手動同期**：プラン価格を変更する際は、index.html・settings.html・admin.htmlの3箇所を必ず揃えて更新すること。ビルド時に自動参照する仕組みは無い）
-- **v1.12.0：各機能の「上限回数」をその場で編集できるシミュレーターに変更**。数値を変更すると`recalcRevenue()`が原価・粗利・利益率をリアルタイム再計算する
-  - AI相談：上限回数の数値入力（デフォルト：無料10／プレミアム500＝実際の`tavera-suggest`の設定値）
-  - 献立取り込み・食材取り込み：「無制限」チェックボックス＋数値入力。デフォルトはチェックON（＝現状コード上の実際の上限なし状態を反映）。チェックを外すと数値入力が有効になり、試算した上限を入れて影響を確認できる
+- 価格はLP（index.html `#pricing`）と同じ値を使用（**手動同期**：プラン価格や各機能の上限回数を変更する際は、index.html・settings.html・tavera-suggest/tavera-kyushoku/tavera-fridge-scan（Edge Function）・admin.htmlの計5箇所を必ず揃えて更新すること。ビルド時に自動参照する仕組みは無い）
+- 各機能の「上限回数」をその場で編集できるシミュレーター。数値を変更すると`recalcRevenue()`が原価・粗利・利益率をリアルタイム再計算する
+  - 「無制限」チェックボックス＋数値入力。v1.13.0以降は3機能とも実際に上限が存在するため、デフォルトはチェックOFF（数値入力が常に有効）
   - 「↺ デフォルト値に戻す」ボタンで初期状態（実際の現状設定）に復元
-  - 無制限のままの機能がある場合、原価合計・粗利・利益率に⚠️と≥/≤を付けて「その機能を除いた下限/上限」であることを明示
+  - チェックを入れて「無制限」を試算することも可能（その場合は原価合計・粗利・利益率に⚠️と≥/≤を付けて「その機能を除いた下限/上限」であることを明示）
 - 計算ロジックは`REV_RATE_PER_USE`（AI相談¥0.4・献立取り込み¥1.4・食材取り込み¥0.07／1回あたり）と`REV_PRICE`（free:0, premium:480）を`admin.html`内にハードコードして使用。AIモデルタブの単価を変更した場合はこの定数も合わせて更新すること
-- **これはあくまで社内シミュレーター**であり、ここで数値を変えても実際のEdge Function（`tavera-suggest`等）の上限は変わらない。実際に上限を変える場合は、決定した数値を別途Edge Functionのコードに反映してデプロイする必要がある
+- **これはあくまで社内シミュレーター**であり、ここで数値を変えても実際のEdge Functionの上限は変わらない。実際に上限を変える場合は、決定した数値を別途Edge Functionのコードに反映してデプロイする必要がある（v1.13.0で実装済みの値が現在のデフォルト）
 
-#### デフォルト値で表示される結果（参考）
+#### デフォルト値（=実際の運用上限値、2026-06-29実装）
 
 | 項目 | 無料プラン | プレミアムプラン |
 |------|----------|----------------|
 | 売価（月額） | ¥0 | ¥480 |
-| AI相談 原価（上限利用時・¥160/$換算） | ¥4 | ¥200 |
-| 献立取り込み・食材取り込み | 上限なし | 上限なし |
-| 原価合計（AI相談のみ・確定分） | ⚠️ ≥¥4 | ⚠️ ≥¥200 |
-| 粗利（確定分） | ⚠️ ≤−¥4 | ⚠️ ≤¥280 |
-| 利益率（確定分） | ―（売価¥0） | ⚠️ ≤58.3% |
-
-- **重要な発見（変わらず有効）**：`tavera-kyushoku`（献立取り込み）と`tavera-fridge-scan`（食材写真取り込み）には、フリー/プレミアムともに利用回数の上限チェックが**コード上に一切存在しない**（`tavera-suggest`のAI相談だけがmenu_ai_usageで月次・日次の上限管理をしている）。シミュレーターでチェックを外し、適当な数値を入れて試算しながら、実際に導入する上限値を検討すること。
-- 対応候補：検討した上限値が決まったら、`tavera-kyushoku`・`tavera-fridge-scan`にも`menu_ai_usage`と同様の月次/日次カウント・上限チェックを追加する（要望があれば実装可能）
+| AI相談 上限回数/月（日次） | 10回（3回/日） | 300回（30回/日） |
+| AI相談 原価 | ¥4 | ¥120 |
+| 献立取り込み 上限回数/月 | 3回 | 30回 |
+| 献立取り込み 原価 | ¥4.2 | ¥42 |
+| 食材取り込み 上限回数/月 | 30回 | 100回 |
+| 食材取り込み 原価 | ¥2.1 | ¥7 |
+| 原価合計 | ¥10.3 | ¥169 |
+| 粗利 | −¥10.3 | ¥311 |
+| 利益率 | ―（売価¥0） | 64.8% |
 
 ---
 
@@ -449,10 +450,10 @@ home.htmlがJS構文エラーで画面破損。`</script>`内にHTMLが混入。
 - AI提案精度向上（家族ゴールタグ・年齢層・性別をプロンプトに反映）
 
 ### 次のアクション候補
+- [x] **3機能すべてに利用回数上限を実装** ✅ v1.13.0 — AI相談10/300(日3/30)・献立取り込み3/30・食材取り込み30/100。menu_ai_usageにfeature列追加、tavera-kyushoku/tavera-fridge-scanに認証+上限チェックを新規実装、LP・admin.html収益構造のデフォルト値も同期（下記参照）
 - [x] **収益構造セクションを編集可能なシミュレーターに変更** ✅ v1.12.0 — 各機能の上限回数を編集すると原価/粗利/利益率がリアルタイム再計算。デフォルトは実際の現状設定（AI相談は実際の上限値、献立取り込み/食材取り込みは「無制限」チェックON）
 - [x] **admin.htmlモバイルをハンバーガー＋ドロワーメニューに変更** ✅ v1.11.1 — 上部タブ方式から、PC同等の左メニューをそのままドロワー表示する方式に統一
 - [x] **LPに料金プランセクション追加＋管理画面「収益構造」メニュー新設** ✅ v1.11.0 — index.html `#pricing`にFree/Premium比較カードを追加。admin.htmlに売価/原価/粗利/利益率の比較表を追加（$1=¥160換算）。献立取り込み・食材写真取り込みに利用上限が無いことが判明（下記参照）
-- [ ] tavera-kyushoku・tavera-fridge-scanへの利用回数上限の追加検討（現状無制限）
 - [x] **admin.htmlにiPad/PC用サイドバー＋AIモデル一覧セクション追加** ✅ v1.10.0 — 左ナビ（ユーザー管理/AIモデル）を新設。AIモデルセクションにAI相談(Claude Haiku 4.5)・献立取り込み/食材写真取り込み(Gemini 2.5 Flash)の使用モデルと単価を掲載
 - [x] **URLから給食PDF読み込み** ✅ v1.9.0 — tavera-url-fetchでCORSバイパス・チャンク処理でスタックオーバーフロー対策
 - [x] **給食インポート材料取得** ✅ v1.9.2 — ingredients配列形式でGeminiから取得・menu_logs.ingredientsに保存
@@ -570,3 +571,40 @@ home.htmlがJS構文エラーで画面破損。`</script>`内にHTMLが混入。
 - **原因**：他画面では`<span class="header-title">ページ名</span>`が`<div class="logo">`の**外側**（`.app-header`の直接の子・`.logo`の兄弟要素）に置かれているのに対し、`home.html`だけ`header-title`が`.logo`内部の入れ子divの中に`logo-text`と一緒に入っていた。CSS側の`.app-header .header-title { display:block; margin-top:6px; ... }`（サイドバー時にページ名をロゴの下に独立した行として表示するルール）はdescendantセレクタなので入れ子の深さに関わらず適用されるが、`.logo`自体が`display:flex;align-items:center`の行レイアウトのため、本来「ロゴ行の下にもう1行」となるべきページ名が「ロゴ画像の右の縦積みテキスト内」に押し込まれてしまい、画像とテキストの縦位置・余白がおかしくなっていた。
 - **解決策**：`home.html`のヘッダー構造を他画面と同じパターン（`.logo`→`header-title`→`header-right`を`.app-header`の直接の子として並列に配置）に統一。
 - **教訓**：共通レイアウト（ヘッダー等）を複数画面で使うときは、CSSのセレクタだけでなくHTMLのDOM構造（どの要素がどの階層にあるか）も画面間で完全に一致させること。CSSのdescendantセレクタは深さを問わず効いてしまうため、構造がズレていても一見「動いているように見える」ことがあり、見た目の微妙な崩れとして現れるまで気づきにくい。
+
+### 3機能すべてに利用回数上限を実装（v1.13.0・2026-06-29）
+
+収益構造シミュレーターで検討した結果、以下の上限を実際に導入した。
+
+| 機能 | 無料プラン | プレミアムプラン |
+|------|----------|----------------|
+| 💬 AI相談（tavera-suggest） | 10回/月（1日3回） | 300回/月（1日30回）※旧500/50から変更 |
+| 📋 献立取り込み（tavera-kyushoku） | 3回/月 | 30回/月 ※新規導入 |
+| 📷 食材取り込み（tavera-fridge-scan） | 30回/月 | 100回/月 ※新規導入 |
+
+#### DBスキーマ変更
+- `menu_ai_usage`に`feature`列を追加（text, NOT NULL, DEFAULT 'suggest'）。既存行は自動的に`feature='suggest'`になるため後方互換あり
+- UNIQUE制約を`(user_id, month)`→`(user_id, month, feature)`に変更（制約名: `menu_ai_usage_user_month_feature_key`）
+- これにより1テーブルで3機能分の月次利用回数を管理できるようになった（day_count/last_dayは現状'suggest'のみ使用、kyushoku/fridgeは日次制限なし・月次のみ）
+
+#### tavera-suggest（v23）の変更
+- `PREMIUM_LIMIT`を500→300、`PREMIUM_DAY_LIMIT`を50→30に変更（比率10:1を維持）
+- 全クエリ・upsertに`.eq("feature", "suggest")` / `feature: "suggest"`を明示的に追加（feature列追加に伴う必須対応。これをやらないと将来kyushoku/fridgeの利用行が増えた際に`.maybeSingle()`が複数行マッチで例外を起こす）
+- `onConflict`を`"user_id,month"`→`"user_id,month,feature"`に変更
+
+#### tavera-kyushoku（v21）・tavera-fridge-scan（v4）の変更（新規実装）
+- **これらの関数は元々完全に匿名・無認証だった**（`verify_jwt:false`、コード内でもユーザー認証処理が一切無かった）。上限管理にはユーザー識別が必須なため、`tavera-suggest`と同じパターン（`createClient`でservice roleクライアントを作り`supabase.auth.getUser(token)`でユーザー特定→`menu_members`でplan判定）を新規追加した
+- `verify_jwt`を`false`→`true`に変更（Supabaseゲートウェイレベルでも有効なJWTを要求するようになった）
+- 利用回数のカウントアップは**成功時のみ**実施（Gemini呼び出し失敗・JSONパース失敗・食材0件などの場合はカウントしない＝失敗した試行はユーザーの不利益にならないようにしている）
+- 上限超過時は429・分かりやすい日本語エラーメッセージ（例：「今月の給食取り込み回数の上限（3回）に達しました。プレミアムプランなら月30回まで利用できます。」）を返す
+
+#### フロントエンド側の対応
+- **kyushoku.html**：元から`Authorization: Bearer <session.access_token>`を送信していたため**変更不要**だった（`verify_jwt:true`化に対応済み）
+- **home.html（冷蔵庫食材スキャン）**：`tavera-fridge-scan`へのfetchに認証ヘッダーが**付いていなかった**ため追加必須だった。これを追加しないと`verify_jwt:true`化した瞬間に全ユーザーが401で使えなくなるため、Edge Function側のデプロイと同時に必ず直す必要があった項目。`getSession()`から取得した`access_token`をAuthorizationヘッダーに付与し、エラー時も`d.error`をそのまま表示するように修正（従来は常に「エラーが発生しました。」という固定文言だった）
+- **教訓**：Edge Functionに`verify_jwt:true`や新規の認証チェックを追加する際は、その関数を呼んでいる**全てのフロントエンドのfetch呼び出し**がAuthorizationヘッダーを送っているか必ず確認すること。送っていないfetchが1つでも残っていると、デプロイした瞬間にその画面の機能が全ユーザーに対して即時停止する（サイレント障害になりやすい）
+
+#### LP・管理画面の同期
+- `index.html`の`#pricing`：各機能の上限回数をプラン別に明記（従来は「給食献立のAIインポート」のように上限の記載が無かった）
+- `admin.html`の収益構造シミュレーター：デフォルト値を上記の実際の値に更新。「無制限」チェックボックスはデフォルトOFF（3機能とも実際に上限が存在するため）
+- **今後、上限値を再度変更する場合に同期が必要な箇所（計5箇所）**：`index.html`（LP表記）・`settings.html`（プラン案内文。現状は具体的回数を出していないため変更不要なケースもある）・`tavera-suggest`/`tavera-kyushoku`/`tavera-fridge-scan`（実際の制限値）・`admin.html`（シミュレーターのデフォルト値とREV_DEFAULTS）
+

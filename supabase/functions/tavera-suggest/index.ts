@@ -6,9 +6,10 @@ const CORS = {
   "Access-Control-Allow-Headers": "authorization, content-type",
 };
 
-const FREE_LIMIT      = 10;  // 無料プランの月間上限
-const PREMIUM_LIMIT   = 500; // プレミアムの月間上限（上限攻撃対策）
-const PREMIUM_DAY_LIMIT = 50; // プレミアムの1日上限
+const FEATURE = "suggest";
+const FREE_LIMIT      = 10;
+const PREMIUM_LIMIT   = 300;
+const PREMIUM_DAY_LIMIT = 30;
 
 const SYSTEM_PROMPT = `あなたは家庭料理の献立提案アシスタントです。
 ユーザーの家族構成・冷蔵庫の食材・最近の献立・高評価メニューを考慮して、
@@ -32,7 +33,6 @@ serve(async (req) => {
     const SUPABASE_URL      = Deno.env.get("SUPABASE_URL")!;
     const SUPABASE_KEY      = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
-    // JWT認証
     const authHeader = req.headers.get("Authorization") || "";
     const token = authHeader.replace("Bearer ", "");
     const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
@@ -41,7 +41,6 @@ serve(async (req) => {
       return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: CORS });
     }
 
-    // プラン確認
     const { data: member } = await supabase
       .from("menu_members")
       .select("plan, plan_expires_at")
@@ -53,16 +52,16 @@ serve(async (req) => {
       (!member?.plan_expires_at || new Date(member.plan_expires_at) > new Date());
 
     const now = new Date();
-    const month = now.toISOString().slice(0, 7); // YYYY-MM
-    const today = now.toISOString().slice(0, 10); // YYYY-MM-DD
+    const month = now.toISOString().slice(0, 7);
+    const today = now.toISOString().slice(0, 10);
 
-    // 利用回数取得
     const { data: usage } = await supabase
       .from("menu_ai_usage")
       .select("count, day_count, last_day")
       .eq("user_id", user.id)
       .eq("month", month)
-      .single();
+      .eq("feature", FEATURE)
+      .maybeSingle();
 
     const monthCount = usage?.count || 0;
     const dayCount   = usage?.last_day === today ? (usage?.day_count || 0) : 0;
@@ -79,19 +78,18 @@ serve(async (req) => {
       }), { status: 429, headers: { ...CORS, "Content-Type": "application/json" } });
     }
 
-    // カウントアップ
     await supabase.from("menu_ai_usage").upsert({
       user_id: user.id,
       month,
+      feature: FEATURE,
       count: monthCount + 1,
       day_count: dayCount + 1,
       last_day: today,
       updated_at: now.toISOString(),
-    }, { onConflict: "user_id,month" });
+    }, { onConflict: "user_id,month,feature" });
 
     const { messages, likedDishes, recentDishes, fridgeItems, familyMembers } = await req.json();
 
-    // コンテキストをsystemに追加
     let contextNote = "";
     if (recentDishes?.length > 0) {
       const names = [...new Set(recentDishes.map((l: any) => l.dish_name))].slice(0, 7);
@@ -136,7 +134,6 @@ serve(async (req) => {
     const data = await response.json();
     const reply = data.content?.[0]?.text || "提案を生成できませんでした。";
 
-    // 残り回数（無料プランのみ表示）
     let remaining = null;
     if (!isPremium) {
       const { data: latestUsage } = await supabase
@@ -144,7 +141,8 @@ serve(async (req) => {
         .select("count")
         .eq("user_id", user.id)
         .eq("month", month)
-        .single();
+        .eq("feature", FEATURE)
+        .maybeSingle();
       remaining = FREE_LIMIT - (latestUsage?.count || 0);
     }
 
