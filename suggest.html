@@ -87,6 +87,49 @@
       border-radius:99px; font-size:0.88rem; font-weight:700;
       cursor:pointer; font-family:inherit; text-decoration:none;
     }
+
+    /* ---- 記録モーダル（日付・食事区分選択） ---- */
+    .modal-overlay {
+      position: fixed; inset: 0;
+      background: rgba(74,46,26,0.4);
+      z-index: 200;
+      display: flex; align-items: flex-end; justify-content: center;
+      animation: fadeIn 0.2s ease;
+    }
+    @keyframes fadeIn { from { opacity:0 } to { opacity:1 } }
+    .modal-sheet {
+      width: 100%; max-width: 480px;
+      background: var(--white);
+      border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+      padding: 24px 20px 32px;
+      animation: slideUp 0.25s ease;
+    }
+    @keyframes slideUp { from { transform:translateY(60px);opacity:0 } to { transform:translateY(0);opacity:1 } }
+    .modal-handle { width:40px;height:4px;background:var(--border);border-radius:99px;margin:0 auto 20px; }
+    .modal-title { font-family:var(--font-display);font-size:1.1rem;color:var(--brown);margin-bottom:16px;line-height:1.5; }
+    .record-field-label { font-size:0.75rem;font-weight:700;color:var(--muted);letter-spacing:0.04em;margin-bottom:6px; }
+    .record-date-input {
+      width:100%; padding:10px 14px; margin-bottom:16px;
+      border:1.5px solid var(--border); border-radius:var(--radius-sm);
+      font-size:0.9rem; font-family:inherit; color:var(--brown);
+    }
+    .record-meal-tab { position: relative; }
+    .record-meal-tab .filled-badge {
+      position:absolute; top:-6px; right:-4px;
+      background:var(--amber); color:#fff;
+      font-size:0.6rem; font-weight:700; line-height:1;
+      padding:2px 5px; border-radius:99px; white-space:nowrap;
+    }
+    .record-warning {
+      margin-top:12px; padding:10px 12px;
+      background:#FEF3EC; border:1.5px solid var(--terra);
+      border-radius:var(--radius-sm);
+      font-size:0.78rem; color:var(--terra); line-height:1.6;
+      display:none;
+    }
+    .record-warning.visible { display:block; }
+    .modal-actions { display:flex;gap:10px;margin-top:20px; }
+    .modal-actions .btn { flex:1;padding:14px;font-size:0.88rem; }
   </style>
 </head>
 <body>
@@ -151,6 +194,8 @@
     var householdId = null;
     var familyMembers = [];
     var isLoading = false;
+    var pendingRecord = null;  // { dish, ingredients, description } AI提案から記録待ちの内容
+    var recordLogsCache = {};  // dateStr -> その日のmenu_logs（記録モーダルの「登録済み」表示用）
 
     function updateUsageBar(used, remaining, limit, plan) {
       var bar = document.getElementById('usageBar');
@@ -400,7 +445,7 @@
           var btn = document.createElement('button');
           btn.textContent = '📝 この献立を記録する';
           btn.style.cssText = 'display:block;padding:8px 16px;border-radius:99px;background:var(--terra);color:#fff;border:none;cursor:pointer;font-size:0.8rem;font-family:inherit;';
-          btn.onclick = function() { location.href = 'log.html'; };
+          btn.onclick = function() { openRecordModal('', [], ''); };
           bw.appendChild(btn);
         } else {
           parsedDishes.slice(0, 3).forEach(function(item) {
@@ -408,17 +453,7 @@
             btn.textContent = '📝 ' + item.name + ' を記録する';
             btn.style.cssText = 'display:block;padding:8px 16px;border-radius:99px;background:var(--terra);color:#fff;border:none;cursor:pointer;font-size:0.8rem;font-family:inherit;text-align:left;';
             btn.onclick = (function(dish, ings, desc) {
-              return function() {
-                var t = new Date().toISOString().split('T')[0];
-                var url = 'log.html?date=' + t + '&dish=' + encodeURIComponent(dish);
-                if (ings && ings.length > 0) {
-                  url += '&ingredients=' + encodeURIComponent(ings.join(','));
-                }
-                if (desc) {
-                  url += '&memo=' + encodeURIComponent('【AI提案より】\n' + desc);
-                }
-                location.href = url;
-              };
+              return function() { openRecordModal(dish, ings, desc); };
             })(item.name, item.ingredients, item.description);
             bw.appendChild(btn);
             // 食材プレビュー
@@ -458,8 +493,116 @@
       document.getElementById('sendBtn').disabled = false;
     }
 
+    // ---- 記録モーダル（日付・食事区分の選択） ----
+    // AI提案を記録する際、現在時刻から「次に記録するのに最も近い」食事区分を
+    // 既定値にしつつ、日付・朝昼夜をユーザーが選び直せるようにする。
+    // すでに同じ日付・区分に献立が登録済みの場合は警告を表示する。
+
+    async function getLogsForDateCached(dateStr) {
+      if (recordLogsCache[dateStr]) return recordLogsCache[dateStr];
+      var logs = [];
+      try { logs = await getLogsByDate(householdId, dateStr); } catch(e) { logs = []; }
+      recordLogsCache[dateStr] = logs || [];
+      return recordLogsCache[dateStr];
+    }
+
+    async function refreshRecordModalState() {
+      var dateStr = document.getElementById('recordDateInput').value;
+      var logs = await getLogsForDateCached(dateStr);
+      var filledMeals = {};
+      logs.forEach(function(l) { filledMeals[l.meal_type] = l; });
+
+      document.querySelectorAll('.record-meal-tab').forEach(function(tab) {
+        var badge = tab.querySelector('.filled-badge');
+        badge.classList.toggle('hidden', !filledMeals[tab.dataset.meal]);
+      });
+
+      var activeTab = document.querySelector('.record-meal-tab.active');
+      var selectedMeal = activeTab ? activeTab.dataset.meal : null;
+      var warning = document.getElementById('recordWarning');
+      var existing = selectedMeal ? filledMeals[selectedMeal] : null;
+      if (existing) {
+        warning.textContent = '⚠️ ' + dateStr + 'の' + MEAL_LABELS[selectedMeal] +
+          'にはすでに「' + existing.dish_name + '」が登録されています。記録すると上書きされます。';
+        warning.classList.add('visible');
+      } else {
+        warning.classList.remove('visible');
+      }
+    }
+
+    function selectRecordMealTab(meal) {
+      document.querySelectorAll('.record-meal-tab').forEach(function(tab) {
+        tab.classList.toggle('active', tab.dataset.meal === meal);
+      });
+      refreshRecordModalState();
+    }
+
+    function openRecordModal(dish, ingredientsArr, description) {
+      pendingRecord = { dish: dish || '', ingredients: ingredientsArr || [], description: description || '' };
+      recordLogsCache = {};
+      var slot = getDefaultMealSlot();
+      document.getElementById('recordModalTitle').textContent = dish ? (dish + 'を記録する') : 'この献立を記録する';
+      document.getElementById('recordDateInput').value = slot.date;
+      selectRecordMealTab(slot.mealType);
+      document.getElementById('recordModal').classList.remove('hidden');
+    }
+
+    function closeRecordModal(e) {
+      if (e && e.target.id !== 'recordModal') return;
+      document.getElementById('recordModal').classList.add('hidden');
+    }
+
+    function confirmRecord() {
+      if (!pendingRecord) return;
+      var dateStr = document.getElementById('recordDateInput').value;
+      var activeTab = document.querySelector('.record-meal-tab.active');
+      var meal = activeTab ? activeTab.dataset.meal : 'dinner';
+      var url = 'log.html?date=' + dateStr + '&meal=' + meal;
+      if (pendingRecord.dish) {
+        url += '&dish=' + encodeURIComponent(pendingRecord.dish);
+      }
+      if (pendingRecord.ingredients && pendingRecord.ingredients.length > 0) {
+        url += '&ingredients=' + encodeURIComponent(pendingRecord.ingredients.join(','));
+      }
+      if (pendingRecord.description) {
+        url += '&memo=' + encodeURIComponent('【AI提案より】\n' + pendingRecord.description);
+      }
+      location.href = url;
+    }
+
     init();
     initPullToRefresh(async () => { await init(); });
   </script>
+
+  <!-- 記録する日付・食事区分を選ぶモーダル -->
+  <div class="modal-overlay hidden" id="recordModal" onclick="closeRecordModal(event)">
+    <div class="modal-sheet" onclick="event.stopPropagation()">
+      <div class="modal-handle"></div>
+      <div class="modal-title" id="recordModalTitle">この献立を記録する</div>
+
+      <div class="record-field-label">日付</div>
+      <input type="date" class="record-date-input" id="recordDateInput" onchange="refreshRecordModalState()">
+
+      <div class="record-field-label">どの食事として記録しますか？</div>
+      <div class="meal-tabs" id="recordMealTabs" style="padding:0;">
+        <button type="button" class="meal-tab record-meal-tab" data-meal="breakfast" onclick="selectRecordMealTab('breakfast')">
+          🌅 朝<span class="filled-badge hidden">済</span>
+        </button>
+        <button type="button" class="meal-tab record-meal-tab" data-meal="lunch" onclick="selectRecordMealTab('lunch')">
+          ☀️ 昼<span class="filled-badge hidden">済</span>
+        </button>
+        <button type="button" class="meal-tab record-meal-tab" data-meal="dinner" onclick="selectRecordMealTab('dinner')">
+          🌙 夜<span class="filled-badge hidden">済</span>
+        </button>
+      </div>
+
+      <div class="record-warning" id="recordWarning"></div>
+
+      <div class="modal-actions">
+        <button type="button" class="btn btn-secondary" onclick="closeRecordModal()">キャンセル</button>
+        <button type="button" class="btn btn-primary" id="recordConfirmBtn" onclick="confirmRecord()">記録する</button>
+      </div>
+    </div>
+  </div>
 </body>
 </html>

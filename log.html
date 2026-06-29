@@ -242,9 +242,12 @@
       familyMembers = await getFamilyMembers(householdId);
 
       // URLパラメータから日付・食事タイプを取得
+      // パラメータが無い場合（例：ボトムナビの＋ボタン）は、現在時刻から
+      // 「次に記録するのに最も近い」食事区分・日付を既定値にする
       const params = new URLSearchParams(location.search);
-      const dateParam = params.get('date') || toDateStr();
-      const mealParam = params.get('meal') || 'dinner';
+      const defaultSlot = getDefaultMealSlot();
+      const dateParam = params.get('date') || defaultSlot.date;
+      const mealParam = params.get('meal') || defaultSlot.mealType;
       const dishParam = params.get('dish') || '';
       isEditMode = params.get('edit') === '1';
 
@@ -272,23 +275,35 @@
         document.getElementById('memo').value = memoParam;
       }
 
-      await loadExisting(dateParam, mealParam);
+      // AI提案からの値（dish/ingredients/memo）は、既存データより優先する。
+      // そうしないと「すでに記録済みの食事区分」にAI提案を記録しようとした際、
+      // 既存データでAI提案の内容が静かに上書きされてしまう（v1.16.2で修正）。
+      await loadExisting(dateParam, mealParam, {
+        keepDish: !!dishParam,
+        keepIngredients: !!ingredientsParam,
+        keepMemo: !!memoParam,
+      });
     }
 
     // 既存データ読み込み
-    async function loadExisting(dateStr, mealType) {
+    // presetFlagsで指定したフィールドは、既存データがあっても上書きしない
+    // （AI提案やURLパラメータから渡された内容を優先するため）
+    async function loadExisting(dateStr, mealType, presetFlags) {
+      presetFlags = presetFlags || {};
       const logs = await getLogsByDate(householdId, dateStr);
       const log = logs.find(l => l.meal_type === mealType);
       if (!log) return;
 
       existingLogId = log.id;
-      document.getElementById('dishName').value = log.dish_name || '';
-      // 既存ログのメモがある場合は既存を優先
-      if (log.memo) {
+      if (!presetFlags.keepDish) {
+        document.getElementById('dishName').value = log.dish_name || '';
+      }
+      // 既存ログのメモがある場合は既存を優先（ただしAI提案由来のメモがあれば維持）
+      if (!presetFlags.keepMemo && log.memo) {
         document.getElementById('memo').value = log.memo;
       }
-      // 既存ログに食材がある場合は既存を優先、なければプリセットを維持
-      if (log.ingredients && log.ingredients.length > 0) {
+      // 既存ログに食材がある場合は既存を優先（ただしAI提案由来の食材があれば維持）
+      if (!presetFlags.keepIngredients && log.ingredients && log.ingredients.length > 0) {
         ingredients = log.ingredients;
         renderIngredientTags();
       }

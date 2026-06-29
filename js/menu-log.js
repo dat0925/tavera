@@ -3,8 +3,36 @@
 // =====================
 
 // 日付フォーマット (YYYY-MM-DD)
+// 注意：toISOString()はUTCに変換してから文字列化するため、日本時間の
+// 深夜0:00〜8:59台に呼ぶと前日の日付になってしまうバグがあった（v1.16.2で修正）。
+// ローカルの年月日をそのまま使うことで、タイムゾーンに関わらず「現地の今日」を返す。
 function toDateStr(date = new Date()) {
-  return date.toISOString().split('T')[0];
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
+// 現在時刻から「次に記録するのに最も近い」食事区分と日付を推定する（v1.16.2）
+// 0:00〜8:59  → 今日の朝（まだ朝食前）
+// 9:00〜13:59 → 今日の昼
+// 14:00〜20:59→ 今日の夜
+// 21:00〜23:59→ 翌日の朝（夜も終わっているため次は翌朝）
+function getDefaultMealSlot(now = new Date()) {
+  const hour = now.getHours();
+  let mealType = 'breakfast';
+  let dateObj = now;
+  if (hour >= 21) {
+    mealType = 'breakfast';
+    dateObj = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+  } else if (hour >= 14) {
+    mealType = 'dinner';
+  } else if (hour >= 9) {
+    mealType = 'lunch';
+  } else {
+    mealType = 'breakfast';
+  }
+  return { date: toDateStr(dateObj), mealType };
 }
 
 // 今日の献立ログを取得
