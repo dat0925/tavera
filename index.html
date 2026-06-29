@@ -285,6 +285,67 @@ header nav a:hover { color: var(--terra); }
 .cta-section p { color: rgba(255,255,255,0.85); font-size: 1rem; margin-bottom: 36px; }
 .btn-white { background: #fff; color: var(--terra); font-weight: 700; }
 
+/* 給食インポートセクション */
+.kyushoku-section { padding: 96px 24px; background: linear-gradient(160deg, #F0F4E8 0%, #FDF6EC 100%); }
+.kyushoku-inner {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 64px; align-items: center;
+}
+.ky-point { display: flex; align-items: flex-start; gap: 12px; }
+.ky-icon {
+  width: 40px; height: 40px; border-radius: 10px;
+  background: #EEF3E2; display: flex; align-items: center; justify-content: center;
+  font-size: 1.1rem; flex-shrink: 0;
+}
+.ky-title { font-size: 0.92rem; font-weight: 700; margin-bottom: 4px; }
+.ky-desc { font-size: 0.82rem; color: var(--muted); line-height: 1.7; }
+
+/* 給食モックアップ */
+.kyushoku-mock-wrap { display: flex; justify-content: center; }
+.kyushoku-mock {
+  background: var(--white); border: 1.5px solid var(--border);
+  border-radius: 20px; overflow: hidden;
+  box-shadow: 0 8px 40px var(--shadow); width: 100%; max-width: 340px;
+}
+.ky-mock-header {
+  background: var(--white); border-bottom: 1px solid var(--border);
+  padding: 12px 16px; display: flex; align-items: center; justify-content: space-between;
+}
+.ky-mock-body { padding: 12px 14px; }
+.ky-mock-upload {
+  background: var(--surface); border: 1.5px dashed var(--border);
+  border-radius: 10px; padding: 18px; text-align: center; margin-bottom: 14px;
+}
+.ky-mock-result-label { font-size: 0.68rem; font-weight: 700; color: var(--muted); margin-bottom: 6px; letter-spacing: 0.05em; }
+.ky-mock-item {
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 0; border-bottom: 1px solid var(--border);
+}
+.ky-mock-item.allergy { background: #FFF8EC; margin: 0 -4px; padding: 8px 4px; border-radius: 6px; border-bottom: none; margin-bottom: 1px; }
+.ky-mock-date { font-size: 0.65rem; font-weight: 700; color: var(--muted); min-width: 52px; }
+.ky-mock-dish { font-size: 0.7rem; color: var(--brown); flex: 1; line-height: 1.4; }
+.ky-allergy-badge { font-size: 0.62rem; color: #B45309; background: #FEF3C7; border-radius: 4px; padding: 2px 6px; margin-top: 3px; display: inline-block; }
+.ky-mock-check { width: 20px; height: 20px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.65rem; flex-shrink: 0; }
+.ky-mock-check.checked { background: var(--olive); color: #fff; }
+.ky-mock-check.unchecked { background: var(--border); color: var(--muted); }
+.ky-mock-footer { display: flex; align-items: center; justify-content: space-between; margin-top: 10px; }
+.ky-import-btn {
+  background: var(--terra); color: #fff; border-radius: 99px;
+  padding: 6px 14px; font-size: 0.72rem; font-weight: 700;
+}
+
+/* feature-card 人気機能バッジ */
+.feature-card-highlight { border-color: var(--terra); background: #FEF7F3; position: relative; }
+.feature-new-badge {
+  display: inline-block; margin-top: 10px;
+  background: var(--terra); color: #fff;
+  font-size: 0.68rem; font-weight: 700; padding: 3px 10px; border-radius: 99px;
+}
+
+/* レスポンシブ */
+@media (max-width: 768px) {
+  .kyushoku-inner { grid-template-columns: 1fr; gap: 40px; }
+}
+
 /* Pricing */
 .pricing-section { padding: 96px 24px; background: var(--surface); }
 .pricing-grid {
@@ -396,11 +457,11 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
 <!-- Hero -->
 <section class="hero">
   <div class="hero-inner">
-    <div class="hero-badge">🍳 家族の献立をもっとかんたんに</div>
+    <div class="hero-badge">🍱 給食とかぶらない夕食を、AIが自動提案</div>
     <h1>毎日の「今日何食べる？」を<br><span>Taveraにおまかせ</span></h1>
     <p class="hero-sub">
-      献立を記録して振り返り、AIが次の献立を提案。<br>
-      冷蔵庫の食材を登録すれば、使い切りメニューも提案してくれます。
+      給食献立表を写真で撮るだけ。AIが解析して、夜ご飯が<strong style="color:var(--terra);">かぶらない</strong>献立を提案します。<br>
+      アレルギーがある子も安心。家族みんなの食事を、もっとかんたんに。
     </p>
     <div class="hero-cta">
       <a href="#" onclick="startLogin(event)" class="btn btn-primary btn-xl">Googleで無料ではじめる</a>
@@ -469,6 +530,12 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
       <p class="section-desc">記録・振り返り・AI提案・家族共有。これ一つで献立管理が変わります。</p>
     </div>
     <div class="features-grid">
+      <div class="feature-card fade-in feature-card-highlight">
+        <div class="feature-icon" style="background:#FFF0E0;font-size:1.4rem;">🍱</div>
+        <h3>給食献立を写真で取り込み</h3>
+        <p>給食表を撮るだけで料理名を自動認識。アレルギーチェックもAIが行い、夕食がかぶらない献立提案につなげます。</p>
+        <div class="feature-new-badge">人気機能</div>
+      </div>
       <div class="feature-card fade-in">
         <div class="feature-icon">📅</div>
         <h3>献立をカレンダーに記録</h3>
@@ -498,6 +565,85 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
         <div class="feature-icon">📱</div>
         <h3>ホーム画面に追加できる</h3>
         <p>PWA対応でアプリのようにホーム画面に追加可能。インストール不要でどのデバイスからでも使えます。</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 給食インポート特集セクション -->
+<section class="kyushoku-section" id="kyushoku">
+  <div class="section-inner">
+    <div class="kyushoku-inner">
+      <div class="fade-in">
+        <div class="section-label">🍱 給食インポート</div>
+        <h2 class="section-title" style="margin-top:16px;">給食の献立表を<br><span style="color:var(--terra);">写真1枚</span>で取り込める</h2>
+        <p style="font-size:0.95rem;color:var(--muted);line-height:1.8;margin-bottom:28px;">
+          学校・保育園の給食献立表をカメラで撮るだけ。<br>
+          AIが日付ごとの料理を自動認識して、夕食の献立に<strong style="color:var(--brown);">かぶらない</strong>提案をしてくれます。
+        </p>
+        <div style="display:flex;flex-direction:column;gap:16px;margin-bottom:32px;">
+          <div class="ky-point">
+            <div class="ky-icon">📸</div>
+            <div>
+              <div class="ky-title">写真を撮るだけ・PDF対応</div>
+              <div class="ky-desc">給食表の写真やPDFをアップロードするだけ。AIが料理名・食材を自動抽出します。</div>
+            </div>
+          </div>
+          <div class="ky-point">
+            <div class="ky-icon">⚠️</div>
+            <div>
+              <div class="ky-title">アレルギーを自動チェック</div>
+              <div class="ky-desc">家族のアレルギー情報と照合して、該当する日を自動でマーク。「卵が含まれる可能性があります」と警告します。</div>
+            </div>
+          </div>
+          <div class="ky-point">
+            <div class="ky-icon">🌙</div>
+            <div>
+              <div class="ky-title">夕食の献立がかぶらない</div>
+              <div class="ky-desc">給食で食べたものをAIが把握。「昼も唐揚げだったの！？」がなくなります。</div>
+            </div>
+          </div>
+        </div>
+        <a href="#" onclick="startLogin(event)" class="btn btn-primary btn-lg">無料で給食インポートを試す</a>
+      </div>
+      <!-- 給食モックアップ -->
+      <div class="fade-in kyushoku-mock-wrap">
+        <div class="kyushoku-mock">
+          <div class="ky-mock-header">
+            <span style="font-weight:700;font-size:0.85rem;">🍱 給食献立を取り込む</span>
+            <span style="font-size:0.7rem;color:var(--muted);">2025年6月</span>
+          </div>
+          <div class="ky-mock-body">
+            <div class="ky-mock-upload">
+              <div style="font-size:1.8rem;margin-bottom:6px;">📸</div>
+              <div style="font-size:0.78rem;font-weight:700;color:var(--terra);">給食表を撮影 / PDF選択</div>
+              <div style="font-size:0.65rem;color:var(--muted);margin-top:2px;">AI解析中…</div>
+            </div>
+            <div class="ky-mock-result-label">解析結果（月分）</div>
+            <div class="ky-mock-item">
+              <div class="ky-mock-date">6/2（月）</div>
+              <div class="ky-mock-dish">ご飯・みそ汁・鶏の唐揚げ・和え物</div>
+              <div class="ky-mock-check checked">✓</div>
+            </div>
+            <div class="ky-mock-item allergy">
+              <div class="ky-mock-date">6/3（火）</div>
+              <div>
+                <div class="ky-mock-dish">パン・牛乳・卵スープ・グラタン</div>
+                <div class="ky-allergy-badge">⚠️ 太郎：卵の可能性</div>
+              </div>
+              <div class="ky-mock-check unchecked">−</div>
+            </div>
+            <div class="ky-mock-item">
+              <div class="ky-mock-date">6/4（水）</div>
+              <div class="ky-mock-dish">ご飯・豚汁・さばの塩焼き</div>
+              <div class="ky-mock-check checked">✓</div>
+            </div>
+            <div class="ky-mock-footer">
+              <div style="font-size:0.72rem;color:var(--muted);">2日分 チェックを外しました</div>
+              <div class="ky-import-btn">一括登録する</div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   </div>
