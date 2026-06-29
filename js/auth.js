@@ -88,17 +88,48 @@ function initPullToRefresh(onRefresh) {
 
   let startY = 0;
   let pulling = false;
+  let scrollTarget = null;
   const THRESHOLD = 72;
 
+  // タッチした要素の祖先をたどり、実際にスクロール可能な内部コンテナ
+  // （overflow-y:auto/scroll かつ scrollHeight > clientHeight）を探す。
+  // suggest.htmlのチャット欄など、ページ自体（window）は動かず内部のdivだけが
+  // スクロールするレイアウトでは、window.scrollYだけでは「最上部にいるか」を
+  // 判定できないため、この内部コンテナのscrollTopも併せて見る必要がある。
+  function findScrollableAncestor(el) {
+    while (el && el !== document.body && el !== document.documentElement) {
+      const style = window.getComputedStyle(el);
+      if ((style.overflowY === 'auto' || style.overflowY === 'scroll') &&
+          el.scrollHeight > el.clientHeight + 1) {
+        return el;
+      }
+      el = el.parentElement;
+    }
+    return null;
+  }
+
   document.addEventListener('touchstart', (e) => {
-    if (window.scrollY === 0) {
+    scrollTarget = findScrollableAncestor(e.target);
+    // ページ自体が最上部、かつ（内部スクロール領域が無い、またはそれも既に
+    // 最上部）の場合のみpull-to-refreshを開始する。AI提案やリストなどを
+    // スクロール中に誤発動して内容が消えてしまうのを防ぐ。
+    if (window.scrollY === 0 && (!scrollTarget || scrollTarget.scrollTop === 0)) {
       startY = e.touches[0].clientY;
       pulling = true;
+    } else {
+      pulling = false;
     }
   }, { passive: true });
 
   document.addEventListener('touchmove', (e) => {
     if (!pulling) return;
+    // 内部スクロール領域が動き始めた（=その領域内をスクロール中）場合は
+    // pull-to-refreshを中断し、通常のスクロールに専念させる
+    if (scrollTarget && scrollTarget.scrollTop > 0) {
+      pulling = false;
+      indicator.classList.remove('visible', 'pulling');
+      return;
+    }
     const diff = e.touches[0].clientY - startY;
     if (diff > 10) {
       indicator.classList.add('visible');
