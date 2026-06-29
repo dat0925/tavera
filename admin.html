@@ -55,6 +55,53 @@ a{text-decoration:none;color:inherit;}
 .admin-header-sub{font-size:0.75rem;opacity:.6;}
 .admin-body{max-width:900px;margin:0 auto;padding:20px 16px 80px;}
 
+/* サイドバー（iPad/PC専用・モバイルでは非表示） */
+.admin-sidebar{display:none;}
+.admin-nav-item{
+  display:flex;align-items:center;gap:10px;width:100%;
+  padding:10px 14px;border-radius:10px;border:none;background:none;
+  font-size:0.88rem;color:var(--brown);font-family:var(--font-body);
+  cursor:pointer;text-align:left;
+}
+.admin-nav-item:hover{background:var(--border);}
+.admin-nav-item.active{background:#FEF3EC;color:var(--terra);font-weight:700;}
+
+/* モバイル用タブ切替（サイドバーの代わり） */
+.admin-mobile-tabs{display:flex;gap:8px;padding:14px 16px 0;}
+.admin-mobile-tabs button{
+  flex:1;padding:10px;border-radius:10px;border:1px solid var(--border);
+  background:var(--white);font-size:0.82rem;font-family:var(--font-body);
+  color:var(--muted);cursor:pointer;
+}
+.admin-mobile-tabs button.active{background:var(--terra);color:#fff;border-color:var(--terra);}
+
+@media (min-width:769px){
+  .admin-wrap{display:grid !important;grid-template-columns:220px 1fr;grid-template-rows:auto 1fr;min-height:100vh;}
+  .admin-header{grid-column:1 / -1;grid-row:1;}
+  .admin-sidebar{
+    display:flex !important;flex-direction:column;gap:4px;
+    grid-column:1;grid-row:2;
+    background:var(--surface);border-right:1px solid var(--border);
+    padding:16px 12px;align-content:flex-start;
+  }
+  .admin-main{grid-column:2;grid-row:2;overflow-y:auto;}
+  .admin-body{max-width:960px;margin:0;padding:24px 28px 80px;}
+  .admin-mobile-tabs{display:none !important;}
+}
+
+/* AIモデルセクション */
+.ai-model-card{
+  background:var(--white);border-radius:12px;border:1px solid var(--border);
+  padding:16px 18px;margin-bottom:14px;
+}
+.ai-model-feature{font-size:1rem;font-weight:700;margin-bottom:2px;}
+.ai-model-loc{font-size:0.78rem;color:var(--muted);margin-bottom:12px;}
+.ai-model-row{display:flex;justify-content:space-between;font-size:0.85rem;padding:5px 0;border-top:1px solid var(--border);}
+.ai-model-row:first-of-type{border-top:none;}
+.ai-model-row span:first-child{color:var(--muted);}
+.ai-model-row span:last-child{font-weight:600;}
+.ai-model-note{font-size:0.72rem;color:var(--muted);margin-top:10px;line-height:1.5;}
+
 /* サマリーカード */
 .summary-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:24px;}
 .summary-card{
@@ -150,41 +197,90 @@ a{text-decoration:none;color:inherit;}
     </div>
   </header>
 
-  <div class="admin-body">
-    <!-- サマリー -->
-    <div class="summary-grid">
-      <div class="summary-card">
-        <div class="summary-num" id="sumTotal">-</div>
-        <div class="summary-label">総ユーザー</div>
-      </div>
-      <div class="summary-card">
-        <div class="summary-num" id="sumPremium">-</div>
-        <div class="summary-label">Premiumプラン</div>
-      </div>
-      <div class="summary-card">
-        <div class="summary-num" id="sumAiMonth">-</div>
-        <div class="summary-label">今月AI利用回数</div>
-      </div>
+  <!-- サイドバー（iPad/PC） -->
+  <nav class="admin-sidebar">
+    <button class="admin-nav-item active" data-section="users" onclick="showSection('users')">👥 ユーザー管理</button>
+    <button class="admin-nav-item" data-section="aimodel" onclick="showSection('aimodel')">🤖 AIモデル</button>
+  </nav>
+
+  <main class="admin-main">
+    <!-- タブ（モバイル） -->
+    <div class="admin-mobile-tabs">
+      <button class="active" data-section="users" onclick="showSection('users')">👥 ユーザー管理</button>
+      <button data-section="aimodel" onclick="showSection('aimodel')">🤖 AIモデル</button>
     </div>
 
-    <!-- フィルター -->
-    <div class="filter-row">
-      <input type="search" class="filter-input" id="searchInput" placeholder="メールで検索..."
-             oninput="applyFilter()">
-      <select class="filter-select" id="planFilter" onchange="applyFilter()">
-        <option value="">すべてのプラン</option>
-        <option value="premium">Premium</option>
-        <option value="free">Free</option>
-        <option value="none">未設定</option>
-      </select>
+    <!-- ユーザー管理セクション -->
+    <div class="admin-body" id="section-users">
+      <!-- サマリー -->
+      <div class="summary-grid">
+        <div class="summary-card">
+          <div class="summary-num" id="sumTotal">-</div>
+          <div class="summary-label">総ユーザー</div>
+        </div>
+        <div class="summary-card">
+          <div class="summary-num" id="sumPremium">-</div>
+          <div class="summary-label">Premiumプラン</div>
+        </div>
+        <div class="summary-card">
+          <div class="summary-num" id="sumAiMonth">-</div>
+          <div class="summary-label">今月AI利用回数</div>
+        </div>
+      </div>
+
+      <!-- フィルター -->
+      <div class="filter-row">
+        <input type="search" class="filter-input" id="searchInput" placeholder="メールで検索..."
+               oninput="applyFilter()">
+        <select class="filter-select" id="planFilter" onchange="applyFilter()">
+          <option value="">すべてのプラン</option>
+          <option value="premium">Premium</option>
+          <option value="free">Free</option>
+          <option value="none">未設定</option>
+        </select>
+      </div>
+
+      <!-- ユーザー一覧 -->
+      <div id="userList"><div class="loading">読み込み中...</div></div>
+
+      <!-- ページネーション -->
+      <div class="pagination" id="pagination"></div>
     </div>
 
-    <!-- ユーザー一覧 -->
-    <div id="userList"><div class="loading">読み込み中...</div></div>
+    <!-- AIモデルセクション -->
+    <div class="admin-body hidden" id="section-aimodel">
+      <div class="ai-model-card">
+        <div class="ai-model-feature">💬 AI相談</div>
+        <div class="ai-model-loc">AI提案チャット（suggest.html → tavera-suggest）</div>
+        <div class="ai-model-row"><span>モデル</span><span>Claude Haiku 4.5</span></div>
+        <div class="ai-model-row"><span>入力単価</span><span>$1.00 / 100万トークン</span></div>
+        <div class="ai-model-row"><span>出力単価</span><span>$5.00 / 100万トークン</span></div>
+        <div class="ai-model-note">Anthropic API・model: claude-haiku-4-5-20251001</div>
+      </div>
 
-    <!-- ページネーション -->
-    <div class="pagination" id="pagination"></div>
-  </div>
+      <div class="ai-model-card">
+        <div class="ai-model-feature">📋 献立取り込み</div>
+        <div class="ai-model-loc">給食インポート（kyushoku.html → tavera-kyushoku）</div>
+        <div class="ai-model-row"><span>モデル</span><span>Gemini 2.5 Flash</span></div>
+        <div class="ai-model-row"><span>入力単価</span><span>$0.30 / 100万トークン</span></div>
+        <div class="ai-model-row"><span>出力単価</span><span>$2.50 / 100万トークン</span></div>
+        <div class="ai-model-note">Google Gemini API・model: gemini-2.5-flash<br>TAVERA_GEMINI_API_KEYはFlowra（flowra-497313プロジェクト）の請求枠を共有</div>
+      </div>
+
+      <div class="ai-model-card">
+        <div class="ai-model-feature">📷 食材を写真で取り込み</div>
+        <div class="ai-model-loc">冷蔵庫食材スキャン（home.html → tavera-fridge-scan）</div>
+        <div class="ai-model-row"><span>モデル</span><span>Gemini 2.5 Flash</span></div>
+        <div class="ai-model-row"><span>入力単価</span><span>$0.30 / 100万トークン</span></div>
+        <div class="ai-model-row"><span>出力単価</span><span>$2.50 / 100万トークン</span></div>
+        <div class="ai-model-note">Google Gemini API・model: gemini-2.5-flash<br>TAVERA_GEMINI_API_KEYはFlowra（flowra-497313プロジェクト）の請求枠を共有</div>
+      </div>
+
+      <div style="font-size:0.72rem;color:var(--muted);margin-top:4px;">
+        ※単価は2026年6月時点。Google/Anthropicの公式価格改定により変動する可能性があります。
+      </div>
+    </div>
+  </main>
 </div>
 
 <div class="toast" id="toast"></div>
@@ -356,6 +452,14 @@ a{text-decoration:none;color:inherit;}
     t.textContent = msg;
     t.classList.add('show');
     setTimeout(() => t.classList.remove('show'), 2500);
+  }
+
+  function showSection(name) {
+    document.getElementById('section-users').classList.toggle('hidden', name !== 'users');
+    document.getElementById('section-aimodel').classList.toggle('hidden', name !== 'aimodel');
+    document.querySelectorAll('.admin-nav-item, .admin-mobile-tabs button').forEach(function(btn) {
+      btn.classList.toggle('active', btn.dataset.section === name);
+    });
   }
 
   // 認証チェック実行
