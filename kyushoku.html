@@ -189,6 +189,18 @@
       background: var(--border); padding: 1px 7px; border-radius: 99px;
       margin-left: 6px;
     }
+    .ky-allergy-note {
+      font-size: 0.78rem; color: var(--terra); line-height: 1.6;
+      background: #FEF3EC; border: 1.5px solid var(--terra);
+      border-radius: var(--radius-sm); padding: 10px 12px;
+      margin-bottom: 10px;
+    }
+    .ky-allergy-alert {
+      font-size: 0.78rem; color: var(--terra); line-height: 1.6;
+      background: #FEF3EC; border: 1.5px solid var(--terra);
+      border-radius: var(--radius-sm); padding: 8px 10px;
+      margin-top: 6px;
+    }
 
     /* インポートボタン（固定） */
     .ky-import-bar {
@@ -288,6 +300,9 @@
             <span class="ky-results-title" id="resultsTitle"></span>
             <button class="ky-select-all" onclick="toggleSelectAll()">すべて選択/解除</button>
           </div>
+          <div class="ky-allergy-note hidden" id="allergyNote">
+            ⚠️ アレルギーの可能性がある日は、見落として一括登録しないよう自動でチェックを外しています。内容を確認のうえ、問題なければチェックを入れて登録してください。
+          </div>
           <div id="dayCards"></div>
         </div>
 
@@ -335,9 +350,10 @@
     const MONTH_NAMES = ['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月'];
 
     let householdId = null;
+    let familyMembers = [];  // アレルギー照合用
     let fileData = null;   // { base64, mediaType } or null if URL mode
     let pendingUrl = null; // URLモード時にセット
-    let parsedMenu = [];   // [{ date, dishes, checked, alreadyExists }]
+    let parsedMenu = [];   // [{ date, dishes, checked, alreadyExists, allergyHits }]
 
     // =====================
     //  初期化
@@ -346,7 +362,16 @@
       const user = await requireAuth();
       if (!user) return;
       householdId = await getOrCreateHousehold(user.id);
+      try { familyMembers = await getFamilyMembers(householdId); } catch(e) { familyMembers = []; }
       setupMonthSelectors();
+    }
+
+    // 家族メンバー全員の登録アレルゲンを重複無しでまとめた配列
+    // （Edge Functionに渡し、Geminiに判定させるための対象アレルゲン一覧）
+    function getHouseholdAllergyList() {
+      const set = new Set();
+      (familyMembers || []).forEach(m => (m.allergies || []).forEach(a => { if (a) set.add(a); }));
+      return Array.from(set);
     }
 
     function setupMonthSelectors() {
@@ -483,10 +508,11 @@
 
       try {
         const session = await getSession();
+        const allergyList = getHouseholdAllergyList();
         // URLモード: base64をフロントに経由させずEdge Functionが直接fetch
         const bodyPayload = pendingUrl
-          ? { url: pendingUrl, year, month }
-          : { image: fileData.base64, mediaType: fileData.mediaType, year, month };
+          ? { url: pendingUrl, year, month, allergies: allergyList }
+          : { image: fileData.base64, mediaType: fileData.mediaType, year, month, allergies: allergyList };
         const res = await fetch(SUPABASE_URL + '/functions/v1/tavera-kyushoku', {
           method: 'POST',
           headers: {
@@ -513,13 +539,22 @@
           .gte('date', from).lte('date', to);
         const existingDates = new Set((existing || []).map(l => l.date));
 
-        parsedMenu = data.menu.map(item => ({
-          date: item.date,
-          dishes: item.dishes || [],
-          ingredients: item.ingredients || [],
-          checked: !existingDates.has(item.date),
-          alreadyExists: existingDates.has(item.date),
-        }));
+        parsedMenu = data.menu.map(item => {
+          // アレルギーチェック：①Geminiが料理名から推測したallergenHits
+          //                   ②食材・料理名そのものの文字列一致（保険のダブルチェック）
+          const geminiHits = mapAllergensToMembers(item.allergenHits || [], familyMembers);
+          const localHits = checkAllergies([...(item.dishes || []), ...(item.ingredients || [])], familyMembers);
+          const allergyHits = dedupeAllergyHits([...geminiHits, ...localHits]);
+          return {
+            date: item.date,
+            dishes: item.dishes || [],
+            ingredients: item.ingredients || [],
+            allergyHits,
+            // アレルギーの可能性がある日は、見落として一括登録しないよう既定でチェックを外す
+            checked: !existingDates.has(item.date) && allergyHits.length === 0,
+            alreadyExists: existingDates.has(item.date),
+          };
+        });
 
         renderResults(year, month);
       } catch (e) {
@@ -540,11 +575,27 @@
       document.getElementById('resultsTitle').textContent =
         year + '年' + month + '月の給食（' + parsedMenu.length + '日分）';
 
+      const hasAnyAllergyHit = parsedMenu.some(m => m.allergyHits && m.allergyHits.length > 0);
+      const noteEl = document.getElementById('allergyNote');
+      if (noteEl) {
+        noteEl.classList.toggle('hidden', !hasAnyAllergyHit);
+      }
+
       cards.innerHTML = parsedMenu.map((item, i) => {
         const d  = new Date(item.date + 'T00:00:00');
         const dateLabel = (d.getMonth()+1) + '月' + d.getDate() + '日（' + WD[d.getDay()] + '）';
         const dishText  = item.dishes.join('・');
         const badge     = item.alreadyExists ? '<span class="ky-already">登録済み</span>' : '';
+        let allergyHtml = '';
+        if (item.allergyHits && item.allergyHits.length > 0) {
+          const byMember = {};
+          item.allergyHits.forEach(h => {
+            (byMember[h.memberName] = byMember[h.memberName] || []).push(h.allergen);
+          });
+          const lines = Object.entries(byMember)
+            .map(([name, allergens]) => '⚠️ ' + name + '：' + allergens.join('・') + ' が含まれる可能性があります');
+          allergyHtml = '<div class="ky-allergy-alert">' + lines.join('<br>') + '</div>';
+        }
         return `<div class="ky-day-card ${item.checked ? 'checked' : ''}" id="card-${i}">
           <input type="checkbox" ${item.checked ? 'checked' : ''} onchange="toggleCheck(${i}, this.checked)">
           <div class="ky-day-info">
@@ -554,6 +605,7 @@
               <button class="ky-edit-btn" onclick="startEditDish(${i})" title="編集">✏️</button>
             </div>
             ${item.ingredients && item.ingredients.length ? `<div class="ky-day-memo">【材料】${item.ingredients.join('・')}</div>` : ''}
+            ${allergyHtml}
           </div>
         </div>`;
       }).join('');

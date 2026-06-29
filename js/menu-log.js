@@ -324,6 +324,39 @@ function checkAllergies(ingredients, familyMembers) {
   return hits;
 }
 
+// AI（Gemini/Claude）が判定したアレルゲン名の配列を、家族メンバーに割り当てる
+// 戻り値: [{ memberName, allergen }, ...]（checkAllergies()と同じ形式）
+// 給食取込のように「AIが食材から推測したアレルゲン名」（食材リストそのものではない）を
+// 家族の登録アレルギーと突き合わせる場合に使う
+function mapAllergensToMembers(allergenNames, familyMembers) {
+  const hits = [];
+  (familyMembers || []).forEach(m => {
+    (m.allergies || []).forEach(allergen => {
+      const matched = (allergenNames || []).some(a =>
+        a.includes(allergen) || allergen.includes(a)
+      );
+      if (matched) {
+        hits.push({ memberName: m.nickname, allergen });
+      }
+    });
+  });
+  return hits;
+}
+
+// アレルギーヒット配列の重複を除去（memberName+allergenの組み合わせで判定）
+function dedupeAllergyHits(hits) {
+  const seen = new Set();
+  const result = [];
+  (hits || []).forEach(h => {
+    const key = h.memberName + '::' + h.allergen;
+    if (!seen.has(key)) {
+      seen.add(key);
+      result.push(h);
+    }
+  });
+  return result;
+}
+
 // 給食インポート由来の記録に付けるバッジHTML（source='kyushoku'の時のみ表示）
 function srcBadge(log) {
   if (!log || log.source !== 'kyushoku') return '';

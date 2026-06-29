@@ -132,6 +132,11 @@ Deno.serve(async (req) => {
     const { year, month: bodyMonth } = body;
     let image: string = body.image;
     let mediaType: string = body.mediaType;
+    // 世帯の家族メンバーが登録しているアレルゲン一覧（フロントから送信）。
+    // 未設定・空の場合は何も変わらず、従来通りの動作になる。
+    const allergyList: string[] = Array.isArray(body.allergies)
+      ? body.allergies.filter((a: any) => typeof a === "string" && a.trim()).map((a: string) => a.trim())
+      : [];
 
     if (!image && body.url) {
       console.log("[kyushoku] URL mode:", body.url);
@@ -148,6 +153,13 @@ Deno.serve(async (req) => {
     }
 
     const mm = String(bodyMonth).padStart(2, "0");
+    // アレルゲンが登録されている場合のみ、判定の指示とレスポンス項目(allergenHits)を追加する。
+    // 食材表記に直接無くても、料理名から一般的に含まれると判断できる場合
+    // （例:「うどん」→小麦、「プリン」→卵・乳）も拾えるよう、Geminiの一般知識を使う。
+    const allergyInstruction = allergyList.length > 0
+      ? `\n- allergenHitsは、その日の料理に含まれる可能性がある対象アレルゲン名の配列。対象アレルゲン一覧: ${allergyList.join("、")}。食材一覧に明記されていなくても、料理名から一般的に含まれると判断できる場合は含めること（例:「うどん」→小麦、「プリン」→卵・乳）。可能性が無ければ空配列にすること。`
+      : "";
+
     const prompt = `この画像は${year}年${bodyMonth}月の給食献立表です。各日付のメニューと材料を抽出してください。
 
 ルール:
@@ -155,7 +167,18 @@ Deno.serve(async (req) => {
 - dishesは料理名の配列（主食・主菜・副菜・汁物など）
 - ingredientsは使用食材・アレルゲン等の補足情報の配列（記載がなければ空配列）
 - 土日・祝日・給食なしの日は含めない
-- 料理名・食材名は簡潔に`;
+- 料理名・食材名は簡潔に${allergyInstruction}`;
+
+    const dayItemProperties: Record<string, unknown> = {
+      date: { type: "STRING" },
+      dishes: { type: "ARRAY", items: { type: "STRING" } },
+      ingredients: { type: "ARRAY", items: { type: "STRING" } },
+    };
+    const requiredFields = ["date", "dishes", "ingredients"];
+    if (allergyList.length > 0) {
+      dayItemProperties.allergenHits = { type: "ARRAY", items: { type: "STRING" } };
+      requiredFields.push("allergenHits");
+    }
 
     const { res: geminiRes, data: geminiData } = await callGeminiWithRetry({
       contents: [{ parts: [{ text: prompt }, { inline_data: { mime_type: mediaType, data: image } }] }],
@@ -168,12 +191,8 @@ Deno.serve(async (req) => {
           type: "ARRAY",
           items: {
             type: "OBJECT",
-            properties: {
-              date: { type: "STRING" },
-              dishes: { type: "ARRAY", items: { type: "STRING" } },
-              ingredients: { type: "ARRAY", items: { type: "STRING" } },
-            },
-            required: ["date", "dishes", "ingredients"],
+            properties: dayItemProperties,
+            required: requiredFields,
           },
         },
       },
