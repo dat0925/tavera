@@ -1,6 +1,6 @@
 # Tavera 設計書・引き継ぎ書
 
-**バージョン**: 1.20.0
+**バージョン**: 1.21.0
 **最終更新**: 2026-06-29
 **ステータス**: 一般公開済み・本番Stripe決済稼働中・解約フロー実装済み
 
@@ -74,7 +74,8 @@
 | `ANTHROPIC_API_KEY` | Taskraと共有 |
 | `TAVERA_GEMINI_API_KEY` | Tavera専用Gemini APIキー（2026-06-29以降、`flowra-497313`プロジェクト配下のキーに変更。Flowraの前払いデポジット＝Tier1の枠を共有してレート制限を回避） |
 | `TAVERA_STRIPE_SECRET_KEY` | Stripe本番Secret Key |
-| `TAVERA_STRIPE_PRICE_ID` | `price_1TmtslBNAV5e5rhcf4Wxvphw`（本番） |
+| `TAVERA_STRIPE_PRICE_ID` | `price_1TmtslBNAV5e5rhcf4Wxvphw`（本番・月払い） |
+| `TAVERA_STRIPE_YEARLY_PRICE_ID` | `price_1TngeRBNAV5e5rhc8CHzqEUT`（本番・年払い・¥3,800/年）**要Supabase Secret登録** |
 | `TAVERA_STRIPE_WEBHOOK_SECRET` | `whsec_8x4LMUX008s0rlDd99oidTQBjn6EzDCZ`（本番） |
 | `SUPABASE_SERVICE_ROLE_KEY` | 既存 |
 
@@ -280,7 +281,8 @@ UNIQUE制約: `(household_id, date, meal_type)` ※v1.9.6で追加。これが�
 | プラン | 月額 | AI提案 |
 |---|---|---|
 | Free | 無料 | 月10回・1日3回まで |
-| Premium | ¥480 | 月500回・1日50回 |
+| Premium（月払い） | ¥480/月 | 月300回・1日30回 |
+| Premium（年払い） | ¥3,800/年（月あたり約¥317・34%OFF） | 同上 |
 
 ### 本番稼働状況
 - Stripe本番キー登録済み・Webhook署名検証済み
@@ -531,6 +533,44 @@ home.htmlがJS構文エラーで画面破損。`</script>`内にHTMLが混入。
 - **`checkYesterdayHint(dateStr, mealType)`**：前日日付を計算→`getLogsByDate()`で取得→`mealType`一致を探す
 - **`applyYesterday()`**：`yesterdayLog`の内容をフォームに反映→ヒント非表示
 - **教訓（設計判断）**：「昨日と同じ」ではなく「前日と同じ」という命名にしたのは、日付を変えて過去の日付に記録する場合も自然に「選んだ日の前日」を参照するため。固定で「昨日（今日-1日）」を参照すると日付を変えた際に意図と食い違う。
+
+### 年払いプラン追加（v1.21.0）
+
+#### Stripe
+- 年払いPrice作成済み（Stripe MCP経由）：`price_1TngeRBNAV5e5rhc8CHzqEUT`（¥3,800/年・本番・livemode）
+- 商品は月払いと同じ `prod_UcbnVkrtra20TH`
+
+#### **⚠️ 必須作業：Supabase Secretに追加**
+Supabaseダッシュボード → Edge Functions → Secrets で以下を追加：
+```
+TAVERA_STRIPE_YEARLY_PRICE_ID = price_1TngeRBNAV5e5rhc8CHzqEUT
+```
+これを追加してから `tavera-checkout` をデプロイすること。追加前にデプロイしても年払いは動作しない。
+
+#### tavera-checkout（更新）
+- `billingCycle`パラメータ（`"monthly"` | `"yearly"`）を受け取り、対応するPrice IDを選択
+- `monthly`（デフォルト）→ `TAVERA_STRIPE_PRICE_ID`
+- `yearly` → `TAVERA_STRIPE_YEARLY_PRICE_ID`
+- フォールバックなし（Secretが未設定だとエラーになるため、デプロイ前にSecret追加必須）
+
+#### settings.html（更新）
+- フリープランカードに月払い/年払いトグルUIを追加（`.billing-toggle`）
+- 月払い：¥480/月　年払い：¥3,800/年（34%OFF・月あたり約¥317・¥1,960お得表示）
+- `selectedBilling`変数でサイクルを管理、`startCheckout()`に`billingCycle`を渡す
+- `selectBilling(cycle)` 関数で料金表示を動的に切替
+
+#### index.html LP（更新）
+- `#pricing`セクションのタイトル下に月払い/年払いトグルを追加
+- 年払い選択時：価格を¥3,800/年に変更・「年払いで¥1,960お得」表示
+- `lpSelectBilling(cycle)` 関数（インラインJS）
+
+#### Webhookへの影響
+- `tavera-webhook`は変更不要。年払いも月払いも `customer.subscription.created/updated` イベントで同じ処理（`plan_expires_at`に次回更新日が入る。年払いなら1年後の日付）
+
+#### 価格根拠
+- 月払い ¥480 × 12 = ¥5,760
+- 年払い ¥3,800 = 34%引き（LTVは下がるがチャーン防止効果で補う想定）
+- 原価 ¥169/月 × 12 = ¥2,028/年 → 年払い粗利 ¥1,772（利益率46.6%）
 
 ## 既知の注意事項（v1.9.6時点）
 
