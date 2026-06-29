@@ -130,6 +130,18 @@
     .record-warning.visible { display:block; }
     .modal-actions { display:flex;gap:10px;margin-top:20px; }
     .modal-actions .btn { flex:1;padding:14px;font-size:0.88rem; }
+
+    /* ---- 新しい相談ボタン ----
+       .app-header .header-right / .kyushoku-btn はiPad/PCレイアウトで
+       display:none!important になる既存ルールがあるため、それに巻き込まれないよう
+       .chat-page内に独立したツールバーとして置く */
+    .chat-toolbar { display:flex; justify-content:flex-end; padding:8px 16px 0; }
+    .chat-toolbar-link {
+      font-size:0.75rem; color:var(--muted); white-space:nowrap;
+      padding:4px 10px; border:1px solid var(--border); border-radius:99px;
+      text-decoration:none; transition:all var(--transition);
+    }
+    .chat-toolbar-link:hover { border-color:var(--terra); color:var(--terra); }
   </style>
 </head>
 <body>
@@ -149,6 +161,9 @@
     </div>
 
     <div class="chat-page">
+      <div class="chat-toolbar">
+        <a href="#" class="chat-toolbar-link" id="newChatBtn" onclick="startNewConversation();return false;">🆕 新しい相談を始める</a>
+      </div>
       <div class="chat-messages" id="chatMessages">
         <div class="chat-bubble ai">
           <div class="loading-dots" style="padding:8px 0"><span></span><span></span><span></span></div>
@@ -196,8 +211,12 @@
     var isLoading = false;
     var pendingRecord = null;  // { dish, ingredients, description } AI提案から記録待ちの内容
     var recordLogsCache = {};  // dateStr -> その日のmenu_logs（記録モーダルの「登録済み」表示用）
+    var CHAT_STORAGE_PREFIX = 'tavera_suggest_chat_';
+    var chatStorageKey = null;  // ユーザーごとに会話を分けるため、init()でuser.idから組み立てる
+    var lastUsageState = null;  // { used, remaining, limit, plan } 復元時の利用回数バー表示用
 
     function updateUsageBar(used, remaining, limit, plan) {
+      lastUsageState = { used: used, remaining: remaining, limit: limit, plan: plan };
       var bar = document.getElementById('usageBar');
       var cnt = document.getElementById('usageCount');
       var limitEl = document.getElementById('usageLimit');
@@ -213,6 +232,39 @@
       } else {
         cnt.style.color = 'var(--brown)';
       }
+    }
+
+    // 会話の保存・復元（画面を切り替えて戻ってきても提案が消えないようにする）
+    // localStorageに保存するため、アプリを完全に閉じても次回起動時まで残る。
+    // ユーザーごとにキーを分けているので、同じ端末で別アカウントに切り替えても
+    // 他人の相談内容が混ざらない。
+    function loadChatState() {
+      if (!chatStorageKey) return null;
+      try {
+        var raw = localStorage.getItem(chatStorageKey);
+        return raw ? JSON.parse(raw) : null;
+      } catch(e) { return null; }
+    }
+
+    function saveChatState() {
+      if (!chatStorageKey) return;
+      try {
+        localStorage.setItem(chatStorageKey, JSON.stringify({
+          messages: chatMessages,
+          usage: lastUsageState,
+        }));
+      } catch(e) { /* 容量超過・プライベートモード等は無視して継続 */ }
+    }
+
+    function startNewConversation() {
+      if (chatMessages.length > 0 && !confirm('今の相談内容を消して、新しく始めますか？')) return;
+      chatMessages = [];
+      lastUsageState = null;
+      if (chatStorageKey) {
+        try { localStorage.removeItem(chatStorageKey); } catch(e) {}
+      }
+      document.getElementById('usageBar').style.display = 'none';
+      renderWelcome();
     }
 
     function showPaywall(limit, plan) {
@@ -235,6 +287,7 @@
         var user = await requireAuth();
         if (!user) return;
         householdId = await getOrCreateHousehold(user.id);
+        chatStorageKey = CHAT_STORAGE_PREFIX + user.id;
         try { familyMembers = await getFamilyMembers(householdId); } catch(e) { familyMembers = []; }
         try { recentDishes = await getLogsForWeek(householdId); } catch(e) { recentDishes = []; }
         try { likedDishesCache = await getLikedDishes(householdId, 5); } catch(e) { likedDishesCache = []; }
@@ -243,7 +296,28 @@
             fridgeItemsCache = await getFridgeItems(householdId);
           }
         } catch(e) { fridgeItemsCache = []; }
-        renderWelcome();
+
+        // 保存済みの会話があれば復元し、無ければウェルカム表示
+        var saved = loadChatState();
+        if (saved && saved.messages && saved.messages.length > 0) {
+          chatMessages = saved.messages;
+          var container = document.getElementById('chatMessages');
+          container.innerHTML = '';
+          chatMessages.forEach(function(m) {
+            if (m.role === 'user') {
+              addBubble(m.content, 'user');
+            } else {
+              renderAssistantReply(m.content, false);
+            }
+          });
+          if (saved.usage) {
+            updateUsageBar(saved.usage.used, saved.usage.remaining, saved.usage.limit, saved.usage.plan);
+          }
+          container.scrollTop = 999999;
+        } else {
+          chatMessages = [];
+          renderWelcome();
+        }
       } catch(e) {
         console.error('init error:', e);
         renderWelcome();
@@ -386,6 +460,7 @@
       input.value = ''; input.style.height = 'auto';
       addBubble(text, 'user');
       chatMessages.push({ role: 'user', content: text });
+      saveChatState();
       isLoading = true;
       document.getElementById('sendBtn').disabled = true;
       var lb = addLoadingBubble();
@@ -424,66 +499,8 @@
 
         var reply = data.reply || '提案の取得に失敗しました。';
         lb.remove();
-        chatMessages.push({ role: 'assistant', content: reply });
-        var rb = document.createElement('div');
-        rb.className = 'chat-bubble ai';
-        rb.style.whiteSpace = 'pre-wrap';
-        rb.style.fontSize = '0.88rem';
-        rb.style.lineHeight = '1.7';
-        rb.textContent = reply;
-        var lines = reply.split('\n').filter(function(l) { return l.trim(); });
-        var dishes = [];
-        lines.forEach(function(line) {
-          var m = line.match(/^[①②③\d]+[.\s]?\s*([^\n（(]{2,20})/);
-          if (m) dishes.push(m[1].trim().replace(/\*+/g, ''));
-        });
-        // parseDishBlocksで料理名と食材を抽出
-        var parsedDishes = parseDishBlocks(reply);
-        var bw = document.createElement('div');
-        bw.style.cssText = 'margin-top:12px;display:flex;flex-direction:column;gap:6px;';
-        if (parsedDishes.length === 0) {
-          var btn = document.createElement('button');
-          btn.textContent = '📝 この献立を記録する';
-          btn.style.cssText = 'display:block;padding:8px 16px;border-radius:99px;background:var(--terra);color:#fff;border:none;cursor:pointer;font-size:0.8rem;font-family:inherit;';
-          btn.onclick = function() { openRecordModal('', [], ''); };
-          bw.appendChild(btn);
-        } else {
-          parsedDishes.slice(0, 3).forEach(function(item) {
-            var btn = document.createElement('button');
-            btn.textContent = '📝 ' + item.name + ' を記録する';
-            btn.style.cssText = 'display:block;padding:8px 16px;border-radius:99px;background:var(--terra);color:#fff;border:none;cursor:pointer;font-size:0.8rem;font-family:inherit;text-align:left;';
-            btn.onclick = (function(dish, ings, desc) {
-              return function() { openRecordModal(dish, ings, desc); };
-            })(item.name, item.ingredients, item.description);
-            bw.appendChild(btn);
-            // 食材プレビュー
-            if (item.ingredients && item.ingredients.length > 0) {
-              var preview = document.createElement('div');
-              preview.style.cssText = 'font-size:0.72rem;color:var(--muted);padding:0 16px 4px;';
-              preview.textContent = '🥕 ' + item.ingredients.slice(0, 5).join('・');
-              bw.appendChild(preview);
-            }
-            // アレルギー警告
-            if (item.ingredients && item.ingredients.length > 0 && familyMembers.length > 0) {
-              var hits = checkAllergies(item.ingredients, familyMembers);
-              if (hits.length > 0) {
-                var byMember = {};
-                hits.forEach(function(h) {
-                  (byMember[h.memberName] = byMember[h.memberName] || []).push(h.allergen);
-                });
-                var alertEl = document.createElement('div');
-                alertEl.style.cssText = 'font-size:0.75rem;color:var(--terra);padding:2px 16px 8px;line-height:1.6;';
-                alertEl.innerHTML = Object.entries(byMember)
-                  .map(function(e) { return '⚠️ ' + e[0] + '：' + e[1].join('・') + ' が含まれています'; })
-                  .join('<br>');
-                bw.appendChild(alertEl);
-              }
-            }
-          });
-        }
-        rb.appendChild(bw);
-        document.getElementById('chatMessages').appendChild(rb);
-        document.getElementById('chatMessages').scrollTop = 999999;
+        renderAssistantReply(reply);
+        saveChatState();
       } catch(e) {
         lb.remove();
         addBubble('エラーが発生しました。もう一度お試しください。', 'ai');
@@ -491,6 +508,68 @@
       }
       isLoading = false;
       document.getElementById('sendBtn').disabled = false;
+    }
+
+    // AIの返信1件を画面に描画する（料理名の抽出・記録ボタン・食材プレビュー・
+    // アレルギー警告まで含む）。pushToHistoryがfalseの場合はchatMessagesへの
+    // 追加をスキップする（保存済み会話を復元表示する時に二重登録を防ぐため）
+    function renderAssistantReply(reply, pushToHistory) {
+      if (pushToHistory !== false) {
+        chatMessages.push({ role: 'assistant', content: reply });
+      }
+      var rb = document.createElement('div');
+      rb.className = 'chat-bubble ai';
+      rb.style.whiteSpace = 'pre-wrap';
+      rb.style.fontSize = '0.88rem';
+      rb.style.lineHeight = '1.7';
+      rb.textContent = reply;
+      // parseDishBlocksで料理名と食材を抽出
+      var parsedDishes = parseDishBlocks(reply);
+      var bw = document.createElement('div');
+      bw.style.cssText = 'margin-top:12px;display:flex;flex-direction:column;gap:6px;';
+      if (parsedDishes.length === 0) {
+        var btn = document.createElement('button');
+        btn.textContent = '📝 この献立を記録する';
+        btn.style.cssText = 'display:block;padding:8px 16px;border-radius:99px;background:var(--terra);color:#fff;border:none;cursor:pointer;font-size:0.8rem;font-family:inherit;';
+        btn.onclick = function() { openRecordModal('', [], ''); };
+        bw.appendChild(btn);
+      } else {
+        parsedDishes.slice(0, 3).forEach(function(item) {
+          var btn = document.createElement('button');
+          btn.textContent = '📝 ' + item.name + ' を記録する';
+          btn.style.cssText = 'display:block;padding:8px 16px;border-radius:99px;background:var(--terra);color:#fff;border:none;cursor:pointer;font-size:0.8rem;font-family:inherit;text-align:left;';
+          btn.onclick = (function(dish, ings, desc) {
+            return function() { openRecordModal(dish, ings, desc); };
+          })(item.name, item.ingredients, item.description);
+          bw.appendChild(btn);
+          // 食材プレビュー
+          if (item.ingredients && item.ingredients.length > 0) {
+            var preview = document.createElement('div');
+            preview.style.cssText = 'font-size:0.72rem;color:var(--muted);padding:0 16px 4px;';
+            preview.textContent = '🥕 ' + item.ingredients.slice(0, 5).join('・');
+            bw.appendChild(preview);
+          }
+          // アレルギー警告
+          if (item.ingredients && item.ingredients.length > 0 && familyMembers.length > 0) {
+            var hits = checkAllergies(item.ingredients, familyMembers);
+            if (hits.length > 0) {
+              var byMember = {};
+              hits.forEach(function(h) {
+                (byMember[h.memberName] = byMember[h.memberName] || []).push(h.allergen);
+              });
+              var alertEl = document.createElement('div');
+              alertEl.style.cssText = 'font-size:0.75rem;color:var(--terra);padding:2px 16px 8px;line-height:1.6;';
+              alertEl.innerHTML = Object.entries(byMember)
+                .map(function(e) { return '⚠️ ' + e[0] + '：' + e[1].join('・') + ' が含まれています'; })
+                .join('<br>');
+              bw.appendChild(alertEl);
+            }
+          }
+        });
+      }
+      rb.appendChild(bw);
+      document.getElementById('chatMessages').appendChild(rb);
+      document.getElementById('chatMessages').scrollTop = 999999;
     }
 
     // ---- 記録モーダル（日付・食事区分の選択） ----
