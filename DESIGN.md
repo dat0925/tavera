@@ -1,7 +1,7 @@
 # Tavera 設計書・引き継ぎ書
 
-**バージョン**: 1.16.0
-**最終更新**: 2026-06-28
+**バージョン**: 1.16.1
+**最終更新**: 2026-06-29
 **ステータス**: 一般公開済み・本番Stripe決済稼働中・解約フロー実装済み
 
 ---
@@ -693,4 +693,16 @@ home.htmlがJS構文エラーで画面破損。`</script>`内にHTMLが混入。
 - 「🧪 テスターにする」ボタン：3機能の上限を99999に一括設定
 - 「↺ 今月の利用をリセット」ボタン：当月の利用回数（3機能とも）を0に戻す
 - 機能別の数値入力＋「保存」ボタンで個別の上限を設定可能。「解除」ボタンで標準値に戻す
+
+### AI提案をスクロールしようとするとPull-to-Refreshが誤発動し内容が消える問題（v1.16.1）
+
+- **症状**：`suggest.html`でAI提案の結果を読もうとチャット欄を下にスワイプ（指を下方向にドラッグして上の内容を見る動き）すると、Pull-to-Refreshが反応してしまい、`init()`が呼ばれてチャット内容が welcome 画面にリセットされ、提案結果が消えてしまう。
+- **原因**：`js/auth.js`の`initPullToRefresh()`は「ページ最上部にいるか」を`window.scrollY === 0`だけで判定していた。しかし`suggest.html`の`.chat-messages`は`flex:1; overflow-y:auto;`で**ページ自体（window/body）ではなく内部のdivだけがスクロールする**レイアウトのため、チャット欄をどれだけスクロールしても`window.scrollY`は常に0のままになる。そのため、チャット欄内を下方向にドラッグするとPTRの`touchstart`が常に`pulling=true`になり、72px以上ドラッグすると`onRefresh()`（`init()`）が発火していた。
+  - `home.html`・`history.html`・`settings.html`は内部に`overflow-y:auto`なコンテナを持たず、ページ自体（window）がスクロールする構成のため、この問題は発生していなかった（影響範囲は`suggest.html`のみ）。
+- **解決策**：`initPullToRefresh()`を以下のように修正。
+  1. `touchstart`時、タッチした要素の祖先をたどり、実際にスクロール可能な内部コンテナ（`overflow-y:auto`/`scroll`かつ`scrollHeight > clientHeight`）を探す（`findScrollableAncestor()`）
+  2. `window.scrollY === 0`に加えて、**その内部コンテナが見つからない、または見つかった場合はその`scrollTop`も0**であることを確認してから`pulling = true`にする
+  3. `touchmove`中に内部コンテナの`scrollTop`が0より大きくなった（＝そのコンテナ内をスクロールし始めた）場合はpullingを中断する
+  4. `home.html`等のように内部スクロールコンテナを持たないページでは`findScrollableAncestor()`が`null`を返すため、従来通りの挙動のまま変化なし
+- **教訓**：Pull-to-Refreshのような「ページ最上部での操作」を検出する処理を複数画面で共通化する場合、各画面のレイアウトが本当に**window/bodyをスクロールしているか**を確認すること。flexレイアウト＋内部`overflow-y:auto`でコンテンツ領域だけをスクロールさせる構成（チャットUIなどでよく使う）の画面では`window.scrollY`は機能しないため、対象のスクロールコンテナのscrollTopを直接見る必要がある。
 
