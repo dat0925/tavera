@@ -282,6 +282,70 @@
       padding: 4px 2px;
     }
 
+    /* ===== 買い物リスト ===== */
+    .shopping-section { padding: 0 20px; }
+
+    .shopping-header {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 10px;
+    }
+    .shopping-meta {
+      font-size: 0.72rem; color: var(--muted);
+    }
+    .shopping-refresh-btn {
+      font-size: 0.72rem; padding: 4px 10px; border-radius: 99px;
+      border: 1px solid var(--border); background: var(--white);
+      color: var(--muted); cursor: pointer; font-family: inherit;
+    }
+    .shopping-refresh-btn:active { background: var(--surface); }
+
+    .shopping-list {
+      display: flex; flex-direction: column; gap: 4px;
+      margin-bottom: 12px;
+    }
+    .shopping-item {
+      display: flex; align-items: center; gap: 10px;
+      padding: 9px 12px;
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 10px; cursor: pointer;
+      transition: background 0.15s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .shopping-item.checked {
+      opacity: 0.45;
+    }
+    .shopping-item.checked .shopping-item-name {
+      text-decoration: line-through; color: var(--muted);
+    }
+    .shopping-checkbox {
+      width: 20px; height: 20px; border-radius: 50%;
+      border: 2px solid var(--border); flex-shrink: 0;
+      display: flex; align-items: center; justify-content: center;
+      transition: all 0.15s;
+    }
+    .shopping-item.checked .shopping-checkbox {
+      background: var(--olive); border-color: var(--olive);
+    }
+    .shopping-item.checked .shopping-checkbox::after {
+      content: '✓'; color: #fff; font-size: 0.7rem; font-weight: 700;
+    }
+    .shopping-item-name { font-size: 0.88rem; flex: 1; }
+
+    .shopping-actions {
+      display: flex; gap: 8px; margin-top: 4px;
+    }
+    .shopping-copy-btn {
+      flex: 1; padding: 10px;
+      background: var(--terra); color: #fff;
+      border: none; border-radius: 99px;
+      font-size: 0.88rem; font-weight: 700;
+      cursor: pointer; font-family: inherit;
+    }
+    .shopping-copy-btn:active { background: #b8451f; }
+    .shopping-empty {
+      font-size: 0.82rem; color: var(--muted); padding: 16px 0; text-align: center;
+    }
+
     @keyframes fadeIn {
       from { opacity: 0; transform: translateY(-4px); }
       to   { opacity: 1; transform: translateY(0); }
@@ -404,6 +468,24 @@
     </div>
 
 
+      <!-- 区切り -->
+      <div class="divider" style="margin:20px 20px 0;"></div>
+
+      <!-- 買い物リスト -->
+      <div class="section-header">
+        <span class="section-title">🛒 今週の買い物リスト</span>
+        <button class="shopping-refresh-btn" onclick="renderShoppingList()">↺ 更新</button>
+      </div>
+      <div class="shopping-section">
+        <div class="shopping-meta" id="shoppingMeta"></div>
+        <div class="shopping-list" id="shoppingList">
+          <div class="shopping-empty">献立を記録すると食材リストが自動生成されます</div>
+        </div>
+        <div class="shopping-actions" id="shoppingActions" style="display:none;">
+          <button class="shopping-copy-btn" onclick="copyShoppingList()">📋 リストをコピー</button>
+        </div>
+      </div>
+
     <!-- Bottom Nav -->
     <nav class="bottom-nav">
       <a href="home.html" class="active">
@@ -451,6 +533,7 @@
       await renderMealGrid(selectedDate);
       await renderFridgeItems();
       await renderLikedList();
+      await renderShoppingList();
     }
 
     function renderDateStrip() {
@@ -666,6 +749,90 @@
       `).join('');
     }
 
+    // ---- 買い物リスト ----
+    async function renderShoppingList() {
+      const listEl = document.getElementById('shoppingList');
+      const metaEl = document.getElementById('shoppingMeta');
+      const actionsEl = document.getElementById('shoppingActions');
+      if (!householdId) return;
+
+      listEl.innerHTML = '<div class="shopping-empty">読み込み中...</div>';
+      actionsEl.style.display = 'none';
+      metaEl.textContent = '';
+
+      // 今週 (今日〜6日前) のログを取得
+      const today = new Date();
+      const logs = [];
+      for (let i = 0; i < 7; i++) {
+        const d = new Date(today);
+        d.setDate(today.getDate() - i);
+        const dateStr = toDateStr(d);
+        const dayLogs = await getLogsByDate(householdId, dateStr);
+        logs.push(...dayLogs);
+      }
+
+      // ingredients を展開・集約
+      const ingredientCount = {};
+      logs.forEach(log => {
+        if (!log.ingredients || !log.ingredients.length) return;
+        log.ingredients.forEach(ing => {
+          const name = ing.trim();
+          if (!name) return;
+          ingredientCount[name] = (ingredientCount[name] || 0) + 1;
+        });
+      });
+
+      if (Object.keys(ingredientCount).length === 0) {
+        listEl.innerHTML = '<div class="shopping-empty">今週の献立に食材情報がありません。<br>献立記録時に食材を入力すると表示されます。</div>';
+        return;
+      }
+
+      // 冷蔵庫にある食材を除外
+      const fridgeItems = await getFridgeItems(householdId);
+      const fridgeNames = fridgeItems.map(f => f.name);
+
+      // 使用頻度順でソート・冷蔵庫食材は除外
+      const allItems = Object.entries(ingredientCount)
+        .sort((a, b) => b[1] - a[1])
+        .map(([name]) => name);
+      const needToBuy = allItems.filter(name => !fridgeNames.includes(name));
+      const alreadyHave = allItems.filter(name => fridgeNames.includes(name));
+
+      if (needToBuy.length === 0) {
+        listEl.innerHTML = '<div class="shopping-empty">今週の食材は冷蔵庫にすべて揃っています 🎉</div>';
+        metaEl.textContent = '冷蔵庫に' + alreadyHave.length + '品あり';
+        return;
+      }
+
+      metaEl.textContent = needToBuy.length + '品 · 冷蔵庫に' + alreadyHave.length + '品あり';
+      listEl.innerHTML = needToBuy.map(name => `
+        <div class="shopping-item" onclick="toggleShoppingItem(this)">
+          <div class="shopping-checkbox"></div>
+          <div class="shopping-item-name">${name}</div>
+        </div>
+      `).join('');
+      actionsEl.style.display = 'flex';
+    }
+
+    function toggleShoppingItem(el) {
+      el.classList.toggle('checked');
+    }
+
+    function copyShoppingList() {
+      const items = Array.from(document.querySelectorAll('#shoppingList .shopping-item:not(.checked)'))
+        .map(el => '・' + el.querySelector('.shopping-item-name').textContent.trim());
+      if (!items.length) {
+        showToast('未購入の食材がありません');
+        return;
+      }
+      const text = ['\u{1F6D2} 今週の買い物リスト', ...items].join('\n');
+      navigator.clipboard.writeText(text).then(() => {
+        showToast('リストをコピーしました 📋');
+      }).catch(() => {
+        showToast('コピーできませんでした', 'error');
+      });
+    }
+
     // 冷蔵庫スキャン
     function triggerFridgeScan() {
       document.getElementById("fridgeScanInput").click();
@@ -751,3 +918,4 @@
   </script>
 </body>
 </html>
+
