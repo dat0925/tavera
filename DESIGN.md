@@ -1,6 +1,6 @@
 # Tavera 設計書・引き継ぎ書
 
-**バージョン**: 1.18.1
+**バージョン**: 1.18.2
 **最終更新**: 2026-06-29
 **ステータス**: 一般公開済み・本番Stripe決済稼働中・解約フロー実装済み
 
@@ -435,6 +435,7 @@ UNIQUE制約: `(household_id, date, meal_type)` ※v1.9.6で追加。これが�
 - **Edge Function**: Supabase MCPコネクタで直接デプロイ可能（`Supabase:deploy_edge_function`）。デプロイ後はリポジトリ内の`supabase/functions/*/index.ts`もコミットして同期すること（実際にv1〜v14がリポジトリに反映されておらず、デプロイ済みコードとgitが食い違っていた事例があった）
 - **別アカウントテスト**: シークレット/プライベートウィンドウを使う
 - **GitHub Pages**: 短時間に大量pushすると競合することがある。最終ビルドがsuccessならOK
+- **共有JSのキャッシュ**: `js/auth.js`・`js/supabase.js`・`js/menu-log.js`を変更したら、読み込んでいる8ファイル（admin/history/home/index/kyushoku/log/settings/suggest.html）の`<script src="js/xxx.js?v=YYYYMMDD">`のバージョン文字列を当日の日付に更新すること。しないと古いJSがキャッシュされたまま新しいEdge Function/データ形式と食い違ってエラーになる（v1.18.2で実際に発生）
 
 ### 障害履歴（2026-06-28）
 home.htmlがJS構文エラーで画面破損。`</script>`内にHTMLが混入。原因は`content.replace()`の無音失敗が連鎖したこと。上記ルールを策定して再発防止済み。
@@ -775,4 +776,12 @@ home.htmlがJS構文エラーで画面破損。`</script>`内にHTMLが混入。
 - 一覧で料理名を手動編集（✏️）した場合、編集後のテキストに対してアレルギー判定は再実行されない（編集前の判定がそのまま表示され続ける）
 - `allergenHits`・判定結果は`menu_logs`には保存していない（インポート時の確認用途のみ）。履歴(history.html)側で後から「この日は卵の可能性があった」と振り返れるようにするかは別途検討
 - 手動記録(log.html)・AI提案(suggest.html)は今回スコープ外（設計方針の表の通り、現状の強度が適切と判断）
+
+### 共有JS（js/auth.js・js/supabase.js・js/menu-log.js）のキャッシュにより新旧不整合エラーが発生（v1.18.2）
+
+- **症状**：`allergenHits`の形式変更（v1.18.1）の直後、給食取込でエラー`a.includes is not a function`が発生。
+- **原因**：各HTML自体には`Cache-Control: no-cache`のmetaタグがあり常に最新化されるが、`<script src="js/menu-log.js">`にはバージョン指定が無く、ブラウザ（またはCDN）にキャッシュされた**古い**`js/menu-log.js`が読み込まれることがあった。古い`mapAllergensToMembers()`は`allergenHits`が文字列配列である前提で`a.includes(allergen)`を呼んでいたが、Edge Function側は既に`{allergen, reason}`のオブジェクト配列を返すようになっていたため、`a`（オブジェクト）に`.includes`が無くエラーになった。
+- **解決策**：`admin/history/home/index/kyushoku/log/settings/suggest.html`の計8ファイルで、`js/supabase.js`・`js/auth.js`・`js/menu-log.js`の読み込みに`?v=20260629`というバージョンクエリを付与。クエリ文字列が変わるとブラウザはキャッシュを使わず新しいファイルとして取得し直す。
+- **運用ルール（今後必ず守ること）**：`js/auth.js`・`js/supabase.js`・`js/menu-log.js`のいずれかを変更してpushする際は、上記8ファイル全てで`?v=`の値を当日の日付（`YYYYMMDD`）など新しい値に更新すること。HTML自体（home.html等）を変更しただけのときは不要。`grep -rn 'js/menu-log.js?v=' *.html`等で現状のバージョン文字列を確認できる。
+- **教訓**：「ページのHTMLはキャッシュしない設定にしてあるから大丈夫」と思っていても、`<script src>`で読み込む共有JSは別物としてキャッシュされる。複数ページで共有するJSファイルを頻繁に更新するなら、最初からバージョンクエリ（またはファイル名にハッシュを含める運用）を入れておくべきだった。
 
