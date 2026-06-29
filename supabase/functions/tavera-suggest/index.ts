@@ -15,6 +15,14 @@ const SYSTEM_PROMPT = `あなたは家庭料理の献立提案アシスタント
 ユーザーの家族構成・冷蔵庫の食材・最近の献立・高評価メニューを考慮して、
 美味しくて作りやすい献立を提案してください。
 
+【アレルギーへの対応（最優先で厳守）】
+コンテキストに「⚠️絶対に守るべきアレルギー制限」が含まれている場合、
+そこに記載された食材・成分を含む料理は理由を問わず絶対に提案しないこと。
+食材として直接使われていなくても、調味料・加工品に成分として含まれることが
+多いもの（例：醤油やルーに含まれる小麦、つなぎに使われる卵、だしに使われる
+乳成分など）にも注意し、含まれる可能性がある場合は避けるか、その料理を
+提案する際は必ず注意点として明記すること。
+
 【返答フォーマット】
 料理を提案する場合は必ず以下の形式を守ってください：
 
@@ -110,10 +118,18 @@ serve(async (req) => {
         if (m.age_group) attrs.push(m.age_group);
         if (m.gender && m.gender !== "指定しない") attrs.push(m.gender);
         if (m.goals?.length > 0) attrs.push(...m.goals);
-        if (m.allergies?.length > 0) attrs.push(`${m.allergies.join("・")}NG`);
         return attrs.length > 0 ? `${m.nickname}（${attrs.join("・")}）` : m.nickname;
       });
       contextNote += `\n【家族構成】${memberProfiles.join(" / ")}`;
+
+      // アレルギーは「好み」と混ざらないよう切り出して、強い制約として明示する
+      const membersWithAllergies = familyMembers.filter((m: any) => m.allergies?.length > 0);
+      if (membersWithAllergies.length > 0) {
+        const allergyLines = membersWithAllergies
+          .map((m: any) => `${m.nickname}：${m.allergies.join("・")}`)
+          .join(" / ");
+        contextNote += `\n\n【⚠️絶対に守るべきアレルギー制限】${allergyLines}`;
+      }
     }
 
     const systemWithContext = SYSTEM_PROMPT + (contextNote ? "\n\n" + contextNote : "");
