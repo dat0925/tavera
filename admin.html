@@ -128,6 +128,17 @@ a{text-decoration:none;color:inherit;}
 .rev-table tr:last-child td{border-bottom:none;}
 .rev-table tr.rev-highlight td{background:#FEF9F4;font-weight:700;}
 .rev-table tr.rev-warn-row td{color:var(--terra);}
+.rev-input{
+  width:70px;padding:5px 8px;border:1px solid var(--border);border-radius:6px;
+  font-size:0.85rem;font-family:var(--font-body);color:var(--brown);
+  text-align:right;background:var(--white);
+}
+.rev-input:disabled{background:var(--surface);color:var(--muted);}
+.rev-unlimited-label{
+  display:flex;align-items:center;gap:4px;font-size:0.76rem;color:var(--muted);
+  margin-bottom:4px;cursor:pointer;justify-content:flex-end;
+}
+.rev-unlimited-label input{cursor:pointer;}
 
 /* サマリーカード */
 .summary-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:24px;}
@@ -320,28 +331,73 @@ a{text-decoration:none;color:inherit;}
     <!-- 収益構造セクション -->
     <div class="admin-body hidden" id="section-revenue">
       <div class="rev-warning">
-        ⚠️ <strong>献立取り込み</strong>と<strong>食材を写真で取り込み</strong>は、現状フリー/プレミアムともに利用回数の上限が設定されていません（コード上で無制限）。そのため下表の原価・粗利・利益率は<strong>AI相談のみ</strong>を反映した「確定分」であり、実際にはこの2機能の利用量に応じて原価がさらに増加します。悪用・大量利用された場合の下振れリスクとして、上限設定の検討余地があります。
+        💡 各機能の「上限回数」は編集できます。数値を変えると原価・粗利・利益率がリアルタイムに再計算されます。<strong>献立取り込み</strong>と<strong>食材を写真で取り込み</strong>は現状コード上の上限が無いため、デフォルトは「無制限」チェック状態です。チェックを外すと数値で試算できます。
       </div>
 
-      <table class="rev-table">
+      <table class="rev-table" id="revTable">
         <thead>
           <tr><th>項目</th><th>無料プラン</th><th>プレミアムプラン</th></tr>
         </thead>
         <tbody>
           <tr><td>売価（月額）</td><td>¥0</td><td>¥480</td></tr>
-          <tr><td>AI相談 上限回数</td><td>10回/月（1日3回）</td><td>500回/月（1日50回）</td></tr>
-          <tr><td>AI相談 原価（上限利用時・¥160/$換算）</td><td>¥4</td><td>¥200</td></tr>
-          <tr class="rev-warn-row"><td>献立取り込み 上限回数</td><td>上限なし（無制限）</td><td>上限なし（無制限）</td></tr>
-          <tr class="rev-warn-row"><td>食材写真取り込み 上限回数</td><td>上限なし（無制限）</td><td>上限なし（無制限）</td></tr>
-          <tr class="rev-highlight"><td>原価合計（AI相談のみ・確定分）</td><td>¥4</td><td>¥200</td></tr>
-          <tr class="rev-highlight"><td>粗利（確定分）</td><td>−¥4</td><td>¥280</td></tr>
-          <tr class="rev-highlight"><td>利益率（確定分）</td><td>―（売価¥0のため算出不可）</td><td>58.3%</td></tr>
+
+          <tr>
+            <td>💬 AI相談 上限回数/月</td>
+            <td><input type="number" class="rev-input" id="limit-free-ai" value="10" min="0" oninput="recalcRevenue()"> 回</td>
+            <td><input type="number" class="rev-input" id="limit-premium-ai" value="500" min="0" oninput="recalcRevenue()"> 回</td>
+          </tr>
+          <tr>
+            <td>　└ 原価（¥0.4/回）</td>
+            <td id="cost-free-ai">¥4</td>
+            <td id="cost-premium-ai">¥200</td>
+          </tr>
+
+          <tr class="rev-warn-row">
+            <td>📋 献立取り込み 上限回数/月</td>
+            <td>
+              <label class="rev-unlimited-label"><input type="checkbox" id="unlimited-free-kyu" checked onchange="recalcRevenue()"> 無制限</label>
+              <input type="number" class="rev-input" id="limit-free-kyu" value="20" min="0" disabled oninput="recalcRevenue()"> 回
+            </td>
+            <td>
+              <label class="rev-unlimited-label"><input type="checkbox" id="unlimited-premium-kyu" checked onchange="recalcRevenue()"> 無制限</label>
+              <input type="number" class="rev-input" id="limit-premium-kyu" value="50" min="0" disabled oninput="recalcRevenue()"> 回
+            </td>
+          </tr>
+          <tr>
+            <td>　└ 原価（¥1.4/回）</td>
+            <td id="cost-free-kyu">上限なし</td>
+            <td id="cost-premium-kyu">上限なし</td>
+          </tr>
+
+          <tr class="rev-warn-row">
+            <td>📷 食材取り込み 上限回数/月</td>
+            <td>
+              <label class="rev-unlimited-label"><input type="checkbox" id="unlimited-free-mat" checked onchange="recalcRevenue()"> 無制限</label>
+              <input type="number" class="rev-input" id="limit-free-mat" value="30" min="0" disabled oninput="recalcRevenue()"> 回
+            </td>
+            <td>
+              <label class="rev-unlimited-label"><input type="checkbox" id="unlimited-premium-mat" checked onchange="recalcRevenue()"> 無制限</label>
+              <input type="number" class="rev-input" id="limit-premium-mat" value="100" min="0" disabled oninput="recalcRevenue()"> 回
+            </td>
+          </tr>
+          <tr>
+            <td>　└ 原価（¥0.07/回）</td>
+            <td id="cost-free-mat">上限なし</td>
+            <td id="cost-premium-mat">上限なし</td>
+          </tr>
+
+          <tr class="rev-highlight"><td>原価合計</td><td id="total-cost-free">¥4</td><td id="total-cost-premium">¥200</td></tr>
+          <tr class="rev-highlight"><td>粗利</td><td id="profit-free">−¥4</td><td id="profit-premium">¥280</td></tr>
+          <tr class="rev-highlight"><td>利益率</td><td id="margin-free">―</td><td id="margin-premium">58.3%</td></tr>
         </tbody>
       </table>
 
+      <button class="page-btn" onclick="resetRevenueDefaults()" style="margin-bottom:16px;">↺ デフォルト値に戻す（現在の実際の上限設定）</button>
+
       <div style="font-size:0.72rem;color:var(--muted);line-height:1.7;">
         ※為替レートは$1=¥160で計算（2026年6月時点の実勢相場は$1≒¥161〜162）<br>
-        ※AI相談原価は「AIモデル」タブの1回あたり目安（無料: ¥0.4×10回、プレミアム: ¥0.4×500回）に基づく<br>
+        ※1回あたり原価は「AIモデル」タブの想定単価：AI相談¥0.4／献立取り込み¥1.4／食材取り込み¥0.07<br>
+        ※「無制限」チェックを外していない機能がある場合、原価合計・粗利・利益率は「その機能を除いた確定分」を表示します（行に⚠️が出ます）<br>
         ※Stripe決済手数料（約3.6%）はこの表に含めていません<br>
         ※無料プランは売価¥0のため、AI相談分はそのまま会社のコストとして発生します（粗利・利益率はマイナス/算出不可）
       </div>
@@ -520,6 +576,80 @@ a{text-decoration:none;color:inherit;}
     setTimeout(() => t.classList.remove('show'), 2500);
   }
 
+  // =====================
+  //  収益構造：上限編集・再計算
+  // =====================
+  const REV_RATE_PER_USE = { ai: 0.4, kyu: 1.4, mat: 0.07 }; // 円/回（AIモデルタブの1回あたり目安）
+  const REV_PRICE = { free: 0, premium: 480 };
+  const REV_DEFAULTS = {
+    'limit-free-ai': 10, 'limit-premium-ai': 500,
+    'unlimited-free-kyu': true, 'limit-free-kyu': 20,
+    'unlimited-premium-kyu': true, 'limit-premium-kyu': 50,
+    'unlimited-free-mat': true, 'limit-free-mat': 30,
+    'unlimited-premium-mat': true, 'limit-premium-mat': 100,
+  };
+
+  function yen(n) {
+    const rounded = Math.round(n * 10) / 10;
+    return (rounded % 1 === 0 ? rounded.toFixed(0) : rounded.toFixed(1));
+  }
+
+  function recalcRevenue() {
+    ['free', 'premium'].forEach(function(plan) {
+      // AI相談（上限あり）
+      const aiLimit = Number(document.getElementById('limit-' + plan + '-ai').value) || 0;
+      const aiCost = aiLimit * REV_RATE_PER_USE.ai;
+      document.getElementById('cost-' + plan + '-ai').textContent = '¥' + yen(aiCost);
+
+      // 献立取り込み・食材取り込み（無制限チェック可）
+      let total = aiCost;
+      let hasUnlimited = false;
+
+      ['kyu', 'mat'].forEach(function(key) {
+        const unlimitedEl = document.getElementById('unlimited-' + plan + '-' + key);
+        const inputEl = document.getElementById('limit-' + plan + '-' + key);
+        const costEl = document.getElementById('cost-' + plan + '-' + key);
+        const unlimited = unlimitedEl.checked;
+        inputEl.disabled = unlimited;
+        if (unlimited) {
+          hasUnlimited = true;
+          costEl.textContent = '上限なし';
+        } else {
+          const limit = Number(inputEl.value) || 0;
+          const cost = limit * REV_RATE_PER_USE[key];
+          total += cost;
+          costEl.textContent = '¥' + yen(cost);
+        }
+      });
+
+      const price = REV_PRICE[plan];
+      const profit = price - total;
+      const prefix = hasUnlimited ? '⚠️ ' : '';
+
+      document.getElementById('total-cost-' + plan).textContent = prefix + (hasUnlimited ? '≥' : '') + '¥' + yen(total);
+      document.getElementById('profit-' + plan).textContent =
+        prefix + (hasUnlimited ? '≤' : '') + (profit < 0 ? '−¥' + yen(Math.abs(profit)) : '¥' + yen(profit));
+
+      const marginEl = document.getElementById('margin-' + plan);
+      if (price === 0) {
+        marginEl.textContent = '―';
+      } else {
+        const margin = (profit / price) * 100;
+        marginEl.textContent = prefix + (hasUnlimited ? '≤' : '') + margin.toFixed(1) + '%';
+      }
+    });
+  }
+
+  function resetRevenueDefaults() {
+    Object.keys(REV_DEFAULTS).forEach(function(id) {
+      const el = document.getElementById(id);
+      if (!el) return;
+      if (el.type === 'checkbox') el.checked = REV_DEFAULTS[id];
+      else el.value = REV_DEFAULTS[id];
+    });
+    recalcRevenue();
+  }
+
   function toggleAdminSidebar() {
     document.getElementById('adminSidebar').classList.toggle('mobile-open');
     document.getElementById('adminSidebarBackdrop').classList.toggle('open');
@@ -544,6 +674,9 @@ a{text-decoration:none;color:inherit;}
   window.addEventListener('resize', function() {
     if (window.innerWidth >= 769) closeAdminSidebar();
   });
+
+  // 収益構造の初期表示を計算値で統一
+  recalcRevenue();
 
   // 認証チェック実行
   checkAuth();
