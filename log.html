@@ -57,6 +57,25 @@
       padding: 0;
     }
 
+    /* 昨日と同じボタン */
+    .yesterday-hint {
+      margin-top: 8px;
+    }
+    .yesterday-btn {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 7px 14px; border-radius: 99px;
+      border: 1.5px solid var(--border);
+      background: var(--white); color: var(--brown);
+      font-size: 0.82rem; font-family: inherit; cursor: pointer;
+      transition: all 0.15s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .yesterday-btn:active { background: var(--surface); border-color: var(--terra); color: var(--terra); }
+    .yesterday-btn-dish {
+      max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+      font-weight: 600; color: var(--terra);
+    }
+
     .save-area {
       padding: 0 20px 20px;
     }
@@ -124,6 +143,14 @@
         <div class="form-group">
           <label class="form-label">料理名</label>
           <input type="text" id="dishName" class="form-input" placeholder="例：鶏の照り焼き" maxlength="50">
+        </div>
+
+        <!-- 昨日と同じ -->
+        <div class="yesterday-hint" id="yesterdayHint" style="display:none;">
+          <button class="yesterday-btn" onclick="applyYesterday()">
+            <span>↩ 前日と同じ:</span>
+            <span class="yesterday-btn-dish" id="yesterdayDishLabel"></span>
+          </button>
         </div>
 
         <!-- 使用食材 -->
@@ -211,6 +238,7 @@
     let existingLogId = null;
     let isEditMode = false;
     let familyMembers = [];
+    let yesterdayLog = null; // 「前日と同じ」の参照元ログ
 
     // アレルギー警告を更新
     function updateAllergyAlert() {
@@ -227,6 +255,43 @@
         .map(([name, allergens]) => `⚠️ ${name}：${allergens.join('・')} が含まれています`);
       alert.innerHTML = lines.join('<br>');
       alert.style.display = '';
+    }
+
+    // 前日の同じ食事区分を確認してヒントを表示
+    async function checkYesterdayHint(dateStr, mealType) {
+      const hintEl = document.getElementById('yesterdayHint');
+      yesterdayLog = null;
+      hintEl.style.display = 'none';
+
+      // 既に料理名が入力済み or 既存ログあり → ヒント不要
+      if (existingLogId || document.getElementById('dishName').value.trim()) return;
+
+      // 前日の日付を計算
+      const d = new Date(dateStr + 'T00:00:00');
+      d.setDate(d.getDate() - 1);
+      const prevDate = [d.getFullYear(), String(d.getMonth()+1).padStart(2,'0'), String(d.getDate()).padStart(2,'0')].join('-');
+
+      const prevLogs = await getLogsByDate(householdId, prevDate);
+      const match = prevLogs.find(l => l.meal_type === mealType);
+      if (!match || !match.dish_name) return;
+
+      yesterdayLog = match;
+      document.getElementById('yesterdayDishLabel').textContent = match.dish_name;
+      hintEl.style.display = '';
+    }
+
+    // 「前日と同じ」を適用
+    function applyYesterday() {
+      if (!yesterdayLog) return;
+      document.getElementById('dishName').value = yesterdayLog.dish_name || '';
+      document.getElementById('memo').value = yesterdayLog.memo || '';
+      if (yesterdayLog.ingredients && yesterdayLog.ingredients.length) {
+        ingredients = [...yesterdayLog.ingredients];
+        renderIngredientTags();
+      }
+      if (yesterdayLog.rating) setRating(yesterdayLog.rating);
+      document.getElementById('yesterdayHint').style.display = 'none';
+      yesterdayLog = null;
     }
 
     function toggleTip() {
@@ -283,6 +348,10 @@
         keepIngredients: !!ingredientsParam,
         keepMemo: !!memoParam,
       });
+      // AI提案・URL経由でもなく新規記録のときだけ前日ヒントを表示
+      if (!dishParam && !ingredientsParam && !memoParam && !isEditMode) {
+        await checkYesterdayHint(dateParam, mealParam);
+      }
     }
 
     // 既存データ読み込み
@@ -339,12 +408,20 @@
         setRating(0);
         document.getElementById('deleteBtn').style.display = 'none';
         await loadExisting(dateStr, tab.dataset.meal);
+        if (!isEditMode) await checkYesterdayHint(dateStr, tab.dataset.meal);
       });
     });
 
     document.getElementById('dateInput').addEventListener('change', async (e) => {
       existingLogId = null;
+      document.getElementById('dishName').value = '';
+      document.getElementById('memo').value = '';
+      ingredients = [];
+      renderIngredientTags();
+      setRating(0);
+      document.getElementById('deleteBtn').style.display = 'none';
       await loadExisting(e.target.value, selectedMeal);
+      if (!isEditMode) await checkYesterdayHint(e.target.value, selectedMeal);
     });
 
     // 食材タグ
@@ -452,3 +529,4 @@
   </script>
 </body>
 </html>
+
