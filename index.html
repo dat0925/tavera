@@ -374,6 +374,25 @@ header nav a:hover { color: var(--terra); }
 .plan-card-lp .plan-note { font-size: 0.72rem; color: var(--muted); margin-top: 16px; line-height: 1.5; }
 .btn-white:hover { background: #fdf6ec; transform: translateY(-1px); }
 
+/* LPトグル */
+.lp-billing-toggle {
+  display: inline-flex; align-items: center;
+  background: var(--surface); border: 1.5px solid var(--border);
+  border-radius: 99px; padding: 4px; gap: 2px;
+  margin: 20px auto 0; 
+}
+.lp-billing-btn {
+  padding: 8px 20px; border-radius: 99px; border: none;
+  background: transparent; font-size: 0.85rem; font-weight: 600;
+  color: var(--muted); cursor: pointer; font-family: inherit; transition: all 0.2s;
+}
+.lp-billing-btn.active { background: var(--terra); color: #fff; box-shadow: 0 2px 8px rgba(200,82,42,0.30); }
+.lp-save-badge {
+  display: inline-block; background: #FEF3EC; color: var(--terra);
+  font-size: 0.65rem; font-weight: 700; padding: 1px 6px; border-radius: 99px; margin-left: 4px;
+}
+.lp-billing-btn.active .lp-save-badge { background: rgba(255,255,255,0.25); color: #fff; }
+
 /* Company */
 #company { background: var(--surface); padding: 80px 24px; }
 .legal-table { width: 100%; max-width: 560px; border-collapse: collapse; }
@@ -746,6 +765,11 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
     <div class="fade-in" style="text-align:center;margin-bottom:0;">
       <div class="section-label">料金プラン</div>
       <h2 class="section-title">まずは無料で。必要になったらアップグレード</h2>
+      <!-- 月払い/年払いトグル -->
+      <div class="lp-billing-toggle fade-in">
+        <button class="lp-billing-btn active" id="lpToggleMonthly" onclick="lpSelectBilling('monthly')">月払い</button>
+        <button class="lp-billing-btn" id="lpToggleYearly" onclick="lpSelectBilling('yearly')">年払い <span class="lp-save-badge">34%OFF</span></button>
+      </div>
     </div>
     <div class="pricing-grid fade-in">
       <div class="plan-card-lp">
@@ -761,14 +785,15 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
       <div class="plan-card-lp highlight">
         <div class="plan-tag">おすすめ</div>
         <h3>プレミアムプラン</h3>
-        <div class="plan-price">¥480<span>/月</span></div>
+        <div id="lpPremiumPrice" class="plan-price">¥480<span>/月</span></div>
+        <div id="lpYearlySaving" style="display:none;font-size:0.78rem;color:var(--olive);font-weight:700;margin-bottom:8px;">年払いで¥1,960お得</div>
         <ul>
           <li>献立記録・履歴は無制限</li>
           <li>AI相談：月300回まで</li>
           <li>給食献立のAIインポート：月30回まで</li>
           <li>冷蔵庫食材を写真でAI登録：月100回まで</li>
         </ul>
-        <div class="plan-note">いつでも解約可能。解約後も期限まで利用できます。</div>
+        <div class="plan-note" id="lpPlanNote">いつでも解約可能。解約後も期限まで利用できます。</div>
       </div>
     </div>
   </div>
@@ -841,6 +866,27 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
 </footer>
 
 <script>
+// LP 月払い/年払いトグル
+function lpSelectBilling(cycle) {
+  var mBtn = document.getElementById('lpToggleMonthly');
+  var yBtn = document.getElementById('lpToggleYearly');
+  var priceEl = document.getElementById('lpPremiumPrice');
+  var savingEl = document.getElementById('lpYearlySaving');
+  var noteEl = document.getElementById('lpPlanNote');
+  if (!mBtn || !yBtn || !priceEl) return;
+  if (cycle === 'yearly') {
+    mBtn.classList.remove('active'); yBtn.classList.add('active');
+    priceEl.innerHTML = '¥3,800<span>/年</span>';
+    if (savingEl) savingEl.style.display = '';
+    if (noteEl) noteEl.textContent = '年払い・解約後も期限まで利用可能';
+  } else {
+    yBtn.classList.remove('active'); mBtn.classList.add('active');
+    priceEl.innerHTML = '¥480<span>/月</span>';
+    if (savingEl) savingEl.style.display = 'none';
+    if (noteEl) noteEl.textContent = 'いつでも解約可能。解約後も期限まで利用できます。';
+  }
+}
+
 // Google ログイン
 async function startLogin(e) {
   e.preventDefault();
@@ -882,3 +928,4 @@ document.querySelectorAll('.fade-in').forEach(el => obs.observe(el));
 </script>
 </body>
 </html>
+
