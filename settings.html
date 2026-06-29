@@ -881,7 +881,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
         const isCanceled = member.cancel_at_period_end === true;
         card.innerHTML = `
           <div class="plan-badge premium">${isCanceled ? '⏳ 解約済み（期限まで有効）' : '✨ プレミアム'}</div>
-          <div class="plan-usage">今月のAI提案：<span class="count ${warnClass}">${used} / ${limit}回</span>使用（実質無制限）${expires ? `<br>${isCanceled ? '⚠️ ' + expires + ' にサービスが終了します' : '次回更新日：' + expires}` : ''}</div>
+          <div class="plan-usage">今月のAI提案：<span class="count ${warnClass}">${used} / ${limit}回</span>使用${expires ? `<br>${isCanceled ? '⚠️ ' + expires + ' にサービスが終了します' : '次回更新日：' + expires}` : ''}</div>
           <button class="plan-manage-btn" onclick="manageSubscription()">${isCanceled ? '解約を取り消す' : 'サブスクリプションを管理'}</button>`;
       } else {
         const limit = 10;
