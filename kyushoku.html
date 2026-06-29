@@ -201,6 +201,9 @@
       border-radius: var(--radius-sm); padding: 8px 10px;
       margin-top: 6px;
     }
+    .ky-allergy-reason {
+      font-size: 0.72rem; color: var(--muted); font-weight: 400;
+    }
 
     /* インポートボタン（固定） */
     .ky-import-bar {
@@ -588,12 +591,10 @@
         const badge     = item.alreadyExists ? '<span class="ky-already">登録済み</span>' : '';
         let allergyHtml = '';
         if (item.allergyHits && item.allergyHits.length > 0) {
-          const byMember = {};
-          item.allergyHits.forEach(h => {
-            (byMember[h.memberName] = byMember[h.memberName] || []).push(h.allergen);
-          });
-          const lines = Object.entries(byMember)
-            .map(([name, allergens]) => '⚠️ ' + name + '：' + allergens.join('・') + ' が含まれる可能性があります');
+          const lines = item.allergyHits.map(h =>
+            '⚠️ ' + h.memberName + '：' + h.allergen + 'が含まれる可能性があります' +
+            '<br><span class="ky-allergy-reason">└ ' + (h.reason || 'AIが料理内容から判断') + '</span>'
+          );
           allergyHtml = '<div class="ky-allergy-alert">' + lines.join('<br>') + '</div>';
         }
         return `<div class="ky-day-card ${item.checked ? 'checked' : ''}" id="card-${i}">

@@ -317,26 +317,37 @@ function checkAllergies(ingredients, familyMembers) {
         ing.includes(allergen) || allergen.includes(ing)
       );
       if (matched) {
-        hits.push({ memberName: m.nickname, allergen });
+        hits.push({
+          memberName: m.nickname,
+          allergen,
+          reason: `「${matched}」という記載に含まれるため`,
+        });
       }
     });
   });
   return hits;
 }
 
-// AI（Gemini/Claude）が判定したアレルゲン名の配列を、家族メンバーに割り当てる
-// 戻り値: [{ memberName, allergen }, ...]（checkAllergies()と同じ形式）
-// 給食取込のように「AIが食材から推測したアレルゲン名」（食材リストそのものではない）を
-// 家族の登録アレルギーと突き合わせる場合に使う
-function mapAllergensToMembers(allergenNames, familyMembers) {
+// AI（Gemini/Claude）が判定したアレルゲンを、家族メンバーに割り当てる
+// 戻り値: [{ memberName, allergen, reason }, ...]（checkAllergies()と同じ形式）
+// 給食取込のように「AIが食材から推測したアレルゲン」（食材リストそのものではない）を
+// 家族の登録アレルギーと突き合わせる場合に使う。
+// allergenHitsの要素は文字列（旧形式）でも{allergen, reason}（新形式）でも両対応。
+function mapAllergensToMembers(allergenHits, familyMembers) {
   const hits = [];
   (familyMembers || []).forEach(m => {
     (m.allergies || []).forEach(allergen => {
-      const matched = (allergenNames || []).some(a =>
-        a.includes(allergen) || allergen.includes(a)
-      );
-      if (matched) {
-        hits.push({ memberName: m.nickname, allergen });
+      const matchedHit = (allergenHits || []).find(h => {
+        const name = typeof h === 'string' ? h : (h && h.allergen);
+        return name && (name.includes(allergen) || allergen.includes(name));
+      });
+      if (matchedHit) {
+        const reason = typeof matchedHit === 'string' ? null : matchedHit.reason;
+        hits.push({
+          memberName: m.nickname,
+          allergen,
+          reason: reason || 'AIが料理内容から含まれる可能性があると判断',
+        });
       }
     });
   });
@@ -344,6 +355,7 @@ function mapAllergensToMembers(allergenNames, familyMembers) {
 }
 
 // アレルギーヒット配列の重複を除去（memberName+allergenの組み合わせで判定）
+// 複数の判定方法で同じヒットが見つかった場合、先に渡した方のreasonを残す
 function dedupeAllergyHits(hits) {
   const seen = new Set();
   const result = [];

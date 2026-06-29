@@ -156,8 +156,9 @@ Deno.serve(async (req) => {
     // アレルゲンが登録されている場合のみ、判定の指示とレスポンス項目(allergenHits)を追加する。
     // 食材表記に直接無くても、料理名から一般的に含まれると判断できる場合
     // （例:「うどん」→小麦、「プリン」→卵・乳）も拾えるよう、Geminiの一般知識を使う。
+    // 親が「なぜそう判定されたか」を確認できるよう、判断理由(reason)も併せて返させる。
     const allergyInstruction = allergyList.length > 0
-      ? `\n- allergenHitsは、その日の料理に含まれる可能性がある対象アレルゲン名の配列。対象アレルゲン一覧: ${allergyList.join("、")}。食材一覧に明記されていなくても、料理名から一般的に含まれると判断できる場合は含めること（例:「うどん」→小麦、「プリン」→卵・乳）。可能性が無ければ空配列にすること。`
+      ? `\n- allergenHitsは、その日の料理に含まれる可能性がある対象アレルゲンの配列。各要素は{allergen, reason}の形式。allergenはアレルゲン名（対象アレルゲン一覧の表記そのまま）、reasonはなぜそのアレルゲンが含まれると判断したかを一文で簡潔に（例:「みそ汁に『豆乳』と記載されているため」「うどんには一般的に小麦が使われるため」）。対象アレルゲン一覧: ${allergyList.join("、")}。食材一覧に明記されていなくても、料理名から一般的に含まれると判断できる場合は含めること。可能性が無ければ空配列にすること。`
       : "";
 
     const prompt = `この画像は${year}年${bodyMonth}月の給食献立表です。各日付のメニューと材料を抽出してください。
@@ -176,7 +177,17 @@ Deno.serve(async (req) => {
     };
     const requiredFields = ["date", "dishes", "ingredients"];
     if (allergyList.length > 0) {
-      dayItemProperties.allergenHits = { type: "ARRAY", items: { type: "STRING" } };
+      dayItemProperties.allergenHits = {
+        type: "ARRAY",
+        items: {
+          type: "OBJECT",
+          properties: {
+            allergen: { type: "STRING" },
+            reason: { type: "STRING" },
+          },
+          required: ["allergen", "reason"],
+        },
+      };
       requiredFields.push("allergenHits");
     }
 
