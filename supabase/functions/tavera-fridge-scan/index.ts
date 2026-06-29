@@ -55,13 +55,14 @@ Deno.serve(async (req) => {
 
     const { data: member } = await supabase
       .from("menu_members")
-      .select("plan, plan_expires_at")
+      .select("plan, plan_expires_at, usage_limit_overrides")
       .eq("id", user.id)
       .single();
     const plan = member?.plan || "free";
     const isPremium = plan === "premium" &&
       (!member?.plan_expires_at || new Date(member.plan_expires_at) > new Date());
-    const limit = isPremium ? PREMIUM_LIMIT : FREE_LIMIT;
+    const overrideLimit = member?.usage_limit_overrides?.[FEATURE];
+    const limit = typeof overrideLimit === "number" ? overrideLimit : (isPremium ? PREMIUM_LIMIT : FREE_LIMIT);
 
     const now = new Date();
     const month = now.toISOString().slice(0, 7);

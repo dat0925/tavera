@@ -1,6 +1,6 @@
 # Tavera 設計書・引き継ぎ書
 
-**バージョン**: 1.15.1
+**バージョン**: 1.16.0
 **最終更新**: 2026-06-28
 **ステータス**: 一般公開済み・本番Stripe決済稼働中・解約フロー実装済み
 
@@ -115,6 +115,7 @@
 | stripe_customer_id | text | |
 | stripe_subscription_id | text | |
 | cancel_at_period_end | boolean | 解約予約フラグ |
+| usage_limit_overrides | jsonb | 機能別の利用上限オーバーライド（v1.16.0追加）。`{"suggest":99999,"kyushoku":30,"fridge":100}`のように機能名キーで個別の月次上限を上書き。キーが無い機能はプラン標準値（free/premium）にフォールバック。テストユーザーの上限緩和・特定ユーザーへの優待などに使用 |
 
 ### menu_logs（献立ログ）
 | カラム | 型 | 説明 |
@@ -166,10 +167,13 @@ UNIQUE制約: `(household_id, date, meal_type)` ※v1.9.6で追加。これが�
 | day_count | int | 当日利用回数（'suggest'のみ使用。kyushoku/fridgeは日次制限なし） |
 | last_day | text | 最終利用日（'suggest'のみ使用） |
 
-### 管理用RPC
+### 管理用RPC（すべてSECURITY DEFINER・呼び出し元のメールがmstd0520@gmail.comでなければ例外を投げてブロック）
 | 関数名 | 用途 |
 |---|---|
-| `admin_get_all_users()` | 全ユーザー一覧（SECURITY DEFINER） |
+| `admin_get_all_users()` | 全ユーザー一覧（plan・機能別の今月利用回数・usage_overridesを含む。v1.16.0で拡張） |
+| `admin_update_plan(target_user_id, new_plan)` | プラン変更（v1.16.0新設）。**重要**：`menu_members`のRLSは`id = auth.uid()`のみ許可しており、admin（自分以外のユーザー）の行を直接UPDATEすることはできない。以前は`admin.html`から直接`db.from('menu_members').update(...)`していたが、これは他ユーザーに対しては本来RLSで弾かれるはずだった不具合。本RPC（SECURITY DEFINERでRLSをバイパス）に置き換えて修正済み |
+| `admin_set_usage_overrides(target_user_id, overrides)` | 機能別利用上限オーバーライドの設定・解除（v1.16.0新設）。`overrides`に`null`を渡すと解除（プラン標準値に戻る） |
+| `admin_reset_usage(target_user_id)` | 対象ユーザーの今月の利用回数（suggest/kyushoku/fridge全て）を0にリセット（v1.16.0新設） |
 
 ---
 
@@ -303,10 +307,13 @@ UNIQUE制約: `(household_id, date, meal_type)` ※v1.9.6で追加。これが�
 - `showSection('users' | 'aimodel' | 'revenue')` でセクションの表示切替（`.hidden`クラスのトグル）。モバイルではセクション選択時に自動でドロワーを閉じる
 - `toggleAdminSidebar()` / `closeAdminSidebar()` でドロワーの開閉。画面幅が769px以上になったら自動クローズ（リサイズ時の表示崩れ防止）
 
-### 機能（ユーザー管理セクション）
+### 機能（ユーザー管理セクション、v1.16.0で利用上限の個別調整機能を追加）
 - サマリー：総ユーザー数・Premiumユーザー数・今月のAI利用回数
-- ユーザーカード：メール・登録日・プラン・AI今月/累計・世帯名
-- プラン変更（Free↔Premium）
+- ユーザーカード：メール・登録日・プラン・機能別の今月利用回数（💬AI相談／📋献立取込／📷食材取込）・世帯名
+- プラン変更（Free↔Premium）：`admin_update_plan` RPC経由
+- **🧪 テスターにする**：対象ユーザーの3機能すべての上限を99999に一括設定（実質無制限）。テストユーザーへの優待に使用
+- **↺ 今月の利用をリセット**：対象ユーザーの今月の利用回数（3機能すべて）を0に戻す。上限到達者に追加で使わせたい場合などに使用
+- **機能別の上限を個別に上書き**：AI相談／献立取込／食材取込それぞれに数値を入力して「保存」すると、その値がプラン標準値より優先される（`usage_limit_overrides`）。空欄で保存するとその機能は標準値に戻る。「解除」ボタンで一括クリアも可能
 - メール検索・プランフィルター
 - 10件/ページのページネーション
 
@@ -663,4 +670,27 @@ home.htmlがJS構文エラーで画面破損。`</script>`内にHTMLが混入。
   3. テキストが空の場合は`result.error`/`result.promptFeedback`を診断し、レート制限なら「AI解析の利用が集中しているため...」、それ以外なら「AIが画像を解析できませんでした。もう一度お試しください。」と、原因に応じたメッセージを返すように変更
   4. 配列抽出後も空だった場合（本当に食材が見つからなかった/パース失敗）は`finishReason`と`rawPreview`をレスポンスに含めてログ・デバッグしやすくした（フロント表示は従来通り「別の写真を試してください」のまま、ユーザーには技術的詳細を見せない）
 - **教訓**：同じGemini呼び出しパターンを複数のEdge Functionで使っている場合、1つの関数で発見した不具合・対策は**他の同様の関数にも横展開して確認する**こと。`tavera-kyushoku`の対策だけ覚えていて`tavera-fridge-scan`に適用し忘れていたのが今回の根本原因。今後Gemini呼び出しを新規実装する際は、この2機能の最新コードをテンプレートとして使うこと。
+
+### テストユーザー向けの利用上限カスタマイズ機能を実装（v1.16.0）
+
+- **背景**：テストユーザーにプレミアムプランを無料提供しているが、AI機能の上限（300回/30回/100回）に近づいた場合に手動でリセットしたり、個別に上限を引き上げたりしたいという要望。
+
+#### DBスキーマ
+- `menu_members.usage_limit_overrides`（jsonb）を新設。`{"suggest":99999,"kyushoku":30,"fridge":100}`の形で機能別に上限を上書き。キーが存在しない機能はプラン標準値にフォールバック
+
+#### 重要な発見：admin.htmlの既存「プラン変更」機能がRLSで本来失敗するはずだった
+- `menu_members`のRLSポリシーは`members_self_update`（`id = auth.uid()`）のみで、**自分以外のユーザーの行はUPDATEできない**設定になっていた
+- それにもかかわらず、既存の`changePlan()`は`db.from('menu_members').update(...).eq('id', userId)`と**直接テーブル更新**していた。admin（mstd0520@gmail.com）が他ユーザーのプランを変更しようとすると、本来このRLSに阻まれて失敗するはずだった実装ミスが、今回の調査で発覚した
+- **解決策**：admin専用のSECURITY DEFINER RPC（`admin_update_plan`・`admin_set_usage_overrides`・`admin_reset_usage`）を新設し、RPC内で呼び出し元のメールが`mstd0520@gmail.com`かを検証してからRLSをバイパスして更新する方式に統一。`changePlan()`もこのRPC経由に修正した
+- **教訓**：管理画面から「他ユーザーのデータを書き換える」操作を実装する際は、素朴に`db.from(...).update(...)`を使うとRLSポリシーに阻まれることが多い（むしろ阻まれるのが正しい）。SECURITY DEFINER RPC＋呼び出し元チェックという形で、明示的に権限を分離するのが正しいパターン。今回のように「一見動いていそうに見えるが実際は失敗していたかもしれない」コードは、関連機能を追加するタイミングで気づくことが多いので、似た処理を追加する際は既存コードのRLS前提も合わせて見直すこと。
+
+#### Edge Function側の対応
+- `tavera-suggest`・`tavera-kyushoku`・`tavera-fridge-scan`の3関数すべてで、`menu_members`取得時に`usage_limit_overrides`も取得し、`member.usage_limit_overrides?.[FEATURE]`が数値であればそれを優先的に上限として使用するように変更
+- `tavera-suggest`は月次・日次の2種類の上限を持つため、オーバーライドがある場合は両方に同じ値を適用（日次の壁でブロックされてテスターが使えない、という事態を防ぐため）
+
+#### admin.html側の対応
+- ユーザーカードに機能別の今月利用回数（💬AI相談／📋献立取込／📷食材取込）を表示（オーバーライドがある場合は`使用数/上限`の形で表示）
+- 「🧪 テスターにする」ボタン：3機能の上限を99999に一括設定
+- 「↺ 今月の利用をリセット」ボタン：当月の利用回数（3機能とも）を0に戻す
+- 機能別の数値入力＋「保存」ボタンで個別の上限を設定可能。「解除」ボタンで標準値に戻す
 

@@ -43,7 +43,7 @@ serve(async (req) => {
 
     const { data: member } = await supabase
       .from("menu_members")
-      .select("plan, plan_expires_at")
+      .select("plan, plan_expires_at, usage_limit_overrides")
       .eq("id", user.id)
       .single();
 
@@ -66,8 +66,10 @@ serve(async (req) => {
     const monthCount = usage?.count || 0;
     const dayCount   = usage?.last_day === today ? (usage?.day_count || 0) : 0;
 
-    const monthLimit = isPremium ? PREMIUM_LIMIT     : FREE_LIMIT;
-    const dayLimit   = isPremium ? PREMIUM_DAY_LIMIT : 3;
+    const overrideLimit = member?.usage_limit_overrides?.[FEATURE];
+    const hasOverride = typeof overrideLimit === "number";
+    const monthLimit = hasOverride ? overrideLimit : (isPremium ? PREMIUM_LIMIT     : FREE_LIMIT);
+    const dayLimit   = hasOverride ? overrideLimit : (isPremium ? PREMIUM_DAY_LIMIT : 3);
 
     if (monthCount >= monthLimit || dayCount >= dayLimit) {
       return new Response(JSON.stringify({

@@ -188,6 +188,30 @@ a{text-decoration:none;color:inherit;}
 .action-btn.to-premium:hover{background:var(--terra);color:#fff;}
 .action-btn.to-free{color:#888;border-color:#ddd;background:var(--white);}
 .action-btn.to-free:hover{background:#f0f0f0;}
+.action-btn.tester{color:var(--olive);border-color:var(--olive);background:var(--white);}
+.action-btn.tester:hover{background:var(--olive);color:#fff;}
+.action-btn.reset{color:var(--amber);border-color:var(--amber);background:var(--white);}
+.action-btn.reset:hover{background:var(--amber);color:#fff;}
+.action-btn.clear-override{color:#888;border-color:#ddd;background:var(--white);font-size:0.72rem;padding:5px 10px;}
+.action-btn.clear-override:hover{background:#f0f0f0;}
+
+.usage-override-section{
+  margin-top:10px;padding-top:10px;border-top:1px solid var(--border);
+}
+.usage-override-label{font-size:0.7rem;color:var(--muted);margin-bottom:6px;}
+.usage-override-row{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:8px;}
+.override-field{display:flex;flex-direction:column;gap:2px;}
+.override-field label{font-size:0.68rem;color:var(--muted);}
+.override-input{
+  width:72px;padding:5px 7px;border:1px solid var(--border);border-radius:6px;
+  font-size:0.8rem;font-family:var(--font-body);color:var(--brown);
+}
+.override-save-btn{
+  padding:6px 12px;border-radius:8px;font-size:0.75rem;cursor:pointer;
+  font-family:var(--font-body);border:1.5px solid var(--terra);color:var(--terra);background:var(--white);
+  align-self:flex-end;
+}
+.override-save-btn:hover{background:var(--terra);color:#fff;}
 
 /* ページネーション */
 .pagination{display:flex;justify-content:center;gap:8px;margin-top:20px;flex-wrap:wrap;}
@@ -461,6 +485,10 @@ a{text-decoration:none;color:inherit;}
         ai_total: Number(r.ai_total) || 0,
         ai_month: Number(r.ai_month) || 0,
         household_name: r.household_name || '-',
+        usage_overrides: r.usage_overrides || {},
+        suggest_month: Number(r.suggest_month) || 0,
+        kyushoku_month: Number(r.kyushoku_month) || 0,
+        fridge_month: Number(r.fridge_month) || 0,
       }));
 
       // サマリー
@@ -505,6 +533,7 @@ a{text-decoration:none;color:inherit;}
       const isPremium = u.plan === 'premium';
       const createdDate = u.created_at ? new Date(u.created_at).toLocaleDateString('ja-JP') : '-';
       const expires = u.plan_expires_at ? new Date(u.plan_expires_at).toLocaleDateString('ja-JP') : null;
+      const ov = u.usage_overrides || {};
       return `<div class="user-card">
         <div class="user-card-head">
           <div>
@@ -514,13 +543,35 @@ a{text-decoration:none;color:inherit;}
           <span class="plan-badge ${isPremium ? 'premium' : 'free'}">${isPremium ? 'Premium' : 'Free'}</span>
         </div>
         <div class="user-stats">
-          <div class="user-stat">AI今月 <strong>${u.ai_month}回</strong></div>
-          <div class="user-stat">AI累計 <strong>${u.ai_total}回</strong></div>
+          <div class="user-stat">💬AI相談 <strong>${u.suggest_month}${ov.suggest != null ? '/' + ov.suggest : ''}回</strong></div>
+          <div class="user-stat">📋献立取込 <strong>${u.kyushoku_month}${ov.kyushoku != null ? '/' + ov.kyushoku : ''}回</strong></div>
+          <div class="user-stat">📷食材取込 <strong>${u.fridge_month}${ov.fridge != null ? '/' + ov.fridge : ''}回</strong></div>
           <div class="user-stat">世帯名 <strong>${u.household_name}</strong></div>
         </div>
         <div class="user-actions">
           ${!isPremium ? `<button class="action-btn to-premium" onclick="changePlan('${u.id}','premium')">Premiumに変更</button>` : ''}
           ${isPremium ? `<button class="action-btn to-free" onclick="changePlan('${u.id}','free')">Freeに戻す</button>` : ''}
+          <button class="action-btn tester" onclick="makeTester('${u.id}')">🧪 テスターにする</button>
+          <button class="action-btn reset" onclick="resetUsage('${u.id}')">↺ 今月の利用をリセット</button>
+        </div>
+        <div class="usage-override-section">
+          <div class="usage-override-label">機能別の上限を個別に上書き（空欄＝プラン標準値を使用）</div>
+          <div class="usage-override-row">
+            <div class="override-field">
+              <label>AI相談</label>
+              <input type="number" class="override-input" id="ov-suggest-${u.id}" value="${ov.suggest ?? ''}" placeholder="標準">
+            </div>
+            <div class="override-field">
+              <label>献立取込</label>
+              <input type="number" class="override-input" id="ov-kyushoku-${u.id}" value="${ov.kyushoku ?? ''}" placeholder="標準">
+            </div>
+            <div class="override-field">
+              <label>食材取込</label>
+              <input type="number" class="override-input" id="ov-fridge-${u.id}" value="${ov.fridge ?? ''}" placeholder="標準">
+            </div>
+            <button class="override-save-btn" onclick="saveOverrides('${u.id}')">保存</button>
+            ${(ov.suggest != null || ov.kyushoku != null || ov.fridge != null) ? `<button class="action-btn clear-override" onclick="clearOverrides('${u.id}')">解除</button>` : ''}
+          </div>
         </div>
       </div>`;
     }).join('');
@@ -551,19 +602,84 @@ a{text-decoration:none;color:inherit;}
     const label = newPlan === 'premium' ? 'Premiumに変更' : 'Freeに戻す';
     if (!confirm(label + 'しますか？')) return;
     try {
+      const { error } = await db.rpc('admin_update_plan', { target_user_id: userId, new_plan: newPlan });
+      if (error) throw error;
+      showToast('✅ プランを変更しました');
       const expires = newPlan === 'premium'
         ? new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString()
         : null;
-      const { error } = await db
-        .from('menu_members')
-        .update({ plan: newPlan, plan_expires_at: expires })
-        .eq('id', userId);
-      if (error) throw error;
-      showToast('✅ プランを変更しました');
       const u = allUsers.find(u => u.id === userId);
       if (u) { u.plan = newPlan; u.plan_expires_at = expires; }
       renderUsers();
       document.getElementById('sumPremium').textContent = allUsers.filter(u => u.plan === 'premium').length;
+    } catch(e) {
+      showToast('❌ ' + e.message);
+    }
+  }
+
+  async function makeTester(userId) {
+    if (!confirm('このユーザーを全機能テスター（実質無制限）にしますか？')) return;
+    const overrides = { suggest: 99999, kyushoku: 99999, fridge: 99999 };
+    try {
+      const { error } = await db.rpc('admin_set_usage_overrides', { target_user_id: userId, overrides });
+      if (error) throw error;
+      showToast('🧪 テスターに設定しました（全機能 実質無制限）');
+      const u = allUsers.find(u => u.id === userId);
+      if (u) u.usage_overrides = overrides;
+      renderUsers();
+    } catch(e) {
+      showToast('❌ ' + e.message);
+    }
+  }
+
+  async function resetUsage(userId) {
+    if (!confirm('今月のAI利用回数（AI相談・献立取込・食材取込）を0にリセットしますか？')) return;
+    try {
+      const { error } = await db.rpc('admin_reset_usage', { target_user_id: userId });
+      if (error) throw error;
+      showToast('↺ 今月の利用回数をリセットしました');
+      const u = allUsers.find(u => u.id === userId);
+      if (u) { u.suggest_month = 0; u.kyushoku_month = 0; u.fridge_month = 0; u.ai_month = 0; }
+      renderUsers();
+    } catch(e) {
+      showToast('❌ ' + e.message);
+    }
+  }
+
+  async function saveOverrides(userId) {
+    const readVal = (key) => {
+      const raw = document.getElementById('ov-' + key + '-' + userId).value;
+      return raw === '' ? null : Number(raw);
+    };
+    const overrides = {};
+    ['suggest', 'kyushoku', 'fridge'].forEach(key => {
+      const v = readVal(key);
+      if (v !== null && !Number.isNaN(v)) overrides[key] = v;
+    });
+    try {
+      const { error } = await db.rpc('admin_set_usage_overrides', {
+        target_user_id: userId,
+        overrides: Object.keys(overrides).length ? overrides : null,
+      });
+      if (error) throw error;
+      showToast('✅ 上限を保存しました');
+      const u = allUsers.find(u => u.id === userId);
+      if (u) u.usage_overrides = overrides;
+      renderUsers();
+    } catch(e) {
+      showToast('❌ ' + e.message);
+    }
+  }
+
+  async function clearOverrides(userId) {
+    if (!confirm('個別の上限設定を解除し、プラン標準値に戻しますか？')) return;
+    try {
+      const { error } = await db.rpc('admin_set_usage_overrides', { target_user_id: userId, overrides: null });
+      if (error) throw error;
+      showToast('✅ 上限設定を解除しました');
+      const u = allUsers.find(u => u.id === userId);
+      if (u) u.usage_overrides = {};
+      renderUsers();
     } catch(e) {
       showToast('❌ ' + e.message);
     }
