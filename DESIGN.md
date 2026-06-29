@@ -1,6 +1,6 @@
 # Tavera 設計書・引き継ぎ書
 
-**バージョン**: 1.22.0
+**バージョン**: 1.22.1
 **最終更新**: 2026-06-30
 **ステータス**: 一般公開済み・本番Stripe決済稼働中・解約フロー実装済み
 
@@ -483,6 +483,7 @@ home.htmlがJS構文エラーで画面破損。`</script>`内にHTMLが混入。
 - [x] **年払いプラン追加** ✅ v1.21.0 — Stripe年払いPrice作成（¥3,800/年・price_1TngeRBNAV5e5rhc8CHzqEUT）。tavera-checkoutにbillingCycleパラメータ追加。settings.htmlに月払い/年払いトグルUI。index.htmlLP料金セクションにトグル追加
 - [x] **年払いLP全体訴求** ✅ v1.21.1 — ヒーロー下に「月317円〜」アンカー。料金カードにCTAボタン。最下部CTAに年払いバナー追加
 - [x] **kyushoku.htmlヘッダー誤字修正** ✅ v1.21.2 — 「&#32231;食」→「給食」（文字参照の誤りで「緒食」と表示されていた）
+- [x] **suggest.htmlチャット欄スクロール不可バグ修正** ✅ v1.22.1 — 下記「既知の注意事項」参照
 - [ ] Flowra連携（食費データと連動した予算考慮の献立提案）
 - [ ] iOSネイティブアプリ（Webで定着確認後）
 
@@ -1039,3 +1040,13 @@ TAVERA_STRIPE_YEARLY_PRICE_ID = price_1TngeRBNAV5e5rhc8CHzqEUT
 | 2026-06-30 | 戦略策定 | 本セクション作成 |
 | （随時追記） | | |
 
+### suggest.htmlのチャット欄がスクロールできないバグ（v1.22.1）
+
+- **症状**：AI提案結果が表示された状態でチャット欄をスワイプしても上下にスクロールできない。上のテキストも下の入力欄も見えない。
+- **原因**：`height:calc(100vh - 57px - 60px)` という固定計算が実態と合っていなかった。`.usage-bar`（約33px）が`.chat-page`の**外**に配置されており、かつ`.chat-toolbar`（約36px）が`.chat-page`の**内**に存在したことで、`.chat-messages`（`flex:1`）に割り当てられる高さがコンテンツ量より小さくなり、スクロールできなかった。
+- **解決策（v1.22.1）**：
+  1. `suggest.html`専用で`.app-container`を`display:flex; flex-direction:column; height:100dvh; overflow:hidden`に上書き（`100dvh` = iOSのアドレスバーを考慮したdynamic viewport height）
+  2. `#usageBar`を`.chat-page`の**内部**（`chat-toolbar`の前）に移動
+  3. `.chat-page`を`height`固定から`flex:1; min-height:0; overflow:hidden`に変更し、高さの計算式を排除
+  4. これにより`.chat-messages`（`flex:1`）が正しく残り高さ全体を占有し、スクロール可能になった
+- **教訓**：チャットUIのような「上部に固定バー・中央がスクロール領域・下部に入力欄」の3層構造は、`height`の固定計算より`flex`の親子関係で高さを管理する方が堅牢。`calc(100vh - Npx)`は要素が増えるたびに計算し直す必要があり、追加要素を見落とすと即座にスクロール破損につながる。`dvh`はiOS Safari のアドレスバーの出し入れに対応するため、モバイルPWAでは`vh`より`dvh`が適切。
