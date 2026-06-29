@@ -49,6 +49,22 @@ body { font-family: var(--font-body); color: var(--brown); background: var(--whi
 a { text-decoration: none; color: inherit; }
 button { cursor: pointer; border: none; font-family: inherit; }
 
+/* スプラッシュ（PWA起動時にLPがちらつくのを防ぐ） */
+#splash {
+  position: fixed; inset: 0; z-index: 9999;
+  background: var(--cream);
+  display: flex; align-items: center; justify-content: center; flex-direction: column;
+  gap: 14px;
+  transition: opacity 0.4s ease;
+}
+#splash img { width: 72px; height: 72px; object-fit: contain; }
+#splash .splash-text {
+  font-family: var(--font-display); font-size: 1.8rem; font-weight: 700;
+  color: var(--terra); letter-spacing: 0.02em;
+}
+#splash.fade-out { opacity: 0; pointer-events: none; }
+#splash.hidden { display: none; }
+
 /* Header */
 header {
   position: sticky; top: 0; z-index: 100;
@@ -346,6 +362,12 @@ footer { background: var(--brown); color: rgba(255,255,255,0.7); }
 </style>
 </head>
 <body>
+<!-- スプラッシュ（ログイン済みならhome.htmlへ遷移するまで表示。LPは裏で隠れている） -->
+<div id="splash">
+  <img src="assets/logo.png" alt="Tavera">
+  <div class="splash-text">Tavera</div>
+</div>
+
 <!-- Google Tag Manager (noscript) -->
 <noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-ML7NKTDR"
 height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
@@ -679,11 +701,31 @@ async function startLogin(e) {
   await signInWithGoogle();
 }
 
-// すでにログイン済みならhome.htmlへ（?lp=1 のときはリダイレクトしない）
+// スプラッシュを隠してLPを見せる
+function hideSplash() {
+  const splash = document.getElementById('splash');
+  if (!splash) return;
+  splash.classList.add('fade-out');
+  setTimeout(() => splash.classList.add('hidden'), 400);
+}
+
+// ログイン済みならhome.htmlへ（?lp=1 のときはリダイレクトせずLPを表示）
 (async () => {
-  if (new URLSearchParams(location.search).get('lp') === '1') return;
-  const user = await getUser();
-  if (user) window.location.href = 'home.html';
+  if (new URLSearchParams(location.search).get('lp') === '1') {
+    hideSplash();
+    return;
+  }
+  try {
+    const user = await getUser();
+    if (user) {
+      // ログイン済み：home.htmlへ遷移するまでスプラッシュを表示したままにする（LPのちらつき防止）
+      window.location.href = 'home.html';
+      return;
+    }
+  } catch (e) {
+    console.error('[splash] auth check failed:', e);
+  }
+  hideSplash();
 })();
 
 // Fade-in on scroll
