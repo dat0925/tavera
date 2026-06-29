@@ -268,6 +268,33 @@ header nav a:hover { color: var(--terra); }
 .cta-section .section-title { color: #fff; font-family: var(--font-display); }
 .cta-section p { color: rgba(255,255,255,0.85); font-size: 1rem; margin-bottom: 36px; }
 .btn-white { background: #fff; color: var(--terra); font-weight: 700; }
+
+/* Pricing */
+.pricing-section { padding: 96px 24px; background: var(--surface); }
+.pricing-grid {
+  display: grid; grid-template-columns: repeat(2,1fr); gap: 24px;
+  margin-top: 48px; max-width: 760px; margin-left: auto; margin-right: auto;
+}
+.plan-card-lp {
+  background: var(--white); border: 1.5px solid var(--border);
+  border-radius: var(--radius); padding: 32px 28px; position: relative;
+}
+.plan-card-lp.highlight { border-color: var(--terra); box-shadow: 0 8px 32px var(--shadow); }
+.plan-card-lp .plan-tag {
+  position: absolute; top: -12px; right: 24px;
+  background: var(--terra); color: #fff; font-size: 0.7rem; font-weight: 700;
+  padding: 4px 12px; border-radius: 99px;
+}
+.plan-card-lp h3 { font-size: 0.95rem; font-weight: 700; color: var(--muted); margin-bottom: 10px; }
+.plan-card-lp .plan-price {
+  font-family: var(--font-display); font-size: 2rem; font-weight: 700;
+  color: var(--brown); margin-bottom: 4px;
+}
+.plan-card-lp .plan-price span { font-size: 0.85rem; font-weight: 400; color: var(--muted); }
+.plan-card-lp ul { list-style: none; margin: 20px 0 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+.plan-card-lp li { font-size: 0.85rem; color: var(--brown); display: flex; gap: 8px; line-height: 1.5; }
+.plan-card-lp li::before { content: "✓"; color: var(--olive); font-weight: 700; flex-shrink: 0; }
+.plan-card-lp .plan-note { font-size: 0.72rem; color: var(--muted); margin-top: 16px; line-height: 1.5; }
 .btn-white:hover { background: #fdf6ec; transform: translateY(-1px); }
 
 /* Company */
@@ -308,7 +335,7 @@ footer { background: var(--brown); color: rgba(255,255,255,0.7); }
 /* Responsive */
 @media (max-width: 768px) {
   header nav, .header-cta { display: none; }
-  .features-grid, .steps-grid { grid-template-columns: 1fr; }
+  .features-grid, .steps-grid, .pricing-grid { grid-template-columns: 1fr; }
   .ai-inner { grid-template-columns: 1fr; gap: 40px; }
   .footer-top { flex-direction: column; gap: 24px; }
   .footer-bottom { flex-direction: column; text-align: center; }
@@ -335,6 +362,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
       <a href="#features">機能</a>
       <a href="#ai">AI提案</a>
       <a href="#howto">使い方</a>
+      <a href="#pricing">料金</a>
       <a href="#company">運営者情報</a>
     </nav>
     <div class="header-cta">
@@ -539,6 +567,40 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
         <div class="step-num">3</div>
         <h3>AIに提案してもらう</h3>
         <p>冷蔵庫の食材を登録してAI提案を使えば、献立を考える時間がゼロになります。</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Pricing -->
+<section class="pricing-section" id="pricing">
+  <div class="section-inner">
+    <div class="fade-in" style="text-align:center;margin-bottom:0;">
+      <div class="section-label">料金プラン</div>
+      <h2 class="section-title">まずは無料で。必要になったらアップグレード</h2>
+    </div>
+    <div class="pricing-grid fade-in">
+      <div class="plan-card-lp">
+        <h3>無料プラン</h3>
+        <div class="plan-price">¥0<span>/月</span></div>
+        <ul>
+          <li>献立記録・履歴は無制限</li>
+          <li>AI相談：月10回まで（1日3回まで）</li>
+          <li>給食献立のAIインポート</li>
+          <li>冷蔵庫食材を写真でAI登録</li>
+        </ul>
+      </div>
+      <div class="plan-card-lp highlight">
+        <div class="plan-tag">おすすめ</div>
+        <h3>プレミアムプラン</h3>
+        <div class="plan-price">¥480<span>/月</span></div>
+        <ul>
+          <li>献立記録・履歴は無制限</li>
+          <li>AI相談：月500回まで（実質無制限）</li>
+          <li>給食献立のAIインポート</li>
+          <li>冷蔵庫食材を写真でAI登録</li>
+        </ul>
+        <div class="plan-note">いつでも解約可能。解約後も期限まで利用できます。</div>
       </div>
     </div>
   </div>
