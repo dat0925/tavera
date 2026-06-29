@@ -374,6 +374,54 @@ header nav a:hover { color: var(--terra); }
 .plan-card-lp .plan-note { font-size: 0.72rem; color: var(--muted); margin-top: 16px; line-height: 1.5; }
 .btn-white:hover { background: #fdf6ec; transform: translateY(-1px); }
 
+/* ヒーロー年払いヒント */
+.hero-yearly-hint {
+  margin-bottom: 24px;
+}
+.hero-yearly-hint a {
+  font-size: 0.82rem; color: var(--muted);
+  border-bottom: 1px dashed var(--border);
+  padding-bottom: 1px; transition: color 0.2s;
+}
+.hero-yearly-hint a:hover { color: var(--terra); }
+.hero-yearly-hint strong { color: var(--terra); }
+
+/* 料金カードCTAボタン */
+.lp-plan-cta-btn {
+  display: block; margin-top: 16px; padding: 12px;
+  background: var(--terra); color: #fff;
+  border-radius: 99px; font-size: 0.9rem; font-weight: 700;
+  text-align: center; transition: background 0.2s, transform 0.2s;
+}
+.lp-plan-cta-btn:hover { background: #b8451f; transform: translateY(-1px); }
+
+/* 最下部年払いバナー */
+.cta-yearly-banner {
+  margin-top: 32px;
+  background: rgba(255,255,255,0.12);
+  border: 1.5px solid rgba(255,255,255,0.25);
+  border-radius: 16px; padding: 20px 24px;
+  max-width: 520px; margin-left: auto; margin-right: auto;
+}
+.cta-yearly-inner {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 16px; flex-wrap: wrap;
+}
+.cta-yearly-title {
+  font-size: 0.92rem; font-weight: 700; color: #fff; margin-bottom: 4px;
+}
+.cta-yearly-desc {
+  font-size: 0.78rem; color: rgba(255,255,255,0.8); line-height: 1.5;
+}
+.cta-yearly-desc strong { color: #fff; }
+.cta-yearly-btn {
+  flex-shrink: 0; padding: 9px 20px;
+  background: #fff; color: var(--terra);
+  border-radius: 99px; font-size: 0.82rem; font-weight: 700;
+  white-space: nowrap; transition: background 0.2s;
+}
+.cta-yearly-btn:hover { background: #fdf6ec; }
+
 /* LPトグル */
 .lp-billing-toggle {
   display: inline-flex; align-items: center;
@@ -485,6 +533,11 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
     <div class="hero-cta">
       <a href="#" onclick="startLogin(event)" class="btn btn-primary btn-xl">Googleで無料ではじめる</a>
       <a href="#features" class="btn btn-outline btn-lg">機能を見る</a>
+    </div>
+    <div class="hero-yearly-hint fade-in">
+      <a href="#pricing" onclick="setTimeout(()=>lpSelectBilling('yearly'),300)">
+        ✨ プレミアム年払いなら<strong>月あたり317円〜</strong>　→ 料金を見る
+      </a>
     </div>
 
     <!-- Phone mockup -->
@@ -794,6 +847,9 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
           <li>冷蔵庫食材を写真でAI登録：月100回まで</li>
         </ul>
         <div class="plan-note" id="lpPlanNote">いつでも解約可能。解約後も期限まで利用できます。</div>
+        <a href="#" onclick="startLogin(event)" class="lp-plan-cta-btn" id="lpPlanCtaBtn">
+          今すぐ無料で始める →
+        </a>
       </div>
     </div>
   </div>
@@ -805,6 +861,15 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
     <h2 class="section-title">今日から、献立の悩みを手放そう</h2>
     <p>無料・登録1分・インストール不要。Googleアカウントでそのまま始められます。</p>
     <a href="#" onclick="startLogin(event)" class="btn btn-white btn-xl">Googleで無料ではじめる →</a>
+    <div class="cta-yearly-banner">
+      <div class="cta-yearly-inner">
+        <div>
+          <div class="cta-yearly-title">💰 年払いプランがおすすめ</div>
+          <div class="cta-yearly-desc">月払い¥480 × 12ヶ月 = ¥5,760 のところ、年払いなら<strong>¥3,800</strong>。¥1,960お得。</div>
+        </div>
+        <a href="#pricing" onclick="setTimeout(()=>lpSelectBilling('yearly'),300)" class="cta-yearly-btn">年払いを選ぶ</a>
+      </div>
+    </div>
   </div>
 </section>
 
@@ -874,16 +939,19 @@ function lpSelectBilling(cycle) {
   var savingEl = document.getElementById('lpYearlySaving');
   var noteEl = document.getElementById('lpPlanNote');
   if (!mBtn || !yBtn || !priceEl) return;
+  var ctaBtn = document.getElementById('lpPlanCtaBtn');
   if (cycle === 'yearly') {
     mBtn.classList.remove('active'); yBtn.classList.add('active');
     priceEl.innerHTML = '¥3,800<span>/年</span>';
     if (savingEl) savingEl.style.display = '';
     if (noteEl) noteEl.textContent = '年払い・解約後も期限まで利用可能';
+    if (ctaBtn) ctaBtn.textContent = '年払いで始める（¥3,800/年）→';
   } else {
     yBtn.classList.remove('active'); mBtn.classList.add('active');
     priceEl.innerHTML = '¥480<span>/月</span>';
     if (savingEl) savingEl.style.display = 'none';
     if (noteEl) noteEl.textContent = 'いつでも解約可能。解約後も期限まで利用できます。';
+    if (ctaBtn) ctaBtn.textContent = '今すぐ無料で始める→';
   }
 }
 
@@ -928,4 +996,5 @@ document.querySelectorAll('.fade-in').forEach(el => obs.observe(el));
 </script>
 </body>
 </html>
+
 
