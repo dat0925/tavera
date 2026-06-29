@@ -76,6 +76,22 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
     }
     .plan-usage .count { font-weight: 700; }
     .plan-usage .warn   { color: var(--terra); }
+    .plan-usage-list {
+      display: flex; flex-direction: column; gap: 8px;
+      margin-bottom: 12px;
+    }
+    .usage-row {
+      display: flex; align-items: center; justify-content: space-between;
+      font-size: 0.82rem; color: var(--brown);
+      padding: 8px 10px; background: var(--surface);
+      border-radius: 10px;
+    }
+    .usage-label { color: var(--muted); }
+    .usage-row .count { font-weight: 700; color: var(--brown); }
+    .usage-row .warn   { color: var(--terra); }
+    .plan-usage-note {
+      font-size: 0.78rem; color: var(--muted); margin-bottom: 12px; line-height: 1.6;
+    }
     .plan-upgrade-btn {
       display: block; width: 100%; padding: 11px;
       background: var(--terra); color: #fff; border: none;
@@ -846,6 +862,26 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
     // =====================
     //  プランカード
     // =====================
+    const USAGE_LIMITS = {
+      free:    { suggest: 10,  kyushoku: 3,  fridge: 30  },
+      premium: { suggest: 300, kyushoku: 30, fridge: 100 },
+    };
+    const FEATURE_LABELS = {
+      suggest:  '💬 AI提案',
+      kyushoku: '📋 献立取り込み',
+      fridge:   '📷 食材取り込み',
+    };
+
+    function buildUsageRows(usageMap, limits) {
+      return ['suggest', 'kyushoku', 'fridge'].map(function(key) {
+        const used = usageMap[key] || 0;
+        const limit = limits[key];
+        const remaining = limit - used;
+        const warnClass = remaining <= Math.max(2, Math.ceil(limit * 0.1)) ? 'warn' : '';
+        return `<div class="usage-row"><span class="usage-label">${FEATURE_LABELS[key]}</span><span class="count ${warnClass}">${used} / ${limit}回</span></div>`;
+      }).join('');
+    }
+
     async function renderPlanCard() {
       if (!currentUser) return;
       const card = document.getElementById('planCard');
@@ -862,34 +898,31 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
         (!member?.plan_expires_at || new Date(member.plan_expires_at) > new Date());
 
       const month = new Date().toISOString().slice(0, 7);
-      const { data: usage } = await db
+      const { data: usageRows } = await db
         .from('menu_ai_usage')
-        .select('count')
+        .select('feature, count')
         .eq('user_id', currentUser.id)
-        .eq('month', month)
-        .eq('feature', 'suggest')
-        .maybeSingle();
-      const used = usage?.count || 0;
+        .eq('month', month);
+      const usageMap = {};
+      (usageRows || []).forEach(function(r) { usageMap[r.feature] = r.count; });
+
+      const limits = isPremium ? USAGE_LIMITS.premium : USAGE_LIMITS.free;
+      const usageHtml = buildUsageRows(usageMap, limits);
 
       if (isPremium) {
-        const limit = 300;
-        const remaining = limit - used;
-        const warnClass = remaining <= 10 ? 'warn' : '';
         const expires = member.plan_expires_at
           ? new Date(member.plan_expires_at).toLocaleDateString('ja-JP')
           : '';
         const isCanceled = member.cancel_at_period_end === true;
         card.innerHTML = `
           <div class="plan-badge premium">${isCanceled ? '⏳ 解約済み（期限まで有効）' : '✨ プレミアム'}</div>
-          <div class="plan-usage">今月のAI提案：<span class="count ${warnClass}">${used} / ${limit}回</span>使用${expires ? `<br>${isCanceled ? '⚠️ ' + expires + ' にサービスが終了します' : '次回更新日：' + expires}` : ''}</div>
+          <div class="plan-usage-list">${usageHtml}</div>
+          ${expires ? `<div class="plan-usage-note">${isCanceled ? '⚠️ ' + expires + ' にサービスが終了します' : '次回更新日：' + expires}</div>` : ''}
           <button class="plan-manage-btn" onclick="manageSubscription()">${isCanceled ? '解約を取り消す' : 'サブスクリプションを管理'}</button>`;
       } else {
-        const limit = 10;
-        const remaining = limit - used;
-        const warnClass = remaining <= 3 ? 'warn' : '';
         card.innerHTML = `
           <div class="plan-badge free">無料プラン</div>
-          <div class="plan-usage">今月のAI提案：<span class="count ${warnClass}">${used} / ${limit}回</span>使用<br>残り<span class="count ${warnClass}">${remaining}回</span>利用できます。</div>
+          <div class="plan-usage-list">${usageHtml}</div>
           <button class="plan-upgrade-btn" onclick="startCheckout()">✨ プレミアムにアップグレード（¥480/月）</button>`;
       }
     }
