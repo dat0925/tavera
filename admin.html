@@ -249,13 +249,19 @@ a{text-decoration:none;color:inherit;}
 
     <!-- AIモデルセクション -->
     <div class="admin-body hidden" id="section-aimodel">
+      <div style="font-size:0.75rem;color:var(--muted);background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:10px 14px;margin-bottom:14px;line-height:1.6;">
+        💴 「1回あたり」の円換算レート：<strong style="color:var(--brown)">$1 = ¥160</strong>（社内計算用の簡便レート。2026年6月時点の実勢相場は$1≒¥161〜162）<br>
+        ※「1回あたり」は典型的な利用1回分のトークン数を仮定した推定値で、実際の入力内容（会話の長さ・写真の解像度・献立表の複雑さ等）により変動します。
+      </div>
+
       <div class="ai-model-card">
         <div class="ai-model-feature">💬 AI相談</div>
         <div class="ai-model-loc">AI提案チャット（suggest.html → tavera-suggest）</div>
         <div class="ai-model-row"><span>モデル</span><span>Claude Haiku 4.5</span></div>
         <div class="ai-model-row"><span>入力単価</span><span>$1.00 / 100万トークン</span></div>
         <div class="ai-model-row"><span>出力単価</span><span>$5.00 / 100万トークン</span></div>
-        <div class="ai-model-note">Anthropic API・model: claude-haiku-4-5-20251001</div>
+        <div class="ai-model-row"><span>1回あたり目安</span><span>$0.0023（約¥0.4）</span></div>
+        <div class="ai-model-note">Anthropic API・model: claude-haiku-4-5-20251001<br>想定トークン数：入力800・出力300（チャット1往復分）</div>
       </div>
 
       <div class="ai-model-card">
@@ -264,7 +270,8 @@ a{text-decoration:none;color:inherit;}
         <div class="ai-model-row"><span>モデル</span><span>Gemini 2.5 Flash</span></div>
         <div class="ai-model-row"><span>入力単価</span><span>$0.30 / 100万トークン</span></div>
         <div class="ai-model-row"><span>出力単価</span><span>$2.50 / 100万トークン</span></div>
-        <div class="ai-model-note">Google Gemini API・model: gemini-2.5-flash<br>TAVERA_GEMINI_API_KEYはFlowra（flowra-497313プロジェクト）の請求枠を共有</div>
+        <div class="ai-model-row"><span>1回あたり目安</span><span>$0.0087（約¥1.4）</span></div>
+        <div class="ai-model-note">Google Gemini API・model: gemini-2.5-flash<br>TAVERA_GEMINI_API_KEYはFlowra（flowra-497313プロジェクト）の請求枠を共有<br>想定トークン数：入力4,000（PDF/画像1枚）・出力3,000（1ヶ月・約20日分のJSON）</div>
       </div>
 
       <div class="ai-model-card">
@@ -273,7 +280,8 @@ a{text-decoration:none;color:inherit;}
         <div class="ai-model-row"><span>モデル</span><span>Gemini 2.5 Flash</span></div>
         <div class="ai-model-row"><span>入力単価</span><span>$0.30 / 100万トークン</span></div>
         <div class="ai-model-row"><span>出力単価</span><span>$2.50 / 100万トークン</span></div>
-        <div class="ai-model-note">Google Gemini API・model: gemini-2.5-flash<br>TAVERA_GEMINI_API_KEYはFlowra（flowra-497313プロジェクト）の請求枠を共有</div>
+        <div class="ai-model-row"><span>1回あたり目安</span><span>$0.0004（約¥0.07）</span></div>
+        <div class="ai-model-note">Google Gemini API・model: gemini-2.5-flash<br>TAVERA_GEMINI_API_KEYはFlowra（flowra-497313プロジェクト）の請求枠を共有<br>想定トークン数：入力600（写真1枚）・出力100（食材名の短いJSON配列）</div>
       </div>
 
       <div style="font-size:0.72rem;color:var(--muted);margin-top:4px;">
