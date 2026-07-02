@@ -92,6 +92,15 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
     .plan-usage-note {
       font-size: 0.78rem; color: var(--muted); margin-bottom: 12px; line-height: 1.6;
     }
+    .plan-family-note {
+      background: #FEF3EC; border: 1px solid var(--terra);
+      border-radius: 10px; padding: 8px 12px;
+      color: var(--terra); font-weight: 600;
+    }
+    .plan-family-hint {
+      font-size: 0.75rem; color: var(--olive); text-align: center;
+      margin-top: 10px; line-height: 1.5;
+    }
     /* 請求サイクルトグル */
     .billing-toggle {
       display: flex; align-items: center;
@@ -1026,33 +1035,61 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
         .eq('id', currentUser.id)
         .single();
 
-      const plan = member?.plan || 'free';
-      const isPremium = plan === 'premium' &&
-        (!member?.plan_expires_at || new Date(member.plan_expires_at) > new Date());
+      const now = new Date();
+      const ownIsPremiumPayer = member?.plan === 'premium' &&
+        (!member?.plan_expires_at || new Date(member.plan_expires_at) > now);
 
-      const month = new Date().toISOString().slice(0, 7);
+      // 世帯内メンバー全員を見て、誰か1人でも有効なプレミアムを持っていれば
+      // 世帯全体をプレミアム扱いにする（ファミリープレミアム）
+      const { data: householdMembers } = await db
+        .from('menu_members')
+        .select('id, name, plan, plan_expires_at')
+        .eq('household_id', householdId);
+
+      const premiumPayer = (householdMembers || []).find(m =>
+        m.plan === 'premium' && (!m.plan_expires_at || new Date(m.plan_expires_at) > now)
+      );
+      const isHouseholdPremium = !!premiumPayer;
+      const otherBenefiting = (householdMembers || []).filter(m => m.id !== currentUser.id);
+
+      const month = now.toISOString().slice(0, 7);
       const { data: usageRows } = await db
         .from('menu_ai_usage')
         .select('feature, count')
-        .eq('user_id', currentUser.id)
+        .eq('household_id', householdId)
         .eq('month', month);
       const usageMap = {};
       (usageRows || []).forEach(function(r) { usageMap[r.feature] = r.count; });
 
-      const limits = isPremium ? USAGE_LIMITS.premium : USAGE_LIMITS.free;
+      const limits = isHouseholdPremium ? USAGE_LIMITS.premium : USAGE_LIMITS.free;
       const usageHtml = buildUsageRows(usageMap, limits);
 
-      if (isPremium) {
+      if (ownIsPremiumPayer) {
+        // ===== 自分がプレミアムを契約している =====
         const expires = member.plan_expires_at
           ? new Date(member.plan_expires_at).toLocaleDateString('ja-JP')
           : '';
         const isCanceled = member.cancel_at_period_end === true;
+        const badgeLabel = isCanceled
+          ? '⏳ 解約済み（期限まで有効）'
+          : (otherBenefiting.length ? '👑 ファミリープレミアム契約者' : '✨ プレミアム');
+        const familyNote = (!isCanceled && otherBenefiting.length)
+          ? `<div class="plan-usage-note plan-family-note">👨‍👩‍👧 あなたの契約のおかげで、${otherBenefiting.map(function(m){return m.name || '家族';}).join('・')}さんも全機能を使えています</div>`
+          : '';
         card.innerHTML = `
-          <div class="plan-badge premium">${isCanceled ? '⏳ 解約済み（期限まで有効）' : '✨ プレミアム'}</div>
+          <div class="plan-badge premium">${badgeLabel}</div>
           <div class="plan-usage-list">${usageHtml}</div>
           ${expires ? `<div class="plan-usage-note">${isCanceled ? '⚠️ ' + expires + ' にサービスが終了します' : '次回更新日：' + expires}</div>` : ''}
+          ${familyNote}
           <button class="plan-manage-btn" onclick="manageSubscription()">${isCanceled ? '解約を取り消す' : 'サブスクリプションを管理'}</button>`;
+      } else if (isHouseholdPremium) {
+        // ===== 自分は未契約だが、世帯の誰かの契約で恩恵を受けている =====
+        card.innerHTML = `
+          <div class="plan-badge premium">🎁 ファミリープレミアム</div>
+          <div class="plan-usage-list">${usageHtml}</div>
+          <div class="plan-usage-note plan-family-note">${premiumPayer.name || '世帯のどなたか'}さんのプレミアム契約のおかげで、あなたも全機能を使えています🙏</div>`;
       } else {
+        // ===== 世帯全体がフリープラン =====
         card.innerHTML = `
           <div class="plan-badge free">無料プラン</div>
           <div class="plan-usage-list">${usageHtml}</div>
@@ -1064,7 +1101,8 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
             <div class="billing-price-main">¥480<span style="font-size:1rem;font-weight:400;color:var(--muted);">/月</span></div>
             <div class="billing-price-sub">月払い・いつでも解約可能</div>
           </div>
-          <button class="plan-upgrade-btn" id="upgradeBtn" onclick="startCheckout()">✨ プレミアムにアップグレード</button>`;
+          <button class="plan-upgrade-btn" id="upgradeBtn" onclick="startCheckout()">✨ プレミアムにアップグレード</button>
+          <div class="plan-family-hint">🎁 世帯の誰か1人が契約すれば、家族全員が全機能を使えるようになります（ファミリープレミアム）</div>`;
       }
     }
 
