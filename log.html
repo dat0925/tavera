@@ -89,6 +89,65 @@
     }
     .existing-banner .icon { font-size: 1rem; flex-shrink: 0; }
 
+    .comment-toggle-btn {
+      width: 100%; display: flex; align-items: center; gap: 6px;
+      background: var(--surface); border: 1.5px solid var(--border);
+      border-radius: var(--radius-md); padding: 12px 14px;
+      font-size: 0.9rem; font-weight: 600; color: var(--brown);
+      font-family: inherit; cursor: pointer;
+    }
+    .comment-toggle-count {
+      background: var(--terra); color: #fff;
+      font-size: 0.7rem; font-weight: 700;
+      min-width: 18px; height: 18px; padding: 0 5px;
+      border-radius: 99px; display: inline-flex; align-items: center; justify-content: center;
+    }
+    .comment-toggle-arrow { margin-left: auto; color: var(--muted); transition: transform 0.15s; }
+    .comment-toggle-arrow.open { transform: rotate(90deg); }
+    .comment-panel {
+      margin-top: 10px; padding: 14px;
+      background: var(--surface); border-radius: var(--radius-md);
+    }
+    .comment-list {
+      display: flex; flex-direction: column; gap: 8px;
+      max-height: 30vh; overflow-y: auto;
+      margin-bottom: 12px;
+    }
+    .comment-item {
+      background: var(--white); border-radius: 12px;
+      padding: 8px 12px; font-size: 0.85rem; color: var(--brown);
+    }
+    .comment-item .meta {
+      font-size: 0.68rem; color: var(--muted); margin-top: 3px;
+      display: flex; align-items: center; gap: 4px;
+    }
+    .comment-empty {
+      font-size: 0.82rem; color: var(--muted); text-align: center; padding: 8px 0;
+    }
+    .comment-stamps {
+      display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px;
+    }
+    .comment-stamp-btn {
+      padding: 7px 12px; border-radius: 99px;
+      border: 1.5px solid var(--border); background: var(--white);
+      font-size: 0.8rem; color: var(--brown); cursor: pointer;
+      font-family: inherit; -webkit-tap-highlight-color: transparent;
+    }
+    .comment-stamp-btn:active { border-color: var(--terra); color: var(--terra); background: #FEF3EC; }
+    .comment-input-row { display: flex; gap: 8px; }
+    .comment-input-row input {
+      flex: 1;
+      border: 1.5px solid var(--border); border-radius: 99px;
+      padding: 10px 14px; font-size: 0.85rem;
+      outline: none; font-family: var(--font-body); color: var(--brown);
+    }
+    .comment-input-row input:focus { border-color: var(--olive); }
+    .comment-send-btn {
+      width: 40px; height: 40px; border-radius: 50%;
+      background: var(--terra); color: #fff; border: none;
+      font-size: 1rem; flex-shrink: 0; cursor: pointer;
+    }
+
     .tip-icon {
       display: inline-flex;
       align-items: center;
@@ -201,6 +260,28 @@
             <span class="star" data-val="5">★</span>
           </div>
         </div>
+
+        <!-- コメント -->
+        <div class="form-group">
+          <button type="button" class="comment-toggle-btn" id="commentToggleBtn" onclick="toggleCommentPanel()">
+            💬 コメント<span class="comment-toggle-count" id="commentToggleCount" style="display:none;"></span>
+            <span class="comment-toggle-arrow" id="commentToggleArrow">›</span>
+          </button>
+          <div class="comment-panel hidden" id="commentPanel">
+            <div class="comment-list" id="logCommentList"></div>
+            <div class="comment-stamps">
+              <button class="comment-stamp-btn" onclick="sendLogComment('eating_out')">🍽️ 食べてくる</button>
+              <button class="comment-stamp-btn" onclick="sendLogComment('side_only')">🙅 おかずだけ</button>
+              <button class="comment-stamp-btn" onclick="sendLogComment('tasty')">😋 おいしかった</button>
+              <button class="comment-stamp-btn" onclick="sendLogComment('thanks')">🙏 ごちそうさま</button>
+            </div>
+            <div class="comment-input-row">
+              <input type="text" id="logCommentInput" placeholder="一言メモ（任意）" maxlength="100"
+                     onkeydown="if(event.key==='Enter')sendLogComment(null)">
+              <button class="comment-send-btn" type="button" onclick="sendLogComment(null)">➤</button>
+            </div>
+          </div>
+        </div>
       </div>
 
       <div class="save-area">
@@ -250,6 +331,7 @@
     let selectedRating = 0;
     let ingredients = [];
     let householdId = null;
+    let currentMemberId = null;
     let existingLogId = null;
     let isEditMode = false;
     let familyMembers = [];
@@ -317,6 +399,7 @@
     async function init() {
       const user = await requireAuth();
       if (!user) return;
+      currentMemberId = user.id;
       householdId = await getOrCreateHousehold(user.id);
       // 家族メンバー（アレルギー照合用）
       familyMembers = await getFamilyMembers(householdId);
@@ -367,6 +450,7 @@
       if (!dishParam && !ingredientsParam && !memoParam && !isEditMode) {
         await checkYesterdayHint(dateParam, mealParam);
       }
+      await refreshCommentCount();
     }
 
     // 既存データ読み込み
@@ -435,6 +519,7 @@
         document.getElementById('existingBanner').style.display = 'none';
         await loadExisting(dateStr, tab.dataset.meal);
         if (!isEditMode) await checkYesterdayHint(dateStr, tab.dataset.meal);
+        await refreshCommentCount();
       });
     });
 
@@ -449,6 +534,7 @@
       document.getElementById('existingBanner').style.display = 'none';
       await loadExisting(e.target.value, selectedMeal);
       if (!isEditMode) await checkYesterdayHint(e.target.value, selectedMeal);
+      await refreshCommentCount();
     });
 
     // 食材タグ
@@ -550,6 +636,65 @@
         showToast('削除しました', 'info');
         setTimeout(() => history.back(), 800);
       }
+    }
+
+    // ---- コメント ----
+    let commentPanelOpen = false;
+
+    async function refreshCommentCount() {
+      const dateStr = document.getElementById('dateInput').value;
+      const counts = await getMealCommentCounts(householdId, dateStr);
+      const count = counts[selectedMeal] || 0;
+      const countEl = document.getElementById('commentToggleCount');
+      if (count) {
+        countEl.textContent = count > 9 ? '9+' : count;
+        countEl.style.display = '';
+      } else {
+        countEl.style.display = 'none';
+      }
+      // パネルが開いたままタブ・日付を切り替えた場合は中身も更新
+      if (commentPanelOpen) await renderLogCommentList();
+    }
+
+    function toggleCommentPanel() {
+      commentPanelOpen = !commentPanelOpen;
+      document.getElementById('commentPanel').classList.toggle('hidden', !commentPanelOpen);
+      document.getElementById('commentToggleArrow').classList.toggle('open', commentPanelOpen);
+      if (commentPanelOpen) renderLogCommentList();
+    }
+
+    async function renderLogCommentList() {
+      const dateStr = document.getElementById('dateInput').value;
+      const list = document.getElementById('logCommentList');
+      list.innerHTML = '<div class="loading-dots" style="justify-content:center;padding:8px 0"><span></span><span></span><span></span></div>';
+      const comments = await getMealComments(householdId, dateStr, selectedMeal);
+      if (!comments.length) {
+        list.innerHTML = '<div class="comment-empty">まだコメントはありません</div>';
+        return;
+      }
+      list.innerHTML = comments.map(c => {
+        const name = c.menu_members?.name || (c.source === 'line' ? 'LINEから' : '家族');
+        const text = [c.stamp ? MEAL_COMMENT_STAMPS[c.stamp] || c.stamp : null, c.body].filter(Boolean).join('　');
+        const time = new Date(c.created_at).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' });
+        return `
+          <div class="comment-item">
+            <div>${text}</div>
+            <div class="meta">${name}・${time}${c.source === 'line' ? '・LINE' : ''}</div>
+          </div>`;
+      }).join('');
+      list.scrollTop = list.scrollHeight;
+    }
+
+    async function sendLogComment(stamp) {
+      const dateStr = document.getElementById('dateInput').value;
+      const input = document.getElementById('logCommentInput');
+      const body = input.value.trim();
+      if (!stamp && !body) return;
+      const result = await postMealComment(householdId, dateStr, selectedMeal, currentMemberId, { stamp, body: body || null });
+      if (!result) { showToast('コメントの投稿に失敗しました', 'error'); return; }
+      input.value = '';
+      await renderLogCommentList();
+      await refreshCommentCount();
     }
 
     init();
