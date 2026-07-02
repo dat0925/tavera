@@ -330,6 +330,13 @@
       content: '✓'; color: #fff; font-size: 0.7rem; font-weight: 700;
     }
     .shopping-item-name { font-size: 0.88rem; flex: 1; }
+    .shopping-item-del {
+      flex-shrink: 0; width: 22px; height: 22px;
+      display: flex; align-items: center; justify-content: center;
+      border: none; background: none; color: var(--muted);
+      font-size: 0.9rem; cursor: pointer; -webkit-tap-highlight-color: transparent;
+    }
+    .shopping-item-del:active { color: var(--terra); }
 
     .shopping-actions {
       display: flex; gap: 8px; margin-top: 4px;
@@ -574,8 +581,6 @@
           </div>
         </div>
       </div>
-    </div>
-
 
       <!-- 区切り -->
       <div class="divider" style="margin:20px 20px 0;"></div>
@@ -594,6 +599,7 @@
           <button class="shopping-copy-btn" onclick="copyShoppingList()">📋 リストをコピー</button>
         </div>
       </div>
+    </div>
 
     <!-- Bottom Nav -->
     <nav class="bottom-nav">
@@ -1009,15 +1015,16 @@
         return;
       }
 
-      // 冷蔵庫にある食材を除外
+      // 冷蔵庫にある食材・削除（非表示）指定した食材を除外
       const fridgeItems = await getFridgeItems(householdId);
       const fridgeNames = fridgeItems.map(f => f.name);
+      const dismissedNames = await getShoppingDismissed(householdId);
 
-      // 使用頻度順でソート・冷蔵庫食材は除外
+      // 使用頻度順でソート・冷蔵庫食材＆削除指定は除外
       const allItems = Object.entries(ingredientCount)
         .sort((a, b) => b[1] - a[1])
         .map(([name]) => name);
-      const needToBuy = allItems.filter(name => !fridgeNames.includes(name));
+      const needToBuy = allItems.filter(name => !fridgeNames.includes(name) && !dismissedNames.includes(name));
       const alreadyHave = allItems.filter(name => fridgeNames.includes(name));
 
       if (needToBuy.length === 0) {
@@ -1028,16 +1035,50 @@
 
       metaEl.textContent = needToBuy.length + '品 · 冷蔵庫に' + alreadyHave.length + '品あり';
       listEl.innerHTML = needToBuy.map(name => `
-        <div class="shopping-item" onclick="toggleShoppingItem(this)">
-          <div class="shopping-checkbox"></div>
-          <div class="shopping-item-name">${name}</div>
+        <div class="shopping-item">
+          <div class="shopping-checkbox-area" onclick="toggleShoppingItem(this.parentElement)" style="display:flex;align-items:center;gap:10px;flex:1;">
+            <div class="shopping-checkbox"></div>
+            <div class="shopping-item-name">${name}</div>
+          </div>
+          <button class="shopping-item-del" onclick="event.stopPropagation(); removeShoppingItem(this, '${name.replace(/'/g, "\\'")}')" title="リストから削除">✕</button>
         </div>
       `).join('');
       actionsEl.style.display = 'flex';
     }
 
-    function toggleShoppingItem(el) {
+    async function removeShoppingItem(btn, name) {
+      const ok = await dismissShoppingItem(householdId, name);
+      if (!ok) { showToast('削除に失敗しました', 'error'); return; }
+      btn.closest('.shopping-item').remove();
+      const remaining = document.querySelectorAll('#shoppingList .shopping-item').length;
+      const metaEl = document.getElementById('shoppingMeta');
+      if (!remaining) {
+        document.getElementById('shoppingList').innerHTML = '<div class="shopping-empty">今週の食材は冷蔵庫にすべて揃っています 🎉</div>';
+        document.getElementById('shoppingActions').style.display = 'none';
+      } else {
+        metaEl.textContent = metaEl.textContent.replace(/^\d+品/, remaining + '品');
+      }
+    }
+
+    async function toggleShoppingItem(el) {
+      const wasChecked = el.classList.contains('checked');
       el.classList.toggle('checked');
+
+      // チェックを入れた（＝買った）ときだけ冷蔵庫に自動登録。
+      // チェックを外しても冷蔵庫からは削除しない（誤操作で消えると困るため）。
+      if (wasChecked) return;
+
+      const name = el.querySelector('.shopping-item-name').textContent.trim();
+      const fridgeCount = document.querySelectorAll('.fridge-chip').length;
+      if (fridgeCount >= FRIDGE_MAX) {
+        showToast('冷蔵庫の登録上限（' + FRIDGE_MAX + '個）に達しているため追加できませんでした', 'error');
+        return;
+      }
+      const result = await addFridgeItem(householdId, name, null);
+      if (result) {
+        showToast(name + ' を冷蔵庫に追加しました 🧊');
+        await renderFridgeItems();
+      }
     }
 
     function copyShoppingList() {

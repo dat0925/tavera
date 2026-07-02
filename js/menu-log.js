@@ -447,6 +447,35 @@ async function deleteMealComment(commentId) {
 }
 
 // =====================
+// 買い物リストの「削除（非表示）」
+// =====================
+// 買い物リストは毎回「直近7日分の献立の食材 − 冷蔵庫食材」で自動生成される一覧のため、
+// 個別の行を保存しているわけではない。「削除」は、その食材名を今後7日間
+// リストから除外する、という形で実現する（7日を超えると集計対象期間そのものが
+// ずれるため、除外指定も自然に意味を失う＝特別なクリーンアップ処理は不要）。
+
+// 直近7日以内に「削除」された食材名の一覧を取得
+async function getShoppingDismissed(householdId) {
+  const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+  const { data, error } = await db
+    .from('menu_shopping_dismissed')
+    .select('name')
+    .eq('household_id', householdId)
+    .gt('dismissed_at', sevenDaysAgo);
+  if (error) { console.error(error); return []; }
+  return (data || []).map(r => r.name);
+}
+
+// 食材名を買い物リストから削除（非表示）
+async function dismissShoppingItem(householdId, name) {
+  const { error } = await db
+    .from('menu_shopping_dismissed')
+    .upsert({ household_id: householdId, name, dismissed_at: new Date().toISOString() }, { onConflict: 'household_id,name' });
+  if (error) { console.error(error); return false; }
+  return true;
+}
+
+// =====================
 // LINE連携
 // =====================
 
