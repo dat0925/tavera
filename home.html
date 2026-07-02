@@ -19,7 +19,7 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="js/supabase.js?v=20260629"></script>
   <script src="js/auth.js?v=20260629"></script>
-  <script src="js/menu-log.js?v=20260702"></script>
+  <script src="js/menu-log.js?v=20260702b"></script>
   <style>
     .date-strip {
       display: flex;
@@ -384,7 +384,23 @@
     }
     .comment-item .meta {
       font-size: 0.68rem; color: var(--muted); margin-top: 3px;
-      display: flex; align-items: center; gap: 4px;
+      display: flex; align-items: center; gap: 4px; flex-wrap: wrap;
+    }
+    .comment-action-btn {
+      background: none; border: none; padding: 0; margin-left: 6px;
+      font-size: 0.68rem; color: var(--olive); font-family: inherit; cursor: pointer;
+      text-decoration: underline; -webkit-tap-highlight-color: transparent;
+    }
+    .comment-edited-tag { color: var(--muted); }
+    .comment-edit-bar {
+      display: flex; align-items: center; justify-content: space-between;
+      background: #FEF3EC; border: 1px solid var(--terra);
+      border-radius: 10px; padding: 8px 12px; margin-bottom: 10px;
+      font-size: 0.8rem; color: var(--terra);
+    }
+    .comment-edit-bar button {
+      background: none; border: none; color: var(--terra);
+      font-size: 0.75rem; text-decoration: underline; cursor: pointer; font-family: inherit;
     }
     .comment-empty {
       font-size: 0.82rem; color: var(--muted); text-align: center; padding: 12px 0;
@@ -527,9 +543,13 @@
       <div class="bs-title" id="csTitle">コメント</div>
       <div class="comment-sheet-label" id="csLabel"></div>
       <div class="comment-list" id="csList"></div>
+      <div class="comment-edit-bar" id="csEditBar" style="display:none;">
+        <span>✏️ コメントを編集中</span>
+        <button type="button" onclick="cancelCommentEdit()">キャンセル</button>
+      </div>
       <div class="comment-stamps">
-        <button class="comment-stamp-btn" onclick="sendComment('eating_out')">🍽️ 食べてくる</button>
-        <button class="comment-stamp-btn" onclick="sendComment('side_only')">🙅 おかずだけ</button>
+        <button class="comment-stamp-btn" onclick="sendComment('eating_out')">🍽️ 外で食べてきます</button>
+        <button class="comment-stamp-btn" onclick="sendComment('side_only')">🙅 おかずだけ食べたいな</button>
         <button class="comment-stamp-btn" onclick="sendComment('tasty')">😋 おいしかった</button>
         <button class="comment-stamp-btn" onclick="sendComment('thanks')">🙏 ごちそうさま</button>
       </div>
@@ -701,6 +721,9 @@
     let currentGridDate = null;
     let commentSheetDate = null;
     let commentSheetMeal = null;
+    let lastComments = [];
+    let editingCommentId = null;
+    let editingStamp = null;
 
     async function openCommentSheet(dateStr, mealType, label) {
       commentSheetDate = dateStr;
@@ -708,7 +731,7 @@
       document.getElementById('csTitle').textContent = `${label}のコメント`;
       const d = new Date(dateStr + 'T00:00:00');
       document.getElementById('csLabel').textContent = `${d.getMonth()+1}月${d.getDate()}日`;
-      document.getElementById('csInput').value = '';
+      cancelCommentEdit();
       document.getElementById('csOverlay').classList.add('open');
       document.getElementById('commentSheet').classList.add('open');
       await renderCommentList();
@@ -723,6 +746,7 @@
       const list = document.getElementById('csList');
       list.innerHTML = '<div class="loading-dots" style="justify-content:center;padding:8px 0"><span></span><span></span><span></span></div>';
       const comments = await getMealComments(householdId, commentSheetDate, commentSheetMeal);
+      lastComments = comments;
       if (!comments.length) {
         list.innerHTML = '<div class="comment-empty">まだコメントはありません</div>';
         return;
@@ -731,18 +755,62 @@
         const name = c.menu_members?.name || (c.source === 'line' ? 'LINEから' : '家族');
         const text = [c.stamp ? MEAL_COMMENT_STAMPS[c.stamp] || c.stamp : null, c.body].filter(Boolean).join('　');
         const time = new Date(c.created_at).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' });
+        const editedTag = c.edited_at
+          ? `<span class="comment-edited-tag">（編集済み ${new Date(c.edited_at).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' })}）</span>`
+          : '';
+        const actions = c.author_id === currentMemberId
+          ? `<button class="comment-action-btn" onclick="startEditComment('${c.id}')">編集</button><button class="comment-action-btn" onclick="deleteCommentItem('${c.id}')">削除</button>`
+          : '';
         return `
           <div class="comment-item">
             <div>${text}</div>
-            <div class="meta">${name}・${time}${c.source === 'line' ? '・LINE' : ''}</div>
+            <div class="meta">${name}・${time}${c.source === 'line' ? '・LINE' : ''}${editedTag}${actions}</div>
           </div>`;
       }).join('');
       list.scrollTop = list.scrollHeight;
     }
 
+    function startEditComment(id) {
+      const c = lastComments.find(x => x.id === id);
+      if (!c) return;
+      editingCommentId = id;
+      editingStamp = c.stamp || null;
+      const input = document.getElementById('csInput');
+      input.value = c.body || '';
+      input.focus();
+      document.getElementById('csEditBar').style.display = 'flex';
+    }
+
+    function cancelCommentEdit() {
+      editingCommentId = null;
+      editingStamp = null;
+      document.getElementById('csInput').value = '';
+      document.getElementById('csEditBar').style.display = 'none';
+    }
+
+    async function deleteCommentItem(id) {
+      if (!confirm('このコメントを削除しますか？')) return;
+      const ok = await deleteMealComment(id);
+      if (!ok) { showToast('削除に失敗しました', 'error'); return; }
+      if (editingCommentId === id) cancelCommentEdit();
+      await renderCommentList();
+      if (commentSheetDate === currentGridDate) await renderMealGrid(currentGridDate);
+    }
+
     async function sendComment(stamp) {
       const input = document.getElementById('csInput');
       const body = input.value.trim();
+
+      if (editingCommentId) {
+        const finalStamp = stamp || editingStamp;
+        if (!finalStamp && !body) { showToast('内容を入力してください', 'error'); return; }
+        const result = await updateMealComment(editingCommentId, { stamp: finalStamp, body: body || null });
+        cancelCommentEdit();
+        if (!result) { showToast('コメントの更新に失敗しました', 'error'); return; }
+        await renderCommentList();
+        return;
+      }
+
       if (!stamp && !body) return;
       const result = await postMealComment(householdId, commentSheetDate, commentSheetMeal, currentMemberId, { stamp, body: body || null });
       if (!result) { showToast('コメントの投稿に失敗しました', 'error'); return; }

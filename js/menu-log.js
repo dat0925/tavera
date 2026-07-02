@@ -406,8 +406,8 @@ async function getMealComments(householdId, dateStr, mealType) {
 }
 
 const MEAL_COMMENT_STAMPS = {
-  eating_out: '🍽️ 食べてくる',
-  side_only:  '🙅 おかずだけ',
+  eating_out: '🍽️ 外で食べてきます',
+  side_only:  '🙅 おかずだけ食べたいな',
   tasty:      '😋 おいしかった',
   thanks:     '🙏 ごちそうさま',
 };
@@ -425,6 +425,25 @@ async function postMealComment(householdId, dateStr, mealType, authorId, { stamp
     await db.functions.invoke('tavera-comment-notify', { body: { comment_id: data.id } });
   } catch (e) { console.error('notify failed', e); }
   return data;
+}
+
+// コメントを編集（投稿者本人のみRLSで許可）。編集済みフラグとしてedited_atを記録
+async function updateMealComment(commentId, { stamp, body }) {
+  const { data, error } = await db
+    .from('menu_meal_comments')
+    .update({ stamp, body, edited_at: new Date().toISOString() })
+    .eq('id', commentId)
+    .select()
+    .single();
+  if (error) { console.error(error); return null; }
+  return data;
+}
+
+// コメントを削除（投稿者本人のみRLSで許可）
+async function deleteMealComment(commentId) {
+  const { error } = await db.from('menu_meal_comments').delete().eq('id', commentId);
+  if (error) { console.error(error); return false; }
+  return true;
 }
 
 // =====================
