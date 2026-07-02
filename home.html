@@ -19,7 +19,7 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="js/supabase.js?v=20260629"></script>
   <script src="js/auth.js?v=20260629"></script>
-  <script src="js/menu-log.js?v=20260702d"></script>
+  <script src="js/menu-log.js?v=20260703"></script>
   <style>
     .date-strip {
       display: flex;
@@ -432,6 +432,23 @@
     .comment-empty {
       font-size: 0.82rem; color: var(--muted); text-align: center; padding: 12px 0;
     }
+    .comment-role-toggle {
+      display: flex;
+      background: var(--surface);
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border);
+      overflow: hidden;
+      margin-bottom: 10px;
+    }
+    .comment-role-toggle button {
+      flex: 1; padding: 8px 10px;
+      font-size: 0.8rem; font-weight: 600;
+      border: none; background: none; color: var(--muted);
+      cursor: pointer; transition: all 0.15s; font-family: inherit;
+    }
+    .comment-role-toggle button.active {
+      background: var(--terra); color: #fff;
+    }
     .comment-stamps {
       display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px;
     }
@@ -574,12 +591,11 @@
         <span>✏️ コメントを編集中</span>
         <button type="button" onclick="cancelCommentEdit()">キャンセル</button>
       </div>
-      <div class="comment-stamps">
-        <button class="comment-stamp-btn" onclick="sendComment('eating_out')">🍽️ 外で食べてきます</button>
-        <button class="comment-stamp-btn" onclick="sendComment('side_only')">🙅 おかずだけ食べたいな</button>
-        <button class="comment-stamp-btn" onclick="sendComment('tasty')">😋 おいしかった</button>
-        <button class="comment-stamp-btn" onclick="sendComment('thanks')">🙏 ごちそうさま</button>
+      <div class="comment-role-toggle" id="csRoleToggle">
+        <button id="csRoleEater" onclick="setCommentStampMode('eater')">🍽️ 食べる側</button>
+        <button id="csRoleCooker" onclick="setCommentStampMode('cooker')">🍳 作る側</button>
       </div>
+      <div class="comment-stamps" id="csStamps"></div>
       <div class="comment-input-row">
         <input type="text" id="csInput" placeholder="一言メモ（任意）" maxlength="100"
                onkeydown="if(event.key==='Enter')sendComment(null)">
@@ -756,6 +772,8 @@
     let lastComments = [];
     let editingCommentId = null;
     let editingStamp = null;
+    let currentMemberRole = null;   // 'owner' | 'member'
+    let commentStampMode = 'eater'; // 'eater' | 'cooker'（コメントシートを開くたびroleから初期化）
 
     async function openCommentSheet(dateStr, mealType, label) {
       commentSheetDate = dateStr;
@@ -764,9 +782,21 @@
       const d = new Date(dateStr + 'T00:00:00');
       document.getElementById('csLabel').textContent = `${d.getMonth()+1}月${d.getDate()}日`;
       cancelCommentEdit();
+      if (currentMemberRole === null) currentMemberRole = await getMemberRole(currentMemberId);
+      setCommentStampMode(currentMemberRole === 'owner' ? 'cooker' : 'eater');
       document.getElementById('csOverlay').classList.add('open');
       document.getElementById('commentSheet').classList.add('open');
       await renderCommentList();
+    }
+
+    function setCommentStampMode(mode) {
+      commentStampMode = mode;
+      document.getElementById('csRoleEater').classList.toggle('active', mode === 'eater');
+      document.getElementById('csRoleCooker').classList.toggle('active', mode === 'cooker');
+      const stamps = mode === 'eater' ? EATER_STAMPS : COOKER_STAMPS;
+      document.getElementById('csStamps').innerHTML = Object.entries(stamps).map(([key, label]) =>
+        `<button class="comment-stamp-btn" onclick="sendComment('${key}')">${label}</button>`
+      ).join('');
     }
 
     function closeCommentSheet() {
@@ -807,6 +837,8 @@
       if (!c) return;
       editingCommentId = id;
       editingStamp = c.stamp || null;
+      if (c.stamp && COOKER_STAMPS[c.stamp]) setCommentStampMode('cooker');
+      else if (c.stamp && EATER_STAMPS[c.stamp]) setCommentStampMode('eater');
       const input = document.getElementById('csInput');
       input.value = c.body || '';
       input.focus();

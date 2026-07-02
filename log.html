@@ -19,7 +19,7 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="js/supabase.js?v=20260629"></script>
   <script src="js/auth.js?v=20260629"></script>
-  <script src="js/menu-log.js?v=20260702d"></script>
+  <script src="js/menu-log.js?v=20260703"></script>
   <style>
     .log-form { padding: 20px; }
 
@@ -139,6 +139,23 @@
     }
     .comment-empty {
       font-size: 0.82rem; color: var(--muted); text-align: center; padding: 8px 0;
+    }
+    .comment-role-toggle {
+      display: flex;
+      background: var(--white);
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border);
+      overflow: hidden;
+      margin-bottom: 10px;
+    }
+    .comment-role-toggle button {
+      flex: 1; padding: 8px 10px;
+      font-size: 0.8rem; font-weight: 600;
+      border: none; background: none; color: var(--muted);
+      cursor: pointer; transition: all 0.15s; font-family: inherit;
+    }
+    .comment-role-toggle button.active {
+      background: var(--terra); color: #fff;
     }
     .comment-stamps {
       display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px;
@@ -289,12 +306,11 @@
               <span>✏️ コメントを編集中</span>
               <button type="button" onclick="cancelLogCommentEdit()">キャンセル</button>
             </div>
-            <div class="comment-stamps">
-              <button class="comment-stamp-btn" onclick="sendLogComment('eating_out')">🍽️ 外で食べてきます</button>
-              <button class="comment-stamp-btn" onclick="sendLogComment('side_only')">🙅 おかずだけ食べたいな</button>
-              <button class="comment-stamp-btn" onclick="sendLogComment('tasty')">😋 おいしかった</button>
-              <button class="comment-stamp-btn" onclick="sendLogComment('thanks')">🙏 ごちそうさま</button>
+            <div class="comment-role-toggle" id="logRoleToggle">
+              <button id="logRoleEater" onclick="setLogCommentStampMode('eater')">🍽️ 食べる側</button>
+              <button id="logRoleCooker" onclick="setLogCommentStampMode('cooker')">🍳 作る側</button>
             </div>
+            <div class="comment-stamps" id="logStamps"></div>
             <div class="comment-input-row">
               <input type="text" id="logCommentInput" placeholder="一言メモ（任意）" maxlength="100"
                      onkeydown="if(event.key==='Enter')sendLogComment(null)">
@@ -663,6 +679,18 @@
     let lastLogComments = [];
     let editingLogCommentId = null;
     let editingLogStamp = null;
+    let logMemberRole = null;
+    let logCommentStampMode = 'eater';
+
+    function setLogCommentStampMode(mode) {
+      logCommentStampMode = mode;
+      document.getElementById('logRoleEater').classList.toggle('active', mode === 'eater');
+      document.getElementById('logRoleCooker').classList.toggle('active', mode === 'cooker');
+      const stamps = mode === 'eater' ? EATER_STAMPS : COOKER_STAMPS;
+      document.getElementById('logStamps').innerHTML = Object.entries(stamps).map(([key, label]) =>
+        `<button class="comment-stamp-btn" onclick="sendLogComment('${key}')">${label}</button>`
+      ).join('');
+    }
 
     async function refreshCommentCount() {
       const dateStr = document.getElementById('dateInput').value;
@@ -679,12 +707,17 @@
       if (commentPanelOpen) await renderLogCommentList();
     }
 
-    function toggleCommentPanel() {
+    async function toggleCommentPanel() {
       commentPanelOpen = !commentPanelOpen;
       document.getElementById('commentPanel').classList.toggle('hidden', !commentPanelOpen);
       document.getElementById('commentToggleArrow').classList.toggle('open', commentPanelOpen);
-      if (commentPanelOpen) renderLogCommentList();
-      else cancelLogCommentEdit();
+      if (commentPanelOpen) {
+        if (logMemberRole === null) logMemberRole = await getMemberRole(currentMemberId);
+        setLogCommentStampMode(logMemberRole === 'owner' ? 'cooker' : 'eater');
+        renderLogCommentList();
+      } else {
+        cancelLogCommentEdit();
+      }
     }
 
     async function renderLogCommentList() {
@@ -721,6 +754,8 @@
       if (!c) return;
       editingLogCommentId = id;
       editingLogStamp = c.stamp || null;
+      if (c.stamp && COOKER_STAMPS[c.stamp]) setLogCommentStampMode('cooker');
+      else if (c.stamp && EATER_STAMPS[c.stamp]) setLogCommentStampMode('eater');
       const input = document.getElementById('logCommentInput');
       input.value = c.body || '';
       input.focus();

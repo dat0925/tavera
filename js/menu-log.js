@@ -405,12 +405,31 @@ async function getMealComments(householdId, dateStr, mealType) {
   return data || [];
 }
 
-const MEAL_COMMENT_STAMPS = {
+// 「食べる側」向けスタンプ（記録前の献立へのリクエスト・記録後の感想など）
+const EATER_STAMPS = {
   eating_out: '🍽️ 外で食べてきます',
   side_only:  '🙅 おかずだけ食べたいな',
   tasty:      '😋 おいしかった',
   thanks:     '🙏 ごちそうさま',
 };
+
+// 「作る側」向けスタンプ（進捗共有など）
+const COOKER_STAMPS = {
+  cooking:     '🍳 これから作るね',
+  running_late:'⏰ 少し遅れます',
+  shopping:    '🛒 買い出し中',
+  appreciated: '🙏 いつもありがとう',
+};
+
+// 過去のコメント表示用（投稿時点でどちらのスタンプだったかに関わらず参照できるよう統合）
+const MEAL_COMMENT_STAMPS = { ...EATER_STAMPS, ...COOKER_STAMPS };
+
+// 世帯内での自分の役割（owner/member）を取得。「食べる側／作る側」トグルの初期値に使う
+async function getMemberRole(memberId) {
+  const { data, error } = await db.from('menu_members').select('role').eq('id', memberId).maybeSingle();
+  if (error || !data) return 'member';
+  return data.role || 'member';
+}
 
 // コメントを投稿し、通知Edge Functionを呼び出す
 async function postMealComment(householdId, dateStr, mealType, authorId, { stamp, body }) {
