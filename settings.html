@@ -881,8 +881,8 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
         .catch(() => showToast('コード: ' + code, 'info'));
     }
 
-    // TODO: LINE公式アカウント作成後、友だち追加URL（https://line.me/R/ti/p/@xxxxx）に置き換える
-    const LINE_ADD_FRIEND_URL = '#';
+    // Tavera公式LINEアカウントの友だち追加URL
+    const LINE_ADD_FRIEND_URL = 'https://lin.ee/8azlJ3Z';
 
     async function renderLineLinkStatus() {
       if (!currentUser) return;
