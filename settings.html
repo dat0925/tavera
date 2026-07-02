@@ -428,6 +428,11 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
         <div class="join-box" id="lineLinkUnlinkedBox">
           <p>Tavera公式LINEを友だち追加し、下記の連携コードをそのままLINEで送信してください。献立へのコメントがLINEに届くようになり、LINEから返信するとTaveraにコメントとして記録されます。</p>
           <div style="text-align:center;margin:14px 0;">
+            <img id="lineQrImg" alt="Tavera公式LINE 友だち追加QRコード"
+                 style="width:160px;height:160px;border-radius:12px;border:1.5px solid var(--border);background:#fff;padding:6px;">
+            <div style="font-size:0.72rem;color:var(--muted);margin-top:6px;">スマホのカメラでスキャンして友だち追加</div>
+          </div>
+          <div style="text-align:center;margin:14px 0;">
             <div style="font-family:monospace;font-size:1.4rem;font-weight:700;color:var(--terra);letter-spacing:0.15em;" id="lineLinkCode">-</div>
           </div>
           <div style="display:flex;gap:8px;">
@@ -895,6 +900,8 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
 
     async function prepareLineLinkCode() {
       document.getElementById('lineAddFriendBtn').href = LINE_ADD_FRIEND_URL;
+      document.getElementById('lineQrImg').src =
+        'https://api.qrserver.com/v1/create-qr-code/?size=320x320&margin=0&data=' + encodeURIComponent(LINE_ADD_FRIEND_URL);
       const codeEl = document.getElementById('lineLinkCode');
       codeEl.textContent = '発行中...';
       const code = await generateLineLinkCode(currentUser.id);
