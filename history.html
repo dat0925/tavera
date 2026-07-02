@@ -105,6 +105,8 @@
       transition: all var(--transition);
     }
     .history-item:hover { border-color: var(--amber); box-shadow: 0 2px 8px var(--shadow); }
+    .history-item.is-today { border-color: var(--terra); box-shadow: 0 0 0 2px rgba(198, 93, 62, 0.15); }
+    .history-today-label { font-size: 0.65rem; font-weight: 700; color: var(--terra); flex-shrink: 0; }
     .history-date-badge { text-align: center; flex-shrink: 0; width: 44px; }
     .history-date-badge .month { font-size: 0.65rem; color: var(--muted); }
     .history-date-badge .day   { font-size: 1.2rem; font-weight: 700; color: var(--brown); font-family: var(--font-display); }
@@ -417,12 +419,16 @@
         return;
       }
 
+      const todayStr = today.toISOString().slice(0, 10);
+
       list.innerHTML = data.map((log, i) => {
         const d = new Date(log.date);
         const [label, badgeClass] = MEAL_BADGE[log.meal_type] || ['?', ''];
         const isLoved = log.rating === 5;
+        const isToday = log.date === todayStr;
         return `
-          <div class="history-item fade-in" style="animation-delay:${i*0.04}s"
+          <div class="history-item fade-in ${isToday ? 'is-today' : ''}" style="animation-delay:${i*0.04}s"
+               data-date="${log.date}"
                onclick="openModal(allLogs[${i}])">
             <div class="history-date-badge">
               <div class="month">${d.getMonth()+1}&#26376;</div>
@@ -430,6 +436,7 @@
             </div>
             <span class="history-meal-badge ${badgeClass}">${label}</span>
             <div class="history-dish">${log.dish_name}${srcBadge(log)}</div>
+            ${isToday ? '<span class="history-today-label">本日</span>' : ''}
             ${log.rating ? `<div class="history-rating">${'&#9733;'.repeat(log.rating)}</div>` : ''}
             <button class="heart-btn ${isLoved ? 'loved' : ''}"
               onclick="event.stopPropagation(); toggleLove('${log.id}', ${isLoved}, this)">
@@ -437,6 +444,24 @@
             </button>
           </div>`;
       }).join('');
+
+      if (!keyword) scrollToToday();
+    }
+
+    // 開いた直後は「本日」の記録位置にスクロール（無ければ本日に一番近い直近の記録）
+    function scrollToToday() {
+      const list = document.getElementById('historyList');
+      const items = Array.from(list.querySelectorAll('.history-item'));
+      if (!items.length) return;
+      const todayStr = today.toISOString().slice(0, 10);
+      let target = items.find(el => el.dataset.date === todayStr);
+      if (!target) {
+        // 本日の記録が無い場合、本日以前で最も新しい記録（＝本日の位置に一番近い行）にスクロール
+        target = items.find(el => el.dataset.date < todayStr) || items[0];
+      }
+      requestAnimationFrame(() => {
+        target.scrollIntoView({ behavior: 'auto', block: 'center' });
+      });
     }
 
     // =====================
