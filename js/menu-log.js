@@ -408,9 +408,10 @@ async function getMealComments(householdId, dateStr, mealType) {
 // 「食べる側」向けスタンプ（記録前の献立へのリクエスト・記録後の感想など）
 const EATER_STAMPS = {
   eating_out: '🍽️ 外で食べてきます',
-  side_only:  '🙅 おかずだけ食べたいな',
+  side_only:  '🍖 おかずだけ食べたいな',
   tasty:      '😋 おいしかった',
   thanks:     '🙏 ごちそうさま',
+  appreciated:'🙏 いつもありがとう',
 };
 
 // 「作る側」向けスタンプ（進捗共有など）
