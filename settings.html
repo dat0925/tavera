@@ -26,7 +26,7 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="js/supabase.js?v=20260629"></script>
   <script src="js/auth.js?v=20260629"></script>
-  <script src="js/menu-log.js?v=20260629"></script>
+  <script src="js/menu-log.js?v=20260702"></script>
   <style>
     .settings-section { padding: 20px 20px 0; }
     .settings-section + .settings-section { padding-top: 8px; }
@@ -374,6 +374,12 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
             <span class="value" id="householdName">読込中...</span>
             <span class="arrow" id="householdNameArrow">&#8250;</span>
           </div>
+          <div class="settings-item" onclick="toggleSection('lineLinkSection')">
+            <span class="icon">&#128172;</span>
+            <span class="label">LINE連携</span>
+            <span class="value" id="lineLinkStatus">未連携</span>
+            <span class="arrow" id="lineLinkArrow">&#8250;</span>
+          </div>
         </div>
 
         <!-- Taveraアカウントメンバー一覧 -->
@@ -414,6 +420,23 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
             <input type="text" id="householdNameInput" class="form-input" placeholder="例：田中家" maxlength="20">
             <button class="btn btn-primary" onclick="saveHouseholdName()">保存</button>
           </div>
+        </div>
+      </div>
+
+      <!-- LINE連携 -->
+      <div class="settings-section hidden" id="lineLinkSection">
+        <div class="join-box" id="lineLinkUnlinkedBox">
+          <p>Tavera公式LINEを友だち追加し、下記の連携コードをそのままLINEで送信してください。献立へのコメントがLINEに届くようになり、LINEから返信するとTaveraにコメントとして記録されます。</p>
+          <div style="text-align:center;margin:14px 0;">
+            <div style="font-family:monospace;font-size:1.4rem;font-weight:700;color:var(--terra);letter-spacing:0.15em;" id="lineLinkCode">-</div>
+          </div>
+          <div style="display:flex;gap:8px;">
+            <button class="btn btn-primary" style="flex:1" onclick="copyLineLinkCode()">コードをコピー</button>
+            <a class="btn btn-primary" style="flex:1;text-align:center;text-decoration:none;" id="lineAddFriendBtn" href="#" target="_blank" rel="noopener">友だち追加</a>
+          </div>
+        </div>
+        <div class="join-box hidden" id="lineLinkLinkedBox" style="text-align:center;">
+          <p style="margin-bottom:0;">✅ LINE連携済みです</p>
         </div>
       </div>
 
@@ -522,6 +545,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
       await renderHousehold();
       await renderFamMembers();
       await renderPlanCard();
+      await renderLineLinkStatus();
 
       // 管理者リンクの表示制御
       if (user.email === 'mstd0520@gmail.com') {
@@ -838,7 +862,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
     function toggleSection(id) {
       const section = document.getElementById(id);
       const isHidden = section.classList.toggle('hidden');
-      const arrowMap = { inviteSection: 'inviteArrow', joinSection: 'joinArrow' };
+      const arrowMap = { inviteSection: 'inviteArrow', joinSection: 'joinArrow', lineLinkSection: 'lineLinkArrow' };
       const arrowId = arrowMap[id];
       if (arrowId) document.getElementById(arrowId).textContent = isHidden ? '›' : '⌄';
       if (id === 'householdNameSection' && !isHidden) {
@@ -847,12 +871,41 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
         input.value = currentName;
         setTimeout(() => input.focus(), 100);
       }
+      if (id === 'lineLinkSection' && !isHidden) prepareLineLinkCode();
     }
 
     function copyInviteCode() {
       const code = document.getElementById('inviteCode').textContent;
       navigator.clipboard.writeText(code)
         .then(() => showToast('招待コードをコピーしました！', 'success'))
+        .catch(() => showToast('コード: ' + code, 'info'));
+    }
+
+    // TODO: LINE公式アカウント作成後、友だち追加URL（https://line.me/R/ti/p/@xxxxx）に置き換える
+    const LINE_ADD_FRIEND_URL = '#';
+
+    async function renderLineLinkStatus() {
+      if (!currentUser) return;
+      const { data } = await db.from('menu_members').select('line_user_id').eq('id', currentUser.id).single();
+      const linked = !!data?.line_user_id;
+      document.getElementById('lineLinkStatus').textContent = linked ? '連携済み' : '未連携';
+      document.getElementById('lineLinkUnlinkedBox').classList.toggle('hidden', linked);
+      document.getElementById('lineLinkLinkedBox').classList.toggle('hidden', !linked);
+    }
+
+    async function prepareLineLinkCode() {
+      document.getElementById('lineAddFriendBtn').href = LINE_ADD_FRIEND_URL;
+      const codeEl = document.getElementById('lineLinkCode');
+      codeEl.textContent = '発行中...';
+      const code = await generateLineLinkCode(currentUser.id);
+      codeEl.textContent = code || 'エラー';
+    }
+
+    function copyLineLinkCode() {
+      const code = document.getElementById('lineLinkCode').textContent;
+      if (!code || code === '-' || code === '発行中...') return;
+      navigator.clipboard.writeText(code)
+        .then(() => showToast('連携コードをコピーしました！', 'success'))
         .catch(() => showToast('コード: ' + code, 'info'));
     }
 

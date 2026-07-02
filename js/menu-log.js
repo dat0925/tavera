@@ -374,3 +374,80 @@ function srcBadge(log) {
   if (!log || log.source !== 'kyushoku') return '';
   return '<span class="src-badge-kyushoku">🍱 給食</span>';
 }
+
+// =====================
+// 献立コメント（日付＋食事区分単位）
+// =====================
+
+// 指定日の朝・昼・夜それぞれのコメント件数 { breakfast: n, lunch: n, dinner: n }
+async function getMealCommentCounts(householdId, dateStr) {
+  const { data, error } = await db
+    .from('menu_meal_comments')
+    .select('meal_type')
+    .eq('household_id', householdId)
+    .eq('date', dateStr);
+  if (error) { console.error(error); return {}; }
+  const counts = {};
+  (data || []).forEach(r => { counts[r.meal_type] = (counts[r.meal_type] || 0) + 1; });
+  return counts;
+}
+
+// 指定の日付・食事区分のコメント一覧（投稿者名つき・古い順）
+async function getMealComments(householdId, dateStr, mealType) {
+  const { data, error } = await db
+    .from('menu_meal_comments')
+    .select('*, menu_members(name)')
+    .eq('household_id', householdId)
+    .eq('date', dateStr)
+    .eq('meal_type', mealType)
+    .order('created_at', { ascending: true });
+  if (error) { console.error(error); return []; }
+  return data || [];
+}
+
+const MEAL_COMMENT_STAMPS = {
+  eating_out: '🍽️ 食べてくる',
+  side_only:  '🙅 おかずだけ',
+  tasty:      '😋 おいしかった',
+  thanks:     '🙏 ごちそうさま',
+};
+
+// コメントを投稿し、通知Edge Functionを呼び出す
+async function postMealComment(householdId, dateStr, mealType, authorId, { stamp, body }) {
+  const { data, error } = await db
+    .from('menu_meal_comments')
+    .insert({ household_id: householdId, date: dateStr, meal_type: mealType, author_id: authorId, stamp, body, source: 'app' })
+    .select()
+    .single();
+  if (error) { console.error(error); return null; }
+  // LINE通知（失敗しても投稿自体は成功扱い。通知は best-effort）
+  try {
+    await db.functions.invoke('tavera-comment-notify', { body: { comment_id: data.id } });
+  } catch (e) { console.error('notify failed', e); }
+  return data;
+}
+
+// =====================
+// LINE連携
+// =====================
+
+// 8桁の連携コードを発行（30分有効）。既存の未使用コードがあれば使い回す
+async function generateLineLinkCode(memberId) {
+  const { data: existing } = await db
+    .from('menu_line_link_codes')
+    .select('code, expires_at')
+    .eq('member_id', memberId)
+    .is('used_at', null)
+    .gt('expires_at', new Date().toISOString())
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (existing?.code) return existing.code;
+
+  const code = Array.from({ length: 8 }, () => '23456789ABCDEFGHJKLMNPQRSTUVWXYZ'[Math.floor(Math.random() * 32)]).join('');
+  const expiresAt = new Date(Date.now() + 30 * 60 * 1000).toISOString();
+  const { error } = await db.from('menu_line_link_codes').insert({ code, member_id: memberId, expires_at: expiresAt });
+  if (error) { console.error(error); return null; }
+  return code;
+}
+

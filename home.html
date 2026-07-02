@@ -19,7 +19,7 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="js/supabase.js?v=20260629"></script>
   <script src="js/auth.js?v=20260629"></script>
-  <script src="js/menu-log.js?v=20260629"></script>
+  <script src="js/menu-log.js?v=20260702"></script>
   <style>
     .date-strip {
       display: flex;
@@ -346,6 +346,75 @@
       font-size: 0.82rem; color: var(--muted); padding: 16px 0; text-align: center;
     }
 
+    /* 献立コメント */
+    .meal-cell { position: relative; }
+    .meal-comment-btn {
+      position: absolute; top: 4px; right: 4px;
+      width: 20px; height: 20px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.7rem;
+      background: var(--white); border: 1px solid var(--border);
+      border-radius: 50%;
+      color: var(--muted);
+      z-index: 1;
+    }
+    .meal-comment-btn.has-comments {
+      border-color: var(--terra); color: var(--terra); background: #FEF3EC;
+    }
+    .meal-comment-btn .count {
+      position: absolute; top: -5px; right: -5px;
+      background: var(--terra); color: #fff;
+      font-size: 0.6rem; font-weight: 700;
+      min-width: 14px; height: 14px; padding: 0 2px;
+      border-radius: 99px;
+      display: flex; align-items: center; justify-content: center;
+      line-height: 1;
+    }
+    .comment-sheet-label {
+      font-size: 0.82rem; color: var(--muted); margin-bottom: 12px;
+    }
+    .comment-list {
+      display: flex; flex-direction: column; gap: 8px;
+      max-height: 30vh; overflow-y: auto;
+      margin-bottom: 14px;
+    }
+    .comment-item {
+      background: var(--surface); border-radius: 12px;
+      padding: 8px 12px; font-size: 0.85rem; color: var(--brown);
+    }
+    .comment-item .meta {
+      font-size: 0.68rem; color: var(--muted); margin-top: 3px;
+      display: flex; align-items: center; gap: 4px;
+    }
+    .comment-empty {
+      font-size: 0.82rem; color: var(--muted); text-align: center; padding: 12px 0;
+    }
+    .comment-stamps {
+      display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px;
+    }
+    .comment-stamp-btn {
+      padding: 7px 12px; border-radius: 99px;
+      border: 1.5px solid var(--border); background: var(--white);
+      font-size: 0.8rem; color: var(--brown); cursor: pointer;
+      font-family: inherit; -webkit-tap-highlight-color: transparent;
+    }
+    .comment-stamp-btn:active { border-color: var(--terra); color: var(--terra); background: #FEF3EC; }
+    .comment-input-row {
+      display: flex; gap: 8px;
+    }
+    .comment-input-row input {
+      flex: 1;
+      border: 1.5px solid var(--border); border-radius: 99px;
+      padding: 10px 14px; font-size: 0.85rem;
+      outline: none; font-family: var(--font-body); color: var(--brown);
+    }
+    .comment-input-row input:focus { border-color: var(--olive); }
+    .comment-send-btn {
+      width: 40px; height: 40px; border-radius: 50%;
+      background: var(--terra); color: #fff; border: none;
+      font-size: 1rem; flex-shrink: 0; cursor: pointer;
+    }
+
     @keyframes fadeIn {
       from { opacity: 0; transform: translateY(-4px); }
       to   { opacity: 1; transform: translateY(0); }
@@ -451,6 +520,26 @@
       </div>
     </div>
 
+    <!-- 献立コメントボトムシート -->
+    <div class="bottom-sheet-overlay" id="csOverlay" onclick="closeCommentSheet()"></div>
+    <div class="bottom-sheet" id="commentSheet">
+      <div class="bs-handle"></div>
+      <div class="bs-title" id="csTitle">コメント</div>
+      <div class="comment-sheet-label" id="csLabel"></div>
+      <div class="comment-list" id="csList"></div>
+      <div class="comment-stamps">
+        <button class="comment-stamp-btn" onclick="sendComment('eating_out')">🍽️ 食べてくる</button>
+        <button class="comment-stamp-btn" onclick="sendComment('side_only')">🙅 おかずだけ</button>
+        <button class="comment-stamp-btn" onclick="sendComment('tasty')">😋 おいしかった</button>
+        <button class="comment-stamp-btn" onclick="sendComment('thanks')">🙏 ごちそうさま</button>
+      </div>
+      <div class="comment-input-row">
+        <input type="text" id="csInput" placeholder="一言メモ（任意）" maxlength="100"
+               onkeydown="if(event.key==='Enter')sendComment(null)">
+        <button class="comment-send-btn" onclick="sendComment(null)">➤</button>
+      </div>
+    </div>
+
       <!-- 区切り -->
       <div class="divider" style="margin:20px 20px 0;"></div>
 
@@ -520,10 +609,12 @@
     const DAY_LABELS = ['日','月','火','水','木','金','土'];
     let selectedDate = toDateStr();
     let householdId = null;
+    let currentMemberId = null;
 
     async function init() {
       const user = await requireAuth();
       if (!user) return;
+      currentMemberId = user.id;
 
       renderUserInfo('userAvatar');
       householdId = await getOrCreateHousehold(user.id);
@@ -575,7 +666,11 @@
       const grid = document.getElementById('mealGrid');
       if (!householdId) return;
 
-      const logs = await getLogsByDate(householdId, dateStr);
+      currentGridDate = dateStr;
+      const [logs, commentCounts] = await Promise.all([
+        getLogsByDate(householdId, dateStr),
+        getMealCommentCounts(householdId, dateStr),
+      ]);
       const logMap = {};
       logs.forEach(l => logMap[l.meal_type] = l);
 
@@ -584,9 +679,14 @@
 
       grid.innerHTML = meals.map(type => {
         const log = logMap[type];
+        const count = commentCounts[type] || 0;
         return `
           <div class="meal-cell ${log ? 'has-entry' : ''}"
                onclick="location.href='log.html?date=${dateStr}&meal=${type}'">
+            <button class="meal-comment-btn ${count ? 'has-comments' : ''}"
+              onclick="event.stopPropagation(); openCommentSheet('${dateStr}', '${type}', '${labels[type]}')">
+              💬${count ? `<span class="count">${count > 9 ? '9+' : count}</span>` : ''}
+            </button>
             <div class="meal-type">${labels[type]}</div>
             ${log
               ? `<div class="meal-name">${log.dish_name}${srcBadge(log)}</div>`
@@ -595,6 +695,60 @@
           </div>
         `;
       }).join('');
+    }
+
+    // ---- 献立コメント ----
+    let currentGridDate = null;
+    let commentSheetDate = null;
+    let commentSheetMeal = null;
+
+    async function openCommentSheet(dateStr, mealType, label) {
+      commentSheetDate = dateStr;
+      commentSheetMeal = mealType;
+      document.getElementById('csTitle').textContent = `${label}のコメント`;
+      const d = new Date(dateStr + 'T00:00:00');
+      document.getElementById('csLabel').textContent = `${d.getMonth()+1}月${d.getDate()}日`;
+      document.getElementById('csInput').value = '';
+      document.getElementById('csOverlay').classList.add('open');
+      document.getElementById('commentSheet').classList.add('open');
+      await renderCommentList();
+    }
+
+    function closeCommentSheet() {
+      document.getElementById('csOverlay').classList.remove('open');
+      document.getElementById('commentSheet').classList.remove('open');
+    }
+
+    async function renderCommentList() {
+      const list = document.getElementById('csList');
+      list.innerHTML = '<div class="loading-dots" style="justify-content:center;padding:8px 0"><span></span><span></span><span></span></div>';
+      const comments = await getMealComments(householdId, commentSheetDate, commentSheetMeal);
+      if (!comments.length) {
+        list.innerHTML = '<div class="comment-empty">まだコメントはありません</div>';
+        return;
+      }
+      list.innerHTML = comments.map(c => {
+        const name = c.menu_members?.name || (c.source === 'line' ? 'LINEから' : '家族');
+        const text = [c.stamp ? MEAL_COMMENT_STAMPS[c.stamp] || c.stamp : null, c.body].filter(Boolean).join('　');
+        const time = new Date(c.created_at).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' });
+        return `
+          <div class="comment-item">
+            <div>${text}</div>
+            <div class="meta">${name}・${time}${c.source === 'line' ? '・LINE' : ''}</div>
+          </div>`;
+      }).join('');
+      list.scrollTop = list.scrollHeight;
+    }
+
+    async function sendComment(stamp) {
+      const input = document.getElementById('csInput');
+      const body = input.value.trim();
+      if (!stamp && !body) return;
+      const result = await postMealComment(householdId, commentSheetDate, commentSheetMeal, currentMemberId, { stamp, body: body || null });
+      if (!result) { showToast('コメントの投稿に失敗しました', 'error'); return; }
+      input.value = '';
+      await renderCommentList();
+      if (commentSheetDate === currentGridDate) await renderMealGrid(currentGridDate);
     }
 
     // ---- 冷蔵庫食材 ----
