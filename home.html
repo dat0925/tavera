@@ -19,7 +19,7 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="js/supabase.js?v=20260629"></script>
   <script src="js/auth.js?v=20260629"></script>
-  <script src="js/menu-log.js?v=20260702c"></script>
+  <script src="js/menu-log.js?v=20260702d"></script>
   <style>
     .date-strip {
       display: flex;
@@ -337,6 +337,26 @@
       font-size: 0.9rem; cursor: pointer; -webkit-tap-highlight-color: transparent;
     }
     .shopping-item-del:active { color: var(--terra); }
+    .shopping-item-manual-tag {
+      font-size: 0.65rem; color: var(--olive); border: 1px solid var(--olive);
+      border-radius: 99px; padding: 1px 6px; margin-left: 6px; vertical-align: middle;
+    }
+    .shopping-add-row {
+      display: flex; gap: 8px; margin-bottom: 4px;
+    }
+    .shopping-add-input {
+      flex: 1; border: 1.5px solid var(--border); border-radius: 10px;
+      padding: 9px 12px; font-size: 0.85rem; outline: none;
+      font-family: var(--font-body); color: var(--brown);
+    }
+    .shopping-add-input:focus { border-color: var(--olive); }
+    .shopping-add-btn {
+      padding: 0 16px; border-radius: 10px; border: none;
+      background: var(--surface); border: 1.5px solid var(--border);
+      color: var(--brown); font-size: 0.85rem; font-weight: 600;
+      cursor: pointer; font-family: inherit;
+    }
+    .shopping-add-btn:active { border-color: var(--terra); color: var(--terra); }
 
     .shopping-actions {
       display: flex; gap: 8px; margin-top: 4px;
@@ -594,6 +614,12 @@
         <div class="shopping-meta" id="shoppingMeta"></div>
         <div class="shopping-list" id="shoppingList">
           <div class="shopping-empty">献立を記録すると食材リストが自動生成されます</div>
+        </div>
+        <div class="shopping-add-row">
+          <input type="text" id="shoppingManualInput" class="shopping-add-input"
+                 placeholder="食材以外も追加できます（例：ラップ）" maxlength="30"
+                 onkeydown="if(event.key==='Enter')addShoppingManualItemUI()">
+          <button class="shopping-add-btn" onclick="addShoppingManualItemUI()">追加</button>
         </div>
         <div class="shopping-actions" id="shoppingActions" style="display:none;">
           <button class="shopping-copy-btn" onclick="copyShoppingList()">📋 リストをコピー</button>
@@ -1000,8 +1026,11 @@
       }
 
       // ingredients を展開・集約
+      // 給食（source==='kyushoku'）は学校が用意するもので家庭で買う必要が無いため、
+      // 買い物リストの自動生成対象からは除外する
       const ingredientCount = {};
       logs.forEach(log => {
+        if (log.source === 'kyushoku') return;
         if (!log.ingredients || !log.ingredients.length) return;
         log.ingredients.forEach(ing => {
           const name = ing.trim();
@@ -1010,31 +1039,36 @@
         });
       });
 
-      if (Object.keys(ingredientCount).length === 0) {
-        listEl.innerHTML = '<div class="shopping-empty">今週の献立に食材情報がありません。<br>献立記録時に食材を入力すると表示されます。</div>';
-        return;
-      }
-
       // 冷蔵庫にある食材・削除（非表示）指定した食材を除外
       const fridgeItems = await getFridgeItems(householdId);
       const fridgeNames = fridgeItems.map(f => f.name);
       const dismissedNames = await getShoppingDismissed(householdId);
+      const manualItems = await getShoppingManualItems(householdId);
 
       // 使用頻度順でソート・冷蔵庫食材＆削除指定は除外
       const allItems = Object.entries(ingredientCount)
         .sort((a, b) => b[1] - a[1])
         .map(([name]) => name);
-      const needToBuy = allItems.filter(name => !fridgeNames.includes(name) && !dismissedNames.includes(name));
+      const autoNeedToBuy = allItems.filter(name => !fridgeNames.includes(name) && !dismissedNames.includes(name));
       const alreadyHave = allItems.filter(name => fridgeNames.includes(name));
 
-      if (needToBuy.length === 0) {
-        listEl.innerHTML = '<div class="shopping-empty">今週の食材は冷蔵庫にすべて揃っています 🎉</div>';
-        metaEl.textContent = '冷蔵庫に' + alreadyHave.length + '品あり';
+      // 手動追加分（自動検出とかぶるものは除く）
+      const autoNames = new Set(autoNeedToBuy);
+      const manualNeedToBuy = manualItems.filter(m => !autoNames.has(m.name));
+
+      const totalCount = autoNeedToBuy.length + manualNeedToBuy.length;
+
+      if (totalCount === 0) {
+        listEl.innerHTML = allItems.length
+          ? '<div class="shopping-empty">今週の食材は冷蔵庫にすべて揃っています 🎉</div>'
+          : '<div class="shopping-empty">今週の献立に食材情報がありません。<br>献立記録時に食材を入力するか、下から手動で追加できます。</div>';
+        metaEl.textContent = alreadyHave.length ? '冷蔵庫に' + alreadyHave.length + '品あり' : '';
+        actionsEl.style.display = 'flex';
         return;
       }
 
-      metaEl.textContent = needToBuy.length + '品 · 冷蔵庫に' + alreadyHave.length + '品あり';
-      listEl.innerHTML = needToBuy.map(name => `
+      metaEl.textContent = totalCount + '品 · 冷蔵庫に' + alreadyHave.length + '品あり';
+      const autoHtml = autoNeedToBuy.map(name => `
         <div class="shopping-item">
           <div class="shopping-checkbox-area" onclick="toggleShoppingItem(this.parentElement)" style="display:flex;align-items:center;gap:10px;flex:1;">
             <div class="shopping-checkbox"></div>
@@ -1043,7 +1077,41 @@
           <button class="shopping-item-del" onclick="event.stopPropagation(); removeShoppingItem(this, '${name.replace(/'/g, "\\'")}')" title="リストから削除">✕</button>
         </div>
       `).join('');
+      const manualHtml = manualNeedToBuy.map(m => `
+        <div class="shopping-item">
+          <div class="shopping-checkbox-area" onclick="toggleShoppingItem(this.parentElement)" style="display:flex;align-items:center;gap:10px;flex:1;">
+            <div class="shopping-checkbox"></div>
+            <div class="shopping-item-name">${m.name}</div>
+            <span class="shopping-item-manual-tag">手動</span>
+          </div>
+          <button class="shopping-item-del" onclick="event.stopPropagation(); removeManualShoppingItem(this, '${m.id}')" title="リストから削除">✕</button>
+        </div>
+      `).join('');
+      listEl.innerHTML = autoHtml + manualHtml;
       actionsEl.style.display = 'flex';
+    }
+
+    async function addShoppingManualItemUI() {
+      const input = document.getElementById('shoppingManualInput');
+      const name = input.value.trim();
+      if (!name) return;
+      input.value = '';
+      const result = await addShoppingManualItem(householdId, name);
+      if (!result) { showToast('追加に失敗しました', 'error'); return; }
+      await renderShoppingList();
+    }
+
+    async function removeManualShoppingItem(btn, id) {
+      const ok = await deleteShoppingManualItem(id);
+      if (!ok) { showToast('削除に失敗しました', 'error'); return; }
+      btn.closest('.shopping-item').remove();
+      const remaining = document.querySelectorAll('#shoppingList .shopping-item').length;
+      const metaEl = document.getElementById('shoppingMeta');
+      if (!remaining) {
+        document.getElementById('shoppingList').innerHTML = '<div class="shopping-empty">今週の食材は冷蔵庫にすべて揃っています 🎉</div>';
+      } else {
+        metaEl.textContent = metaEl.textContent.replace(/^\d+品/, remaining + '品');
+      }
     }
 
     async function removeShoppingItem(btn, name) {
@@ -1054,7 +1122,6 @@
       const metaEl = document.getElementById('shoppingMeta');
       if (!remaining) {
         document.getElementById('shoppingList').innerHTML = '<div class="shopping-empty">今週の食材は冷蔵庫にすべて揃っています 🎉</div>';
-        document.getElementById('shoppingActions').style.display = 'none';
       } else {
         metaEl.textContent = metaEl.textContent.replace(/^\d+品/, remaining + '品');
       }

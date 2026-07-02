@@ -476,6 +476,39 @@ async function dismissShoppingItem(householdId, name) {
 }
 
 // =====================
+// 買い物リストの手動追加
+// =====================
+// 自動生成（献立ログの食材集計）とは別に、ユーザーが直接追加できる項目。
+// 「献立には登場しないが買っておきたいもの」用（例：ラップ、洗剤など）
+
+async function getShoppingManualItems(householdId) {
+  const { data, error } = await db
+    .from('menu_shopping_manual')
+    .select('*')
+    .eq('household_id', householdId)
+    .order('created_at', { ascending: true });
+  if (error) { console.error(error); return []; }
+  return data || [];
+}
+
+async function addShoppingManualItem(householdId, name) {
+  const user = await getUser();
+  const { data, error } = await db
+    .from('menu_shopping_manual')
+    .insert({ household_id: householdId, name: name.trim(), created_by: user?.id || null })
+    .select()
+    .single();
+  if (error) { console.error(error); return null; }
+  return data;
+}
+
+async function deleteShoppingManualItem(id) {
+  const { error } = await db.from('menu_shopping_manual').delete().eq('id', id);
+  if (error) { console.error(error); return false; }
+  return true;
+}
+
+// =====================
 // LINE連携
 // =====================
 
