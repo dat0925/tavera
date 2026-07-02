@@ -158,6 +158,11 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
       border-radius: var(--radius-md); padding: 16px;
     }
     .join-box p { font-size: 0.85rem; color: var(--brown); margin-bottom: 10px; }
+    .join-warning {
+      display: flex; gap: 6px; font-size: 0.78rem; color: #a1442a;
+      background: #FDEDEA; border: 1px solid #F3C6BA; border-radius: 8px;
+      padding: 8px 10px; margin-bottom: 12px; line-height: 1.5;
+    }
     .join-input-row { display: flex; gap: 8px; }
     .join-input-row input { flex: 1; font-family: monospace; font-size: 1rem; letter-spacing: 0.1em; text-transform: uppercase; }
 
@@ -415,6 +420,9 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
       <!-- 招待コードで参加 -->
       <div class="settings-section hidden" id="joinSection">
         <div class="join-box">
+          <div class="join-warning">
+            &#9888;&#65039; 参加すると今の記録にはアクセスできなくなります。個人の記録と世帯の記録を後から切り替えて使うことはできません（Flowraの家計管理とは異なる仕様です）
+          </div>
           <p>家族から受け取った8桁の招待コードを入力してください</p>
           <div class="join-input-row">
             <input type="text" id="joinCodeInput" class="form-input"
@@ -881,6 +889,30 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
     async function joinHousehold() {
       const code = document.getElementById('joinCodeInput').value.trim().toUpperCase();
       if (code.length < 4) { showToast('招待コードを入力してください', 'error'); return; }
+
+      // 参加前にしっかり警告する（Flowraの家計管理と違い、個人記録と世帯記録を
+      // 後から切り替えて使うことはできない仕様のため）
+      const { count: logCount } = await db
+        .from('menu_logs')
+        .select('id', { count: 'exact', head: true })
+        .eq('household_id', householdId);
+
+      const warnLines = (logCount > 0)
+        ? [
+            '本当にこの招待コードで参加しますか？',
+            '',
+            `・今のあなたの献立記録（${logCount}件）には、参加後アプリ上から一切アクセスできなくなります`,
+            '・記録は削除はされませんが、個人と世帯の記録を後から切り替えて使うことはできません（Flowraの家計管理とは異なる仕様です）',
+            '・「世帯を離れる」をしても今の記録には戻れず、新しい空の世帯が作られるだけです',
+          ]
+        : [
+            '本当にこの招待コードで参加しますか？',
+            '',
+            '・参加すると、今後は招待した世帯の記録を共有する形になります',
+            '・個人の記録画面と世帯の記録画面を後から切り替えて使うことはできません（Flowraの家計管理とは異なる仕様です）',
+          ];
+      if (!confirm(warnLines.join('\n'))) return;
+
       const btn = event.target;
       btn.textContent = '確認中...'; btn.disabled = true;
       const result = await joinHouseholdByCode(currentUser.id, code);
