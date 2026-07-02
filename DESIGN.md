@@ -1,6 +1,6 @@
 # Tavera 設計書・引き継ぎ書
 
-**バージョン**: 1.22.4
+**バージョン**: 1.23.0
 **最終更新**: 2026-07-02
 **ステータス**: 一般公開済み・本番Stripe決済稼働中・解約フロー実装済み
 
@@ -78,6 +78,8 @@
 | `TAVERA_STRIPE_YEARLY_PRICE_ID` | `price_1TngeRBNAV5e5rhc8CHzqEUT`（本番・年払い・¥3,800/年）**要Supabase Secret登録** |
 | `TAVERA_STRIPE_WEBHOOK_SECRET` | `whsec_8x4LMUX008s0rlDd99oidTQBjn6EzDCZ`（本番） |
 | `SUPABASE_SERVICE_ROLE_KEY` | 既存 |
+| `TAVERA_LINE_CHANNEL_SECRET` | **要登録**（LINE Developersコンソールで取得。未登録の間はtavera-line-webhookの署名検証が失敗する） |
+| `TAVERA_LINE_CHANNEL_ACCESS_TOKEN` | **要登録**（同上。長期チャネルアクセストークンを発行して登録） |
 
 ### Edge Functions
 
@@ -89,6 +91,8 @@
 | tavera-portal | Stripeカスタマーポータルセッション生成 | オン | - |
 | tavera-kyushoku | 給食献立表の画像/PDF解析（v24・dishes+ingredients+allergenHits(allergen,reason)・URLモード内部fetch対応・429リトライ＋UA偽装＋マジックバイト判定＋response_schemaでJSON構造強制＋thinking無効化＋認証/利用回数制限・アレルゲン検出＋判断理由対応） | オン | gemini-2.5-flash |
 | tavera-fridge-scan | 冷蔵庫写真→食材認識（v5・認証/利用回数制限＋429リトライ＋thinking無効化＋エラー診断） | オン | gemini-2.5-flash |
+| tavera-comment-notify | 献立コメント投稿時にLINE Pushで他メンバーへ通知（アプリ→LINE） | オン | - |
+| tavera-line-webhook | Tavera公式LINEのWebhook受信。友だち追加時の案内・連携コード受付・LINE返信をコメントとして記録＋他メンバーへ再通知（署名検証あり） | オフ | - |
 
 ---
 
@@ -117,6 +121,8 @@
 | stripe_subscription_id | text | |
 | cancel_at_period_end | boolean | 解約予約フラグ |
 | usage_limit_overrides | jsonb | 機能別の利用上限オーバーライド（v1.16.0追加）。`{"suggest":99999,"kyushoku":30,"fridge":100}`のように機能名キーで個別の月次上限を上書き。キーが無い機能はプラン標準値（free/premium）にフォールバック。テストユーザーの上限緩和・特定ユーザーへの優待などに使用 |
+| line_user_id | text UNIQUE | LINE連携済みの場合のLINE userId（v1.23.0追加） |
+| line_linked_at | timestamptz | LINE連携日時（v1.23.0追加） |
 
 ### menu_logs（献立ログ）
 | カラム | 型 | 説明 |
@@ -158,7 +164,41 @@ UNIQUE制約: `(household_id, date, meal_type)` ※v1.9.6で追加。これが�
 | created_by | uuid | |
 | created_at | timestamptz | |
 
-### menu_ai_usage（AI利用回数）
+### menu_meal_comments（献立コメント・v1.23.0新設）
+| カラム | 型 | 説明 |
+|--------|-----|------|
+| id | uuid PK | |
+| household_id | uuid FK | |
+| date | date | コメント対象の日付 |
+| meal_type | text | breakfast / lunch / dinner |
+| author_id | uuid FK→menu_members | 投稿者。LINE経由の場合もLINE連携済みメンバーのIDが入る |
+| stamp | text | 定型スタンプキー（eating_out / side_only / tasty / thanks）。null可 |
+| body | text | 自由記述。null可（ただしstampとbodyの両方nullは不可・CHECK制約あり） |
+| source | text | 'app'（Tavera上で投稿）/ 'line'（LINE返信経由） |
+| created_at | timestamptz | |
+
+**重要**：`menu_logs`と異なり日付＋食事区分のUNIQUE制約は無い（複数コメントが積み上がるスレッド形式）。また`menu_logs`が無くてもコメントだけ先に投稿できる（「今日は外食する」等、記録前の献立への先出し連絡に対応するため意図的にログと分離した設計）。
+
+### menu_line_link_codes（LINEアカウント連携コード・v1.23.0新設）
+| カラム | 型 | 説明 |
+|--------|-----|------|
+| code | text PK | 8桁のランダムコード（`generateLineLinkCode()`で発行、紛らわしい文字（0/O/1/I）を除いた32文字セットから生成） |
+| member_id | uuid FK→menu_members | |
+| expires_at | timestamptz | 発行から30分 |
+| used_at | timestamptz | 使用済みになった日時。null＝未使用 |
+
+### menu_line_contexts（LINE返信の文脈・v1.23.0新設）
+| カラム | 型 | 説明 |
+|--------|-----|------|
+| member_id | uuid PK / FK→menu_members | |
+| household_id | uuid FK | |
+| date | date | 直近その人が話題にしていた献立の日付 |
+| meal_type | text | 同・食事区分 |
+| updated_at | timestamptz | |
+
+LINEでのフリーテキスト返信が「どの日付・食事区分へのコメントか」を判定するための文脈テーブル。Push通知を送るたびに送信先の文脈を更新し、LINE側から返信があった時点で6時間以内の文脈が残っていればそれを使う。6時間を超えている場合は`getDefaultMealSlot()`相当のロジック（現在時刻から本日の朝/昼/夜を推定）にフォールバックする。RLSは有効化のみ（クライアント向けポリシー無し）で、Edge Function（service role）のみがアクセス可能。
+
+
 | カラム | 型 | 説明 |
 |--------|-----|------|
 | user_id | uuid | |
@@ -1086,6 +1126,35 @@ TAVERA_STRIPE_YEARLY_PRICE_ID = price_1TngeRBNAV5e5rhc8CHzqEUT
   1. `log.html`に`.existing-banner`を追加。`loadExisting()`で既存ログが見つかった時点で、画面上部に「🍱 この食事はすでに給食インポートで記録済みです」（`source==='kyushoku'`の場合）または「📝 この日・この食事区分はすでに記録済みです」（それ以外）というバナーを表示
   2. 食事タブ切替・日付変更時は、再判定前に一旦バナーを非表示にしてから`loadExisting()`を呼び直す
 - **教訓**：ユニーク制約による「既存データの自動読み込み」自体は安全側に倒した正しい設計だが、UI上の状態変化（画面タイトルは変わらないのに中身だけ変わる）を伴う仕様変更は、ユーザーに明示的なフィードバックを返さないと簡単に「バグではないか」という問い合わせにつながる。データの自動読込・自動上書き系の挙動は、常に画面上に「なぜこうなっているか」を一言添えるのが安全。
+
+### 献立コメント機能＋LINE連携（双方向）の追加（v1.23.0）
+
+- **背景**：「今日ご飯たべてくる」「おかずだけ食べたい」「すごくおいしかったよ」を家族間で摩擦なく伝え合いたい、という要望。プロダクト全体としてではなく開発者本人が欲しい機能として着手。
+- **設計判断**：
+  1. **コメントの単位は「日付＋食事区分」**（`menu_meal_comments`）にし、`menu_logs`とは意図的に分離。「今日食べてくる」は記録前の献立に対する先出し連絡であり、既存ログへの紐づけだと最も使いたい場面（未記録の今日の夜）で使えなくなるため
+  2. **入力は定型スタンプ＋自由記述の併用**。家族アプリでは自由記述だけだと入力コストが心理的障壁になり使われなくなるため、よくある4パターン（🍽️食べてくる／🙅おかずだけ／😋おいしかった／🙏ごちそうさま）をワンタップ化
+  3. **LINE連携は双方向**（v1で一気に実装）。Tavera公式LINEアカウント（1個。世帯ごとではない）を作り、招待コードと同じ発想の連携コードで`menu_members.line_user_id`と紐づけ。コメント投稿→LINE Push通知、LINE返信→Taveraにコメントとして記録、の両方向に対応
+  4. LINE側の返信がどの日付・食事区分への発言かを判定するため、`menu_line_contexts`で「直近6時間以内に通知を送った/受けた文脈」を保持。文脈が無ければ`getDefaultMealSlot()`相当のロジック（現在時刻から本日の朝/昼/夜を推定）にフォールバック。LINEのFlexメッセージ＋postbackボタンによる厳密な紐づけも検討したが、家族間の軽いやり取りには過剰と判断し見送り（将来的な改善候補）
+- **実装**：
+  - DBマイグレーション：`menu_meal_comments`・`menu_line_link_codes`・`menu_line_contexts`を新設、`menu_members`に`line_user_id`（UNIQUE）・`line_linked_at`を追加。RLSは`menu_logs`と同じ「自分の`household_id`に一致」パターンを踏襲（`menu_line_contexts`のみservice role専用でクライアント向けポリシー無し）
+  - `home.html`：本日の朝/昼/夜カードそれぞれに💬ボタン（件数バッジ付き）を追加。タップでボトムシートを開き、コメント一覧＋スタンプ＋自由記述入力を表示（`event.stopPropagation()`でカード本体のタップ＝ログ編集への遷移とは独立させている）
+  - `settings.html`：「LINE連携」セクションを追加。連携コード発行・コピー、連携済み表示
+  - `js/menu-log.js`：`getMealCommentCounts` / `getMealComments` / `postMealComment` / `generateLineLinkCode`を追加。**menu-log.jsを読み込む6ファイル全て（history/home/kyushoku/log/settings/suggest.html）のキャッシュバスターを一斉更新**（既存ルール通り）
+  - Edge Function `tavera-comment-notify`（新規・JWT ON）：アプリでのコメント投稿後にクライアントから呼び出し、その世帯でLINE連携済みの他メンバーへPush通知。あわせて通知先の`menu_line_contexts`を更新
+  - Edge Function `tavera-line-webhook`（新規・JWT OFF・署名検証あり）：LINE公式アカウントのWebhook受信口。友だち追加時の案内、連携コードの受付、連携済みユーザーの発言をコメントとして記録（文脈推定つき）、他の連携済みメンバーへの再通知まで一括処理。`line-webhook`（Taskra用）・`foodai-send-reply`（FoodAI用）の既存パターンを踏襲
+  - 上記2つのEdge FunctionはSupabase MCP経由で直接デプロイ済み（コード編集は本リポジトリでは管理していない。Taskra/Flowraと同じ運用）
+
+- **⚠️ 未完了・要手動対応（本セッションでは実施不可）**：
+  1. **LINE Developersコンソールで「Tavera」のMessaging APIチャンネルを新規作成**する必要がある（LINE公式アカウントの作成含む）
+  2. チャンネル作成後、**チャネルシークレット**と**チャネルアクセストークン（長期）**を取得し、Supabaseの Edge Functions → Secrets に以下を登録：
+     - `TAVERA_LINE_CHANNEL_SECRET`
+     - `TAVERA_LINE_CHANNEL_ACCESS_TOKEN`
+  3. LINE Developersコンソールの Messaging API設定で、Webhook URLを `https://sfhtvtcmgueystyuhzvd.supabase.co/functions/v1/tavera-line-webhook` に設定し、Webhookを有効化
+  4. LINE公式アカウントマネージャー側で「応答メッセージ」「あいさつメッセージ」の自動応答をOFFにする（Webhook側の`follow`イベント処理と重複させないため）
+  5. `settings.html`の`LINE_ADD_FRIEND_URL`定数（現在`'#'`のプレースホルダー）を、実際の友だち追加URL（`https://line.me/R/ti/p/@xxxxx`形式）に差し替える
+  6. 上記が完了するまでは、アプリ側の「コメント投稿→LINE通知」「LINE返信→コメント記録」は動作しない（コメント機能自体、LINE連携なしのアプリ内完結利用は今すぐ動作する）
+- **今後の検討候補（未実装）**：LINEのFlexメッセージ＋postbackボタンによる厳密な文脈紐づけ（現状は時間ベースの推定文脈）。history.html側の過去ログ詳細画面へのコメント欄追加（現状はhome.htmlの本日3食のみ）。
+
 
 
 
