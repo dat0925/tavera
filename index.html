@@ -340,6 +340,17 @@ header nav a:hover { color: var(--terra); }
   background: var(--terra); color: #fff;
   font-size: 0.68rem; font-weight: 700; padding: 3px 10px; border-radius: 99px;
 }
+.feature-premium-badge {
+  display: inline-block; margin-top: 10px;
+  background: #B8860B; color: #fff;
+  font-size: 0.68rem; font-weight: 700; padding: 3px 10px; border-radius: 99px;
+}
+.pricing-family-note {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: #FEF3E5; border: 1px solid #B8860B;
+  color: #8a6508; font-size: 0.78rem; font-weight: 700;
+  padding: 6px 12px; border-radius: 99px; margin-bottom: 14px;
+}
 
 /* レスポンシブ */
 @media (max-width: 768px) {
@@ -371,6 +382,7 @@ header nav a:hover { color: var(--terra); }
 .plan-card-lp ul { list-style: none; margin: 20px 0 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
 .plan-card-lp li { font-size: 0.85rem; color: var(--brown); display: flex; gap: 8px; line-height: 1.5; }
 .plan-card-lp li::before { content: "✓"; color: var(--olive); font-weight: 700; flex-shrink: 0; }
+.plan-card-lp li.locked::before { content: "🔒"; color: var(--muted); }
 .plan-card-lp .plan-note { font-size: 0.72rem; color: var(--muted); margin-top: 16px; line-height: 1.5; }
 .btn-white:hover { background: #fdf6ec; transform: translateY(-1px); }
 
@@ -631,7 +643,13 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
       <div class="feature-card fade-in">
         <div class="feature-icon">👨‍👩‍👧</div>
         <h3>家族で共有</h3>
-        <p>招待コードを送るだけで家族が同じ献立カレンダーを見られます。「今日の夜ご飯は？」がすぐわかる。</p>
+        <p>招待コードを送るだけで家族が同じ献立カレンダーを見られます。「今日の夜ご飯は？」がすぐわかる。プレミアムは家族の誰か1人が契約すればOK（ファミリープレミアム）。</p>
+      </div>
+      <div class="feature-card fade-in">
+        <div class="feature-icon" style="background:#FDF3E5;">💬</div>
+        <h3>LINEで家族へ献立コメント</h3>
+        <p>「今日は外で食べてくる」「おいしかった！」をLINEで送るだけでTaveraに記録。既読すら要らない、一番ラクな家族連絡。</p>
+        <div class="feature-premium-badge">✨ プレミアム機能</div>
       </div>
       <div class="feature-card fade-in">
         <div class="feature-icon">📱</div>
@@ -833,6 +851,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
           <li>AI相談：月10回まで（1日3回まで）</li>
           <li>給食献立のAIインポート：月3回まで</li>
           <li>冷蔵庫食材を写真でAI登録：月30回まで</li>
+          <li class="locked" style="color:var(--muted);">LINEで家族へ献立コメント</li>
         </ul>
       </div>
       <div class="plan-card-lp highlight">
@@ -840,11 +859,13 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
         <h3>プレミアムプラン</h3>
         <div id="lpPremiumPrice" class="plan-price">¥480<span>/月</span></div>
         <div id="lpYearlySaving" style="display:none;font-size:0.78rem;color:var(--olive);font-weight:700;margin-bottom:8px;">年払いで¥1,960お得</div>
+        <div class="pricing-family-note">👨‍👩‍👧 家族の誰か1人が契約すれば、家族全員が使えます</div>
         <ul>
           <li>献立記録・履歴は無制限</li>
-          <li>AI相談：月300回まで</li>
-          <li>給食献立のAIインポート：月30回まで</li>
-          <li>冷蔵庫食材を写真でAI登録：月100回まで</li>
+          <li>AI相談：月300回まで（世帯で共有）</li>
+          <li>給食献立のAIインポート：月30回まで（世帯で共有）</li>
+          <li>冷蔵庫食材を写真でAI登録：月100回まで（世帯で共有）</li>
+          <li>LINEで家族へ献立コメント</li>
         </ul>
         <div class="plan-note" id="lpPlanNote">いつでも解約可能。解約後も期限まで利用できます。</div>
         <a href="#" onclick="startLogin(event)" class="lp-plan-cta-btn" id="lpPlanCtaBtn">
