@@ -80,6 +80,15 @@
       padding: 0 20px 20px;
     }
 
+    .existing-banner {
+      display: flex; align-items: center; gap: 8px;
+      background: #FEF3EC; border: 1px solid var(--terra);
+      border-radius: var(--radius-md); padding: 10px 14px;
+      font-size: 0.82rem; color: var(--brown);
+      margin: 0 20px 16px;
+    }
+    .existing-banner .icon { font-size: 1rem; flex-shrink: 0; }
+
     .tip-icon {
       display: inline-flex;
       align-items: center;
@@ -127,6 +136,12 @@
 
     <div class="page">
       <div class="log-form">
+        <!-- 既存記録が読み込まれた場合の通知 -->
+        <div class="existing-banner" id="existingBanner" style="display:none;">
+          <span class="icon" id="existingBannerIcon">📝</span>
+          <span id="existingBannerText"></span>
+        </div>
+
         <!-- 日付 -->
         <div class="form-group date-picker-row">
           <input type="date" id="dateInput" class="form-input">
@@ -359,6 +374,9 @@
     // （AI提案やURLパラメータから渡された内容を優先するため）
     async function loadExisting(dateStr, mealType, presetFlags) {
       presetFlags = presetFlags || {};
+      const banner = document.getElementById('existingBanner');
+      banner.style.display = 'none';
+
       const logs = await getLogsByDate(householdId, dateStr);
       const log = logs.find(l => l.meal_type === mealType);
       if (!log) return;
@@ -378,6 +396,13 @@
       }
       setRating(log.rating || 0);
       document.getElementById('deleteBtn').style.display = '';
+
+      // すでにこの日・この食事区分に記録がある旨を通知（給食インポート由来かどうかで文言を出し分け）
+      document.getElementById('existingBannerIcon').textContent = log.source === 'kyushoku' ? '🍱' : '📝';
+      document.getElementById('existingBannerText').textContent = log.source === 'kyushoku'
+        ? 'この食事はすでに給食インポートで記録済みです。内容を編集できます'
+        : 'この日・この食事区分はすでに記録済みです。内容を編集できます';
+      banner.style.display = '';
 
       // edit=1 で来た場合のみ編集モードUIに切り替え
       if (isEditMode) {
@@ -407,6 +432,7 @@
         renderIngredientTags();
         setRating(0);
         document.getElementById('deleteBtn').style.display = 'none';
+        document.getElementById('existingBanner').style.display = 'none';
         await loadExisting(dateStr, tab.dataset.meal);
         if (!isEditMode) await checkYesterdayHint(dateStr, tab.dataset.meal);
       });
@@ -420,6 +446,7 @@
       renderIngredientTags();
       setRating(0);
       document.getElementById('deleteBtn').style.display = 'none';
+      document.getElementById('existingBanner').style.display = 'none';
       await loadExisting(e.target.value, selectedMeal);
       if (!isEditMode) await checkYesterdayHint(e.target.value, selectedMeal);
     });
