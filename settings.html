@@ -1074,7 +1074,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
           ? '⏳ 解約済み（期限まで有効）'
           : (otherBenefiting.length ? '👑 ファミリープレミアム契約者' : '✨ プレミアム');
         const familyNote = (!isCanceled && otherBenefiting.length)
-          ? `<div class="plan-usage-note plan-family-note">👨‍👩‍👧 あなたの契約のおかげで、${otherBenefiting.map(function(m){return m.name || '家族';}).join('・')}さんも全機能を使えています</div>`
+          ? `<div class="plan-usage-note plan-family-note">👨‍👩‍👧 あなたの契約のおかげで、${otherBenefiting.map(function(m){return m.name || '家族';}).join('・')}さんも使えています（利用回数は世帯で共有）</div>`
           : '';
         card.innerHTML = `
           <div class="plan-badge premium">${badgeLabel}</div>
@@ -1087,7 +1087,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
         card.innerHTML = `
           <div class="plan-badge premium">🎁 ファミリープレミアム</div>
           <div class="plan-usage-list">${usageHtml}</div>
-          <div class="plan-usage-note plan-family-note">${premiumPayer.name || '世帯のどなたか'}さんのプレミアム契約のおかげで、あなたも全機能を使えています🙏</div>`;
+          <div class="plan-usage-note plan-family-note">${premiumPayer.name || '世帯のどなたか'}さんのプレミアム契約のおかげで、あなたも全機能を使えています🙏（利用回数は世帯みんなで共有）</div>`;
       } else {
         // ===== 世帯全体がフリープラン =====
         card.innerHTML = `
