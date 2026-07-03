@@ -93,23 +93,42 @@
       flex-direction: column;
       gap: 10px;
     }
-    .history-item {
+    /* 同じ日付の記録を1つの枠にまとめる（デイグループ） */
+    .history-day-group {
+      background: var(--surface);
+      border-radius: var(--radius-md);
+      border: 1px solid var(--border);
+      overflow: hidden;
+      transition: all var(--transition);
+    }
+    .history-day-group.is-today { border-color: var(--terra); box-shadow: 0 0 0 2px rgba(198, 93, 62, 0.15); }
+    .history-day-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 14px;
+      background: var(--cream);
+      border-bottom: 1px solid var(--border);
+    }
+    .history-day-weekday { font-size: 0.75rem; font-weight: 600; color: var(--muted); }
+    .history-today-label {
+      font-size: 0.65rem; font-weight: 700; color: #fff; flex-shrink: 0;
+      background: var(--terra); padding: 2px 8px; border-radius: 99px; margin-left: auto;
+    }
+    .history-date-badge { text-align: center; flex-shrink: 0; width: 40px; display: flex; align-items: baseline; gap: 3px; }
+    .history-date-badge .month { font-size: 0.65rem; color: var(--muted); }
+    .history-date-badge .day   { font-size: 1.15rem; font-weight: 700; color: var(--brown); font-family: var(--font-display); }
+    .history-day-meals { display: flex; flex-direction: column; }
+    .history-meal-row {
       display: flex;
       align-items: flex-start;
       gap: 12px;
       padding: 12px 14px;
-      background: var(--surface);
-      border-radius: var(--radius-md);
-      border: 1px solid var(--border);
       cursor: pointer;
-      transition: all var(--transition);
+      transition: background var(--transition);
     }
-    .history-item:hover { border-color: var(--amber); box-shadow: 0 2px 8px var(--shadow); }
-    .history-item.is-today { border-color: var(--terra); box-shadow: 0 0 0 2px rgba(198, 93, 62, 0.15); }
-    .history-today-label { font-size: 0.65rem; font-weight: 700; color: var(--terra); flex-shrink: 0; }
-    .history-date-badge { text-align: center; flex-shrink: 0; width: 44px; padding-top: 2px; }
-    .history-date-badge .month { font-size: 0.65rem; color: var(--muted); }
-    .history-date-badge .day   { font-size: 1.2rem; font-weight: 700; color: var(--brown); font-family: var(--font-display); }
+    .history-meal-row + .history-meal-row { border-top: 1px solid var(--border); }
+    .history-meal-row:hover { background: var(--cream); }
     .history-meal-badge { font-size: 0.7rem; font-weight: 700; padding: 2px 8px; border-radius: 99px; flex-shrink: 0; }
     .badge-breakfast { background:#FFF3CD; color:#856404; }
     .badge-lunch     { background:#D1ECF1; color:#0C5460; }
@@ -584,39 +603,61 @@
       const todayStr = today.toISOString().slice(0, 10);
       allCommentCounts = await getAllMealCommentCounts(householdId);
 
-      list.innerHTML = data.map((log, i) => {
-        const d = new Date(log.date);
-        const [label, badgeClass] = MEAL_BADGE[log.meal_type] || ['?', ''];
-        const isLoved = log.rating === 5;
-        const isToday = log.date === todayStr;
-        const commentCount = allCommentCounts[log.date + '_' + log.meal_type] || 0;
+      // 同じ日付ごとにグループ化（allLogs内の元のインデックスを保持）
+      const groups = [];
+      data.forEach((log, i) => {
+        const last = groups[groups.length - 1];
+        if (last && last.date === log.date) {
+          last.items.push({ log, i });
+        } else {
+          groups.push({ date: log.date, items: [{ log, i }] });
+        }
+      });
+
+      list.innerHTML = groups.map((g, gi) => {
+        const d = new Date(g.date);
+        const isToday = g.date === todayStr;
+
+        const mealsHtml = g.items.map(({ log, i }) => {
+          const [label, badgeClass] = MEAL_BADGE[log.meal_type] || ['?', ''];
+          const isLoved = log.rating === 5;
+          const commentCount = allCommentCounts[log.date + '_' + log.meal_type] || 0;
+          return `
+            <div class="history-meal-row fade-in" style="animation-delay:${i*0.03}s"
+                 data-date="${log.date}" data-meal="${log.meal_type}"
+                 onclick="openModal(allLogs[${i}])">
+              <div class="history-content">
+                <div class="history-row-main">
+                  <span class="history-meal-badge ${badgeClass}">${label}</span>
+                  <div class="history-dish">${log.dish_name}${srcBadge(log)}</div>
+                </div>
+                <div class="history-row-sub">
+                  ${log.rating ? `<div class="history-rating">${'&#9733;'.repeat(log.rating)}</div>` : ''}
+                  <div class="history-row-sub-spacer"></div>
+                  <button class="history-comment-btn ${commentCount ? 'has-comments' : ''}"
+                    onclick="event.stopPropagation(); openCommentSheet('${log.date}', '${log.meal_type}', '${label}')">
+                    &#128172;${commentCount ? `<span class="count">${commentCount > 9 ? '9+' : commentCount}</span>` : ''}
+                  </button>
+                  <button class="heart-btn ${isLoved ? 'loved' : ''}"
+                    onclick="event.stopPropagation(); toggleLove('${log.id}', ${isLoved}, this)">
+                    ${isLoved ? '&#10084;&#65039;' : '&#129293;'}
+                  </button>
+                </div>
+              </div>
+            </div>`;
+        }).join('');
+
         return `
-          <div class="history-item fade-in ${isToday ? 'is-today' : ''}" style="animation-delay:${i*0.04}s"
-               data-date="${log.date}" data-meal="${log.meal_type}"
-               onclick="openModal(allLogs[${i}])">
-            <div class="history-date-badge">
-              <div class="month">${d.getMonth()+1}&#26376;</div>
-              <div class="day">${d.getDate()}</div>
-            </div>
-            <div class="history-content">
-              <div class="history-row-main">
-                <span class="history-meal-badge ${badgeClass}">${label}</span>
-                <div class="history-dish">${log.dish_name}${srcBadge(log)}</div>
+          <div class="history-day-group fade-in ${isToday ? 'is-today' : ''}" style="animation-delay:${gi*0.04}s">
+            <div class="history-day-header">
+              <div class="history-date-badge">
+                <div class="month">${d.getMonth()+1}&#26376;</div>
+                <div class="day">${d.getDate()}</div>
               </div>
-              <div class="history-row-sub">
-                ${isToday ? '<span class="history-today-label">本日</span>' : ''}
-                ${log.rating ? `<div class="history-rating">${'&#9733;'.repeat(log.rating)}</div>` : ''}
-                <div class="history-row-sub-spacer"></div>
-                <button class="history-comment-btn ${commentCount ? 'has-comments' : ''}"
-                  onclick="event.stopPropagation(); openCommentSheet('${log.date}', '${log.meal_type}', '${label}')">
-                  &#128172;${commentCount ? `<span class="count">${commentCount > 9 ? '9+' : commentCount}</span>` : ''}
-                </button>
-                <button class="heart-btn ${isLoved ? 'loved' : ''}"
-                  onclick="event.stopPropagation(); toggleLove('${log.id}', ${isLoved}, this)">
-                  ${isLoved ? '&#10084;&#65039;' : '&#129293;'}
-                </button>
-              </div>
+              <span class="history-day-weekday">${WD[d.getDay()]}&#26332;&#26085;</span>
+              ${isToday ? '<span class="history-today-label">本日</span>' : ''}
             </div>
+            <div class="history-day-meals">${mealsHtml}</div>
           </div>`;
       }).join('');
 
@@ -626,7 +667,7 @@
     // 開いた直後は「本日」の記録位置にスクロール（無ければ本日に一番近い直近の記録）
     function scrollToToday() {
       const list = document.getElementById('historyList');
-      const items = Array.from(list.querySelectorAll('.history-item'));
+      const items = Array.from(list.querySelectorAll('.history-meal-row'));
       if (!items.length) return;
       const todayStr = today.toISOString().slice(0, 10);
       let target = items.find(el => el.dataset.date === todayStr);
@@ -929,7 +970,7 @@
 
     // その行の💬バッジ件数だけをその場で更新（一覧全体を再取得しない）
     function refreshHistoryCommentBadge(dateStr, mealType, count) {
-      const row = document.querySelector(`.history-item[data-date="${dateStr}"][data-meal="${mealType}"] .history-comment-btn`);
+      const row = document.querySelector(`.history-meal-row[data-date="${dateStr}"][data-meal="${mealType}"] .history-comment-btn`);
       if (!row) return;
       row.classList.toggle('has-comments', count > 0);
       const existing = row.querySelector('.count');
