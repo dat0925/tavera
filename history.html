@@ -19,7 +19,7 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="js/supabase.js?v=20260629"></script>
   <script src="js/auth.js?v=20260629"></script>
-  <script src="js/menu-log.js?v=20260703b"></script>
+  <script src="js/menu-log.js?v=20260703c"></script>
   <style>
     /* ---- ツールバー ---- */
     .toolbar {
@@ -121,6 +121,136 @@
       cursor: pointer; line-height: 1; padding: 4px; transition: transform 0.15s ease;
     }
     .heart-btn:active { transform: scale(1.4); }
+
+    /* ---- 献立コメント ---- */
+    .history-comment-btn {
+      position: relative; flex-shrink: 0;
+      width: 26px; height: 26px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.85rem;
+      background: var(--white); border: 1px solid var(--border);
+      border-radius: 50%; color: var(--muted);
+    }
+    .history-comment-btn.has-comments {
+      border-color: var(--terra); color: var(--terra); background: #FEF3EC;
+    }
+    .history-comment-btn .count {
+      position: absolute; top: -5px; right: -5px;
+      background: var(--terra); color: #fff;
+      font-size: 0.58rem; font-weight: 700;
+      min-width: 14px; height: 14px; padding: 0 2px;
+      border-radius: 99px;
+      display: flex; align-items: center; justify-content: center;
+      line-height: 1;
+    }
+    .bottom-sheet-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.4);
+      z-index: 200;
+      animation: fadeIn 0.2s ease;
+    }
+    .bottom-sheet-overlay.open { display: block; }
+    .bottom-sheet {
+      position: fixed;
+      bottom: 0; left: 0; right: 0;
+      background: var(--white);
+      border-radius: 20px 20px 0 0;
+      padding: 20px 20px 40px;
+      z-index: 201;
+      transform: translateY(100%);
+      transition: transform 0.25s cubic-bezier(0.32, 0.72, 0, 1);
+    }
+    .bottom-sheet.open { transform: translateY(0); }
+    .bs-handle {
+      width: 40px; height: 4px;
+      background: var(--border);
+      border-radius: 2px;
+      margin: 0 auto 18px;
+    }
+    .bs-title {
+      font-size: 1rem; font-weight: 700;
+      color: var(--brown); margin-bottom: 16px;
+    }
+    .comment-sheet-label {
+      font-size: 0.82rem; color: var(--muted); margin-bottom: 12px;
+    }
+    .comment-list {
+      display: flex; flex-direction: column; gap: 8px;
+      max-height: 30vh; overflow-y: auto;
+      margin-bottom: 14px;
+    }
+    .comment-item {
+      background: var(--surface); border-radius: 12px;
+      padding: 8px 12px; font-size: 0.85rem; color: var(--brown);
+    }
+    .comment-item .meta {
+      font-size: 0.68rem; color: var(--muted); margin-top: 3px;
+      display: flex; align-items: center; gap: 4px; flex-wrap: wrap;
+    }
+    .comment-action-btn {
+      background: none; border: none; padding: 0; margin-left: 6px;
+      font-size: 0.68rem; color: var(--olive); font-family: inherit; cursor: pointer;
+      text-decoration: underline; -webkit-tap-highlight-color: transparent;
+    }
+    .comment-edited-tag { color: var(--muted); }
+    .comment-edit-bar {
+      display: flex; align-items: center; justify-content: space-between;
+      background: #FEF3EC; border: 1px solid var(--terra);
+      border-radius: 10px; padding: 8px 12px; margin-bottom: 10px;
+      font-size: 0.8rem; color: var(--terra);
+    }
+    .comment-edit-bar button {
+      background: none; border: none; color: var(--terra);
+      font-size: 0.75rem; text-decoration: underline; cursor: pointer; font-family: inherit;
+    }
+    .comment-empty {
+      font-size: 0.82rem; color: var(--muted); text-align: center; padding: 12px 0;
+    }
+    .comment-role-toggle {
+      display: flex;
+      background: var(--surface);
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border);
+      overflow: hidden;
+      margin-bottom: 10px;
+    }
+    .comment-role-toggle button {
+      flex: 1; padding: 8px 6px;
+      font-size: 0.72rem; font-weight: 600;
+      border: none; background: none; color: var(--muted);
+      cursor: pointer; transition: all 0.15s; font-family: inherit;
+      white-space: nowrap;
+    }
+    .comment-role-toggle button.active {
+      background: var(--terra); color: #fff;
+    }
+    .comment-stamps {
+      display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px;
+    }
+    .comment-stamp-btn {
+      padding: 7px 12px; border-radius: 99px;
+      border: 1.5px solid var(--border); background: var(--white);
+      font-size: 0.8rem; color: var(--brown); cursor: pointer;
+      font-family: inherit; -webkit-tap-highlight-color: transparent;
+    }
+    .comment-stamp-btn:active { border-color: var(--terra); color: var(--terra); background: #FEF3EC; }
+    .comment-input-row {
+      display: flex; gap: 8px;
+    }
+    .comment-input-row input {
+      flex: 1;
+      border: 1.5px solid var(--border); border-radius: 99px;
+      padding: 10px 14px; font-size: 0.85rem;
+      outline: none; font-family: var(--font-body); color: var(--brown);
+    }
+    .comment-input-row input:focus { border-color: var(--olive); }
+    .comment-send-btn {
+      width: 40px; height: 40px; border-radius: 50%;
+      background: var(--terra); color: #fff; border: none;
+      font-size: 1rem; flex-shrink: 0; cursor: pointer;
+    }
 
     /* ---- カレンダービュー ---- */
     .cal-wrap { padding: 0 16px 16px; }
@@ -310,6 +440,29 @@
       </div>
     </div>
 
+    <!-- 献立コメントボトムシート -->
+    <div class="bottom-sheet-overlay" id="csOverlay" onclick="closeCommentSheet()"></div>
+    <div class="bottom-sheet" id="commentSheet">
+      <div class="bs-handle"></div>
+      <div class="bs-title" id="csTitle">コメント</div>
+      <div class="comment-sheet-label" id="csLabel"></div>
+      <div class="comment-list" id="csList"></div>
+      <div class="comment-edit-bar" id="csEditBar" style="display:none;">
+        <span>✏️ コメントを編集中</span>
+        <button type="button" onclick="cancelCommentEdit()">キャンセル</button>
+      </div>
+      <div class="comment-role-toggle" id="csRoleToggle">
+        <button id="csRoleEater" onclick="setCommentStampMode('eater')">🙏 いただく側</button>
+        <button id="csRoleCooker" onclick="setCommentStampMode('cooker')">👩‍🍳 つくってくれる側</button>
+      </div>
+      <div class="comment-stamps" id="csStamps"></div>
+      <div class="comment-input-row">
+        <input type="text" id="csInput" placeholder="一言メモ（任意）" maxlength="100"
+               onkeydown="if(event.key==='Enter')sendComment(null)">
+        <button class="comment-send-btn" onclick="sendComment(null)">➤</button>
+      </div>
+    </div>
+
     <nav class="bottom-nav">
       <a href="home.html">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
@@ -341,9 +494,11 @@
 
   <script>
     let householdId = null;
+    let currentMemberId = null;
     let searchTimer = null;
     let allLogs = [];
     let currentView = 'list';
+    let allCommentCounts = {};
 
     // カレンダー状態
     const today = new Date();
@@ -364,6 +519,7 @@
     async function init() {
       const user = await requireAuth();
       if (!user) return;
+      currentMemberId = user.id;
       householdId = await getOrCreateHousehold(user.id);
       await renderHistory('');
       await renderCalendar();
@@ -420,15 +576,17 @@
       }
 
       const todayStr = today.toISOString().slice(0, 10);
+      allCommentCounts = await getAllMealCommentCounts(householdId);
 
       list.innerHTML = data.map((log, i) => {
         const d = new Date(log.date);
         const [label, badgeClass] = MEAL_BADGE[log.meal_type] || ['?', ''];
         const isLoved = log.rating === 5;
         const isToday = log.date === todayStr;
+        const commentCount = allCommentCounts[log.date + '_' + log.meal_type] || 0;
         return `
           <div class="history-item fade-in ${isToday ? 'is-today' : ''}" style="animation-delay:${i*0.04}s"
-               data-date="${log.date}"
+               data-date="${log.date}" data-meal="${log.meal_type}"
                onclick="openModal(allLogs[${i}])">
             <div class="history-date-badge">
               <div class="month">${d.getMonth()+1}&#26376;</div>
@@ -438,6 +596,10 @@
             <div class="history-dish">${log.dish_name}${srcBadge(log)}</div>
             ${isToday ? '<span class="history-today-label">本日</span>' : ''}
             ${log.rating ? `<div class="history-rating">${'&#9733;'.repeat(log.rating)}</div>` : ''}
+            <button class="history-comment-btn ${commentCount ? 'has-comments' : ''}"
+              onclick="event.stopPropagation(); openCommentSheet('${log.date}', '${log.meal_type}', '${label}')">
+              &#128172;${commentCount ? `<span class="count">${commentCount > 9 ? '9+' : commentCount}</span>` : ''}
+            </button>
             <button class="heart-btn ${isLoved ? 'loved' : ''}"
               onclick="event.stopPropagation(); toggleLove('${log.id}', ${isLoved}, this)">
               ${isLoved ? '&#10084;&#65039;' : '&#129293;'}
@@ -664,6 +826,140 @@
         const dateKey = allLogs[idx]?.date?.slice(0,7);
         if (dateKey) delete calLogsCache[dateKey];
       }
+    }
+
+    // ---- 献立コメント ----
+    let commentSheetDate = null;
+    let commentSheetMeal = null;
+    let lastComments = [];
+    let editingCommentId = null;
+    let editingStamp = null;
+    let currentMemberRole = null;   // 'owner' | 'member'
+    let commentStampMode = 'eater'; // 'eater' | 'cooker'（コメントシートを開くたびroleから初期化）
+
+    async function openCommentSheet(dateStr, mealType, label) {
+      commentSheetDate = dateStr;
+      commentSheetMeal = mealType;
+      document.getElementById('csTitle').textContent = `${label}のコメント`;
+      const d = new Date(dateStr + 'T00:00:00');
+      document.getElementById('csLabel').textContent = `${d.getMonth()+1}月${d.getDate()}日`;
+      cancelCommentEdit();
+      if (currentMemberRole === null) currentMemberRole = await getMemberRole(currentMemberId);
+      setCommentStampMode(currentMemberRole === 'owner' ? 'cooker' : 'eater');
+      document.getElementById('csOverlay').classList.add('open');
+      document.getElementById('commentSheet').classList.add('open');
+      await renderCommentList();
+    }
+
+    function setCommentStampMode(mode) {
+      commentStampMode = mode;
+      document.getElementById('csRoleEater').classList.toggle('active', mode === 'eater');
+      document.getElementById('csRoleCooker').classList.toggle('active', mode === 'cooker');
+      const stamps = mode === 'eater' ? EATER_STAMPS : COOKER_STAMPS;
+      document.getElementById('csStamps').innerHTML = Object.entries(stamps).map(([key, label]) =>
+        `<button class="comment-stamp-btn" onclick="sendComment('${key}')">${label}</button>`
+      ).join('');
+    }
+
+    function closeCommentSheet() {
+      document.getElementById('csOverlay').classList.remove('open');
+      document.getElementById('commentSheet').classList.remove('open');
+    }
+
+    async function renderCommentList() {
+      const list = document.getElementById('csList');
+      list.innerHTML = '<div class="loading-dots" style="justify-content:center;padding:8px 0"><span></span><span></span><span></span></div>';
+      const comments = await getMealComments(householdId, commentSheetDate, commentSheetMeal);
+      lastComments = comments;
+      if (!comments.length) {
+        list.innerHTML = '<div class="comment-empty">まだコメントはありません</div>';
+        return;
+      }
+      list.innerHTML = comments.map(c => {
+        const name = c.menu_members?.name || (c.source === 'line' ? 'LINEから' : '家族');
+        const text = [c.stamp ? MEAL_COMMENT_STAMPS[c.stamp] || c.stamp : null, c.body].filter(Boolean).join('　');
+        const time = new Date(c.created_at).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' });
+        const editedTag = c.edited_at
+          ? `<span class="comment-edited-tag">（編集済み ${new Date(c.edited_at).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' })}）</span>`
+          : '';
+        const actions = c.author_id === currentMemberId
+          ? `<button class="comment-action-btn" onclick="startEditComment('${c.id}')">編集</button><button class="comment-action-btn" onclick="deleteCommentItem('${c.id}')">削除</button>`
+          : '';
+        return `
+          <div class="comment-item">
+            <div>${text}</div>
+            <div class="meta">${name}・${time}${c.source === 'line' ? '・LINE' : ''}${editedTag}${actions}</div>
+          </div>`;
+      }).join('');
+      list.scrollTop = list.scrollHeight;
+    }
+
+    function startEditComment(id) {
+      const c = lastComments.find(x => x.id === id);
+      if (!c) return;
+      editingCommentId = id;
+      editingStamp = c.stamp || null;
+      if (c.stamp && COOKER_STAMPS[c.stamp]) setCommentStampMode('cooker');
+      else if (c.stamp && EATER_STAMPS[c.stamp]) setCommentStampMode('eater');
+      const input = document.getElementById('csInput');
+      input.value = c.body || '';
+      input.focus();
+      document.getElementById('csEditBar').style.display = 'flex';
+    }
+
+    function cancelCommentEdit() {
+      editingCommentId = null;
+      editingStamp = null;
+      document.getElementById('csInput').value = '';
+      document.getElementById('csEditBar').style.display = 'none';
+    }
+
+    // その行の💬バッジ件数だけをその場で更新（一覧全体を再取得しない）
+    function refreshHistoryCommentBadge(dateStr, mealType, count) {
+      const row = document.querySelector(`.history-item[data-date="${dateStr}"][data-meal="${mealType}"] .history-comment-btn`);
+      if (!row) return;
+      row.classList.toggle('has-comments', count > 0);
+      const existing = row.querySelector('.count');
+      if (existing) existing.remove();
+      if (count > 0) {
+        const span = document.createElement('span');
+        span.className = 'count';
+        span.textContent = count > 9 ? '9+' : String(count);
+        row.appendChild(span);
+      }
+    }
+
+    async function deleteCommentItem(id) {
+      if (!confirm('このコメントを削除しますか？')) return;
+      const ok = await deleteMealComment(id);
+      if (!ok) { showToast('削除に失敗しました', 'error'); return; }
+      if (editingCommentId === id) cancelCommentEdit();
+      await renderCommentList();
+      const counts = await getMealCommentCounts(householdId, commentSheetDate);
+      refreshHistoryCommentBadge(commentSheetDate, commentSheetMeal, counts[commentSheetMeal] || 0);
+    }
+
+    async function sendComment(stamp) {
+      const input = document.getElementById('csInput');
+      const body = input.value.trim();
+
+      if (editingCommentId) {
+        const finalStamp = stamp || editingStamp;
+        if (!finalStamp && !body) { showToast('内容を入力してください', 'error'); return; }
+        const result = await updateMealComment(editingCommentId, { stamp: finalStamp, body: body || null });
+        cancelCommentEdit();
+        if (!result) { showToast('コメントの更新に失敗しました', 'error'); return; }
+        await renderCommentList();
+        return;
+      }
+
+      if (!stamp && !body) return;
+      const result = await postMealComment(householdId, commentSheetDate, commentSheetMeal, currentMemberId, { stamp, body: body || null });
+      if (!result) { showToast('コメントの投稿に失敗しました', 'error'); return; }
+      input.value = '';
+      await renderCommentList();
+      const counts = await getMealCommentCounts(householdId, commentSheetDate);
+      refreshHistoryCommentBadge(commentSheetDate, commentSheetMeal, counts[commentSheetMeal] || 0);
     }
 
     init();

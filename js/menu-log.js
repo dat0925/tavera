@@ -392,6 +392,21 @@ async function getMealCommentCounts(householdId, dateStr) {
   return counts;
 }
 
+// 世帯全体のコメント件数を「date_mealType」をキーにしたマップで一括取得（履歴一覧のバッジ表示用）
+async function getAllMealCommentCounts(householdId) {
+  const { data, error } = await db
+    .from('menu_meal_comments')
+    .select('date, meal_type')
+    .eq('household_id', householdId);
+  if (error) { console.error(error); return {}; }
+  const counts = {};
+  (data || []).forEach(r => {
+    const key = r.date + '_' + r.meal_type;
+    counts[key] = (counts[key] || 0) + 1;
+  });
+  return counts;
+}
+
 // 指定の日付・食事区分のコメント一覧（投稿者名つき・古い順）
 async function getMealComments(householdId, dateStr, mealType) {
   const { data, error } = await db
