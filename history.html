@@ -95,7 +95,7 @@
     }
     .history-item {
       display: flex;
-      align-items: center;
+      align-items: flex-start;
       gap: 12px;
       padding: 12px 14px;
       background: var(--surface);
@@ -107,14 +107,20 @@
     .history-item:hover { border-color: var(--amber); box-shadow: 0 2px 8px var(--shadow); }
     .history-item.is-today { border-color: var(--terra); box-shadow: 0 0 0 2px rgba(198, 93, 62, 0.15); }
     .history-today-label { font-size: 0.65rem; font-weight: 700; color: var(--terra); flex-shrink: 0; }
-    .history-date-badge { text-align: center; flex-shrink: 0; width: 44px; }
+    .history-date-badge { text-align: center; flex-shrink: 0; width: 44px; padding-top: 2px; }
     .history-date-badge .month { font-size: 0.65rem; color: var(--muted); }
     .history-date-badge .day   { font-size: 1.2rem; font-weight: 700; color: var(--brown); font-family: var(--font-display); }
     .history-meal-badge { font-size: 0.7rem; font-weight: 700; padding: 2px 8px; border-radius: 99px; flex-shrink: 0; }
     .badge-breakfast { background:#FFF3CD; color:#856404; }
     .badge-lunch     { background:#D1ECF1; color:#0C5460; }
     .badge-dinner    { background:#E8ECFF; color:#3042a0; }
-    .history-dish   { font-size: 0.95rem; font-weight: 500; flex: 1; }
+    /* 1行にすべて詰め込むと料理名が極端に狭くなり縦割れするため、
+       「バッジ＋料理名」の行と「評価・アイコン類」の行に分ける */
+    .history-content { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 8px; }
+    .history-row-main { display: flex; align-items: flex-start; gap: 8px; }
+    .history-dish   { font-size: 0.95rem; font-weight: 500; flex: 1; min-width: 0; }
+    .history-row-sub { display: flex; align-items: center; gap: 10px; }
+    .history-row-sub-spacer { flex: 1; }
     .history-rating { font-size: 0.75rem; color: var(--amber); flex-shrink: 0; }
     .heart-btn {
       font-size: 1.2rem; flex-shrink: 0; background: none; border: none;
@@ -592,18 +598,25 @@
               <div class="month">${d.getMonth()+1}&#26376;</div>
               <div class="day">${d.getDate()}</div>
             </div>
-            <span class="history-meal-badge ${badgeClass}">${label}</span>
-            <div class="history-dish">${log.dish_name}${srcBadge(log)}</div>
-            ${isToday ? '<span class="history-today-label">本日</span>' : ''}
-            ${log.rating ? `<div class="history-rating">${'&#9733;'.repeat(log.rating)}</div>` : ''}
-            <button class="history-comment-btn ${commentCount ? 'has-comments' : ''}"
-              onclick="event.stopPropagation(); openCommentSheet('${log.date}', '${log.meal_type}', '${label}')">
-              &#128172;${commentCount ? `<span class="count">${commentCount > 9 ? '9+' : commentCount}</span>` : ''}
-            </button>
-            <button class="heart-btn ${isLoved ? 'loved' : ''}"
-              onclick="event.stopPropagation(); toggleLove('${log.id}', ${isLoved}, this)">
-              ${isLoved ? '&#10084;&#65039;' : '&#129293;'}
-            </button>
+            <div class="history-content">
+              <div class="history-row-main">
+                <span class="history-meal-badge ${badgeClass}">${label}</span>
+                <div class="history-dish">${log.dish_name}${srcBadge(log)}</div>
+              </div>
+              <div class="history-row-sub">
+                ${isToday ? '<span class="history-today-label">本日</span>' : ''}
+                ${log.rating ? `<div class="history-rating">${'&#9733;'.repeat(log.rating)}</div>` : ''}
+                <div class="history-row-sub-spacer"></div>
+                <button class="history-comment-btn ${commentCount ? 'has-comments' : ''}"
+                  onclick="event.stopPropagation(); openCommentSheet('${log.date}', '${log.meal_type}', '${label}')">
+                  &#128172;${commentCount ? `<span class="count">${commentCount > 9 ? '9+' : commentCount}</span>` : ''}
+                </button>
+                <button class="heart-btn ${isLoved ? 'loved' : ''}"
+                  onclick="event.stopPropagation(); toggleLove('${log.id}', ${isLoved}, this)">
+                  ${isLoved ? '&#10084;&#65039;' : '&#129293;'}
+                </button>
+              </div>
+            </div>
           </div>`;
       }).join('');
 
@@ -815,7 +828,7 @@
       const { error } = await db.from('menu_logs').update({ rating: newRating }).eq('id', logId);
       if (!error) {
         const loved = !isLoved;
-        btn.textContent = loved ? '&#10084;&#65039;' : '&#129293;';
+        btn.innerHTML = loved ? '&#10084;&#65039;' : '&#129293;';
         btn.classList.toggle('loved', loved);
         btn.style.transform = 'scale(1.5)';
         setTimeout(() => btn.style.transform = '', 200);

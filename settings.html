@@ -950,7 +950,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
         document.getElementById('householdName').textContent = name;
         document.getElementById('householdNameInput').value = '';
         document.getElementById('householdNameSection').classList.add('hidden');
-        document.getElementById('householdNameArrow').textContent = '&#8250;';
+        document.getElementById('householdNameArrow').innerHTML = '&#8250;';
         showToast('世帯名を変更しました', 'success');
       } else { showToast('保存に失敗しました', 'error'); }
     }
@@ -992,7 +992,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
         document.getElementById('inviteCode').textContent = householdId?.slice(0,8).toUpperCase() || '-';
         document.getElementById('joinCodeInput').value = '';
         document.getElementById('joinSection').classList.add('hidden');
-        document.getElementById('joinArrow').textContent = '&#8250;';
+        document.getElementById('joinArrow').innerHTML = '&#8250;';
         await renderHousehold();
         await renderFamMembers();
       } else { showToast(result.message, 'error'); }

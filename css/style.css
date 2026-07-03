@@ -122,7 +122,11 @@ input, textarea, select { font-family: inherit; }
   position: fixed;
   bottom: 0;
   left: 50%;
-  transform: translateX(-50%);
+  transform: translateX(-50%) translateZ(0);
+  -webkit-transform: translateX(-50%) translateZ(0);
+  will-change: transform;
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
   width: 100%;
   max-width: 480px;
   background: var(--white);
