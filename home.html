@@ -965,6 +965,7 @@
       if (ok) {
         closeFridgeSheet();
         await renderFridgeItems();
+        await renderShoppingList();
         showToast(name + ' を買い物リストに追加しました 🛒');
       } else {
         showToast('削除に失敗しました', 'error');
