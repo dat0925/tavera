@@ -223,6 +223,15 @@
       font-size: 0.82rem;
       cursor: pointer; font-family: var(--font-body);
     }
+    .bs-btn-to-shopping {
+      width: 100%; margin-top: 10px; padding: 12px;
+      background: none; color: var(--olive);
+      border: 1.5px solid var(--olive);
+      border-radius: 99px;
+      font-size: 0.82rem; font-weight: 600;
+      cursor: pointer; font-family: var(--font-body);
+    }
+    .bs-btn-to-shopping:active { background: #F1F4E8; }
 
     .fridge-add-row {
       display: flex;
@@ -579,6 +588,7 @@
         <button class="bs-btn-clear" onclick="clearFridgeSheetDate()">期限を削除</button>
         <button class="bs-btn-delete" onclick="deleteFridgeSheetItem()">食材を削除</button>
       </div>
+      <button class="bs-btn-to-shopping" onclick="deleteFridgeSheetItemToShoppingList()">🛒 削除して買い物リストへ</button>
     </div>
 
     <!-- 献立コメントボトムシート -->
@@ -941,6 +951,21 @@
       if (ok) {
         closeFridgeSheet();
         await renderFridgeItems();
+      } else {
+        showToast('削除に失敗しました', 'error');
+      }
+    }
+
+    // 「使い切ったので削除、かつ買い忘れないよう買い物リストへ」をワンタップで行う
+    async function deleteFridgeSheetItemToShoppingList() {
+      if (!sheetItemId) return;
+      const name = document.getElementById('bsTitle').textContent.trim();
+      await addShoppingManualItem(householdId, name);
+      const ok = await deleteFridgeItem(sheetItemId);
+      if (ok) {
+        closeFridgeSheet();
+        await renderFridgeItems();
+        showToast(name + ' を買い物リストに追加しました 🛒');
       } else {
         showToast('削除に失敗しました', 'error');
       }
