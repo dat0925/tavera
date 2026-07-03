@@ -1136,7 +1136,7 @@
         </div>
       `).join('');
       const manualHtml = manualNeedToBuy.map(m => `
-        <div class="shopping-item">
+        <div class="shopping-item" data-manual="1">
           <div class="shopping-checkbox-area" onclick="toggleShoppingItem(this.parentElement)" style="display:flex;align-items:center;gap:10px;flex:1;">
             <div class="shopping-checkbox"></div>
             <div class="shopping-item-name">${m.name}</div>
@@ -1193,7 +1193,12 @@
       // チェックを外しても冷蔵庫からは削除しない（誤操作で消えると困るため）。
       if (wasChecked) return;
 
+      // 手動追加した項目（ティッシュ・洗剤など食材とは限らないもの）は、
+      // 自動検出と違って食材かどうか分からないため、追加前に確認する
+      const isManual = el.dataset.manual === '1';
       const name = el.querySelector('.shopping-item-name').textContent.trim();
+      if (isManual && !confirm(name + ' を冷蔵庫の食材に追加しますか？')) return;
+
       const fridgeCount = document.querySelectorAll('.fridge-chip').length;
       if (fridgeCount >= FRIDGE_MAX) {
         showToast('冷蔵庫の登録上限（' + FRIDGE_MAX + '個）に達しているため追加できませんでした', 'error');
