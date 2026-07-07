@@ -32,6 +32,17 @@
     .date-picker-row input[type="date"] {
       flex: 1;
     }
+    .date-weekday-chip {
+      flex-shrink: 0;
+      background: #FEF3EC;
+      border: 1px solid var(--terra);
+      color: var(--terra);
+      border-radius: 99px;
+      padding: 6px 14px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      white-space: nowrap;
+    }
 
     .ingredient-tags {
       display: flex;
@@ -181,6 +192,9 @@
       background: var(--terra); color: #fff; border: none;
       font-size: 1rem; flex-shrink: 0; cursor: pointer;
     }
+    .comment-send-btn:disabled, .comment-stamp-btn:disabled {
+      opacity: .4; cursor: default;
+    }
 
     .tip-icon {
       display: inline-flex;
@@ -238,6 +252,7 @@
         <!-- 日付 -->
         <div class="form-group date-picker-row">
           <input type="date" id="dateInput" class="form-input">
+          <span id="dateWeekday" class="date-weekday-chip"></span>
         </div>
 
         <!-- 朝昼夜タブ -->
@@ -433,6 +448,16 @@
       tip.classList.toggle('hidden');
     }
 
+    const DAY_LABELS = ['日','月','火','水','木','金','土'];
+    // <input type="date">はOSのフォーマットで表示され曜日を含められないため、
+    // 隣に曜日だけの小さなチップを表示して補う（日付文字列を直接パースしてタイムゾーンズレを回避）
+    function updateDateWeekday(dateStr) {
+      if (!dateStr) { document.getElementById('dateWeekday').textContent = ''; return; }
+      const [y, m, d] = dateStr.split('-').map(Number);
+      const day = new Date(Date.UTC(y, m - 1, d)).getUTCDay();
+      document.getElementById('dateWeekday').textContent = `（${DAY_LABELS[day]}）`;
+    }
+
     async function init() {
       const user = await requireAuth();
       if (!user) return;
@@ -452,6 +477,7 @@
       isEditMode = params.get('edit') === '1';
 
       document.getElementById('dateInput').value = dateParam;
+      updateDateWeekday(dateParam);
       selectMealTab(mealParam);
 
       // AI提案から料理名が渡されていればセット
@@ -561,6 +587,7 @@
     });
 
     document.getElementById('dateInput').addEventListener('change', async (e) => {
+      updateDateWeekday(e.target.value);
       existingLogId = null;
       document.getElementById('dishName').value = '';
       document.getElementById('memo').value = '';
@@ -779,7 +806,16 @@
       await refreshCommentCount();
     }
 
+    let logCommentSending = false;
+
+    function setLogCommentSendingUI(busy) {
+      const btn = document.querySelector('#commentPanel .comment-send-btn');
+      if (btn) { btn.disabled = busy; btn.textContent = busy ? '…' : '➤'; }
+      document.querySelectorAll('#logStamps button').forEach(b => b.disabled = busy);
+    }
+
     async function sendLogComment(stamp) {
+      if (logCommentSending) return;
       const dateStr = document.getElementById('dateInput').value;
       const input = document.getElementById('logCommentInput');
       const body = input.value.trim();
@@ -787,19 +823,33 @@
       if (editingLogCommentId) {
         const finalStamp = stamp || editingLogStamp;
         if (!finalStamp && !body) { showToast('内容を入力してください', 'error'); return; }
-        const result = await updateMealComment(editingLogCommentId, { stamp: finalStamp, body: body || null });
-        cancelLogCommentEdit();
-        if (!result) { showToast('コメントの更新に失敗しました', 'error'); return; }
-        await renderLogCommentList();
-        return;
+        logCommentSending = true;
+        setLogCommentSendingUI(true);
+        try {
+          const result = await updateMealComment(editingLogCommentId, { stamp: finalStamp, body: body || null });
+          cancelLogCommentEdit();
+          if (!result) { showToast('コメントの更新に失敗しました', 'error'); return; }
+          await renderLogCommentList();
+          return;
+        } finally {
+          logCommentSending = false;
+          setLogCommentSendingUI(false);
+        }
       }
 
       if (!stamp && !body) return;
-      const result = await postMealComment(householdId, dateStr, selectedMeal, currentMemberId, { stamp, body: body || null });
-      if (!result) { showToast('コメントの投稿に失敗しました', 'error'); return; }
-      input.value = '';
-      await renderLogCommentList();
-      await refreshCommentCount();
+      logCommentSending = true;
+      setLogCommentSendingUI(true);
+      try {
+        const result = await postMealComment(householdId, dateStr, selectedMeal, currentMemberId, { stamp, body: body || null });
+        if (!result) { showToast('コメントの投稿に失敗しました', 'error'); return; }
+        input.value = '';
+        await renderLogCommentList();
+        await refreshCommentCount();
+      } finally {
+        logCommentSending = false;
+        setLogCommentSendingUI(false);
+      }
     }
 
     init();

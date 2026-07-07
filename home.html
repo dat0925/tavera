@@ -484,6 +484,9 @@
       background: var(--terra); color: #fff; border: none;
       font-size: 1rem; flex-shrink: 0; cursor: pointer;
     }
+    .comment-send-btn:disabled, .comment-stamp-btn:disabled {
+      opacity: .4; cursor: default;
+    }
 
     @keyframes fadeIn {
       from { opacity: 0; transform: translateY(-4px); }
@@ -890,26 +893,49 @@
       if (commentSheetDate === currentGridDate) await renderMealGrid(currentGridDate);
     }
 
+    let commentSending = false;
+
+    function setCommentSendingUI(busy) {
+      const btn = document.querySelector('#commentSheet .comment-send-btn');
+      if (btn) { btn.disabled = busy; btn.textContent = busy ? '…' : '➤'; }
+      document.querySelectorAll('#csStamps button').forEach(b => b.disabled = busy);
+    }
+
     async function sendComment(stamp) {
+      if (commentSending) return;
       const input = document.getElementById('csInput');
       const body = input.value.trim();
 
       if (editingCommentId) {
         const finalStamp = stamp || editingStamp;
         if (!finalStamp && !body) { showToast('内容を入力してください', 'error'); return; }
-        const result = await updateMealComment(editingCommentId, { stamp: finalStamp, body: body || null });
-        cancelCommentEdit();
-        if (!result) { showToast('コメントの更新に失敗しました', 'error'); return; }
-        await renderCommentList();
-        return;
+        commentSending = true;
+        setCommentSendingUI(true);
+        try {
+          const result = await updateMealComment(editingCommentId, { stamp: finalStamp, body: body || null });
+          cancelCommentEdit();
+          if (!result) { showToast('コメントの更新に失敗しました', 'error'); return; }
+          await renderCommentList();
+          return;
+        } finally {
+          commentSending = false;
+          setCommentSendingUI(false);
+        }
       }
 
       if (!stamp && !body) return;
-      const result = await postMealComment(householdId, commentSheetDate, commentSheetMeal, currentMemberId, { stamp, body: body || null });
-      if (!result) { showToast('コメントの投稿に失敗しました', 'error'); return; }
-      input.value = '';
-      await renderCommentList();
-      if (commentSheetDate === currentGridDate) await renderMealGrid(currentGridDate);
+      commentSending = true;
+      setCommentSendingUI(true);
+      try {
+        const result = await postMealComment(householdId, commentSheetDate, commentSheetMeal, currentMemberId, { stamp, body: body || null });
+        if (!result) { showToast('コメントの投稿に失敗しました', 'error'); return; }
+        input.value = '';
+        await renderCommentList();
+        if (commentSheetDate === currentGridDate) await renderMealGrid(currentGridDate);
+      } finally {
+        commentSending = false;
+        setCommentSendingUI(false);
+      }
     }
 
     // ---- 冷蔵庫食材 ----

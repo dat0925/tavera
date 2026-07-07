@@ -1,6 +1,6 @@
 # Tavera 設計書・引き継ぎ書
 
-**バージョン**: 1.24.6
+**バージョン**: 1.24.7
 **最終更新**: 2026-07-07
 **ステータス**: 一般公開済み・本番Stripe決済稼働中・解約フロー実装済み
 
@@ -1335,6 +1335,14 @@ TAVERA_STRIPE_YEARLY_PRICE_ID = price_1TngeRBNAV5e5rhc8CHzqEUT
   - `tavera-line-webhook`：LINE返信をコメントとして記録した際の、投稿者本人への確認返信（自動記録の確認メッセージ）
   - `tavera-line-webhook`：クイックリプライで日付・食事区分を訂正した際の確認返信
 - **注記**：`tavera-comment-notify`・`tavera-line-webhook`の2つのEdge Functionは、これまでSupabase側にのみデプロイされておりgitリポジトリにソースが存在しなかった（`supabase/functions/`配下に無かった）。今回の修正にあわせて`supabase/functions/tavera-comment-notify/`・`supabase/functions/tavera-line-webhook/`としてリポジトリにも追加し、以後はコード変更の差分がgit履歴に残るようにした。
+
+### log.htmlの日付に曜日を表示、コメント送信の二度打ち対策を3画面に横展開（v1.24.7）
+
+- **曜日表示**：`log.html`の日付入力は`<input type="date">`（ネイティブ）のため、OSのフォーマットで表示され曜日を含められない。隣に`（火）`のような曜日だけの小さなチップ（`#dateWeekday`）を追加し、`init()`時と`dateInput`の`change`イベント時に文字列を直接パースして更新する方式で対応（Dateオブジェクト経由でのタイムゾーンズレを避けるため、既存の`formatDateLabel`系と同じ`Date.UTC`直接パース方式を踏襲）。home.html側で日付ラベルに曜日を含めている実装とは別に、log.html独自に軽量な形で追加した
+- **コメント送信ボタンの二度打ち問題**：`postMealComment`/`updateMealComment`の非同期処理中、送信ボタン・スタンプボタンに一切のローディング表示が無く、タップしても見た目が変化しないため「反応していない」と誤解してユーザーが連打し、意図せず二重投稿を誘発する不具合が3画面（home.html・log.html・history.html）すべてに存在していた
+  - **対応**：各画面の`sendComment`/`sendLogComment`に処理中フラグ（`commentSending`/`logCommentSending`）を追加し、多重実行そのものをガード。あわせて`setCommentSendingUI(busy)`/`setLogCommentSendingUI(busy)`を新設し、送信中は送信ボタンのテキストを「➤」→「…」に切り替え、送信ボタン・スタンプボタン群を`disabled`にして視覚的にも「処理中」と分かるようにした（CSSに`.comment-send-btn:disabled, .comment-stamp-btn:disabled { opacity: .4; }`を追加）
+  - コメント編集（`editingCommentId`あり）・新規投稿の両方の分岐に同じtry/finallyパターンを適用し、失敗時も確実にボタンが再度押せる状態へ戻るようにした
+- **教訓**：「機能的には動いているが、処理中であることを示すフィードバックが無い」ために誤操作を誘発するパターンは、コメント機能を3画面に横展開した際に3箇所とも同じ抜け漏れとして持ち込まれていた（元の実装をコピーして展開したため）。1画面で見つかったUXの抜けは、同じロジックをコピーして作った他画面にも同様に存在している可能性が高く、横断的にチェック・修正すべき典型例。
 
 
 
