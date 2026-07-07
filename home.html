@@ -699,11 +699,29 @@
       householdId = await getOrCreateHousehold(user.id);
       currentHousehold = householdId;
 
+      // URLパラメータで日付・食事区分が指定されている場合（LINE通知のリンクなど）は、
+      // その献立を選択した状態で開き、コメントシートも自動的に表示する
+      const deepLinkParams = new URLSearchParams(location.search);
+      const deepLinkDate = deepLinkParams.get('date');
+      const deepLinkMeal = deepLinkParams.get('meal');
+      if (deepLinkDate) selectedDate = deepLinkDate;
+
       renderDateStrip();
       await renderMealGrid(selectedDate);
       await renderFridgeItems();
       await renderLikedList();
       await renderShoppingList();
+
+      if (deepLinkDate) {
+        const d = new Date(deepLinkDate + 'T00:00:00');
+        document.getElementById('todayLabel').textContent = deepLinkDate === toDateStr()
+          ? '今日の献立'
+          : `${d.getMonth()+1}月${d.getDate()}日（${DAY_LABELS[d.getDay()]}）の献立`;
+      }
+      if (deepLinkDate && deepLinkMeal) {
+        const mealLabels = { breakfast:'朝', lunch:'昼', dinner:'夜' };
+        openCommentSheet(deepLinkDate, deepLinkMeal, mealLabels[deepLinkMeal] || deepLinkMeal);
+      }
     }
 
     function renderDateStrip() {

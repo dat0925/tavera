@@ -1,7 +1,7 @@
 # Tavera 設計書・引き継ぎ書
 
-**バージョン**: 1.24.5
-**最終更新**: 2026-07-04
+**バージョン**: 1.24.6
+**最終更新**: 2026-07-07
 **ステータス**: 一般公開済み・本番Stripe決済稼働中・解約フロー実装済み
 
 ---
@@ -1322,6 +1322,19 @@ TAVERA_STRIPE_YEARLY_PRICE_ID = price_1TngeRBNAV5e5rhc8CHzqEUT
   - 💬コメントボタン・❤️ハートボタンは各`.history-meal-row`にそのまま残し、`data-date`/`data-meal`属性も踏襲。`refreshHistoryCommentBadge()`・`scrollToToday()`の参照セレクタを`.history-item`→`.history-meal-row`に更新
   - 「本日」ラベルは従来は該当する食事行ごとに表示していたが、日付単位の見出しに1回だけ表示する形に変更（同じ日に複数食記録があっても重複表示しない）
 - **教訓**：既存の「1行＝1レコード」という素朴なリスト設計は、カレンダー表示（`.cal-detail`）側では既に日付単位でグルーピングして表示していたのに、リスト表示だけ取り残されていた。同じデータソースを2つのビューで扱うときは、片方で採用した「見せ方の単位」（今回は日付）をもう片方でも点検し、ズレがあれば揃えるべきだった。
+
+### LINE通知に献立への直リンクを追加（v1.24.6）
+
+- **要望**：LINEに届く献立関連の通知・返信メッセージから、該当する献立（日付・食事区分）へワンタップで飛べるようにしたい
+- **実装方針**：Taveraには現状「献立詳細ページ」に相当する独立画面が無いため、新規ページを作らず既存の`home.html`のコメントシート（`openCommentSheet()`）に直接ディープリンクする方式にした
+  - `home.html`の`init()`にURLパラメータ`date`・`meal`の読み取りを追加。指定があれば`selectedDate`をその日付にセットしてから通常通り`renderMealGrid()`・日付ラベル更新を行い、最後に`openCommentSheet(date, meal, label)`を自動実行してコメントシートを開いた状態で表示する
+  - 日付ストリップ（`renderDateStrip()`）は今日を中心に±3日固定のため、3日より前後の日付がリンクされた場合はストリップ上でチップがアクティブ表示されないが、`selectedDate`自体は正しく反映されるため献立表示・コメントシートの動作に支障はない（見た目上のみの割り切り）
+- **リンクを追加した箇所**（`https://tavera.taskra.jp/home.html?date=YYYY-MM-DD&meal=breakfast|lunch|dinner`形式）：
+  - `tavera-comment-notify`：アプリでのコメント投稿→他メンバーへのLINE Push通知
+  - `tavera-line-webhook`：LINE返信→コメント記録後の、他の連携済みメンバーへの再通知Push
+  - `tavera-line-webhook`：LINE返信をコメントとして記録した際の、投稿者本人への確認返信（自動記録の確認メッセージ）
+  - `tavera-line-webhook`：クイックリプライで日付・食事区分を訂正した際の確認返信
+- **注記**：`tavera-comment-notify`・`tavera-line-webhook`の2つのEdge Functionは、これまでSupabase側にのみデプロイされておりgitリポジトリにソースが存在しなかった（`supabase/functions/`配下に無かった）。今回の修正にあわせて`supabase/functions/tavera-comment-notify/`・`supabase/functions/tavera-line-webhook/`としてリポジトリにも追加し、以後はコード変更の差分がgit履歴に残るようにした。
 
 
 
