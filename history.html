@@ -446,6 +446,11 @@
 
     <!-- リストビュー -->
     <div id="listView" class="page" style="padding-bottom:80px">
+      <div class="cal-nav" id="listNav" style="padding:10px 20px 4px">
+        <button class="cal-nav-btn" onclick="listMonthPrev()">&#8249;</button>
+        <span class="cal-title" id="listMonthTitle"></span>
+        <button class="cal-nav-btn" onclick="listMonthNext()">&#8250;</button>
+      </div>
       <div class="history-list" id="historyList">
         <div class="empty-state">
           <div class="empty-icon">&#128214;</div>
@@ -528,12 +533,13 @@
     let currentView = 'list';
     let allCommentCounts = {};
 
-    // カレンダー状態
+    // カレンダー状態（リストビューの月移動とも共有し、ビュー切替時に見ている月がズレないようにする）
     const today = new Date();
     let calYear  = today.getFullYear();
     let calMonth = today.getMonth(); // 0-indexed
     let calSelDate = null;
     let calLogsCache = {}; // "YYYY-MM" -> logs[]
+    let currentKeyword = '';
 
     const MEAL_BADGE = {
       breakfast: ['朝食', 'badge-breakfast'],
@@ -543,6 +549,7 @@
     const CHIP_CLASS = { breakfast: 'chip-breakfast', lunch: 'chip-lunch', dinner: 'chip-dinner' };
     const MEAL_ORDER = ['breakfast', 'lunch', 'dinner'];
     const WD = ['日','月','火','水','木','金','土'];
+    const MONTH_NAMES = ['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月'];
 
     async function init() {
       const user = await requireAuth();
@@ -564,31 +571,44 @@
       document.getElementById('btnCal').classList.toggle('active', v === 'cal');
       // カレンダー表示時は検索欄を非表示
       document.getElementById('searchWrap').style.visibility = v === 'list' ? '' : 'hidden';
+      // カレンダー側で月を移動していた場合、リストに戻ったときも同じ月を表示する
+      if (v === 'list') renderHistory(currentKeyword);
+      if (v === 'cal') renderCalendar();
     }
 
     // =====================
     //  リストビュー
     // =====================
     async function onSearch(val) {
+      currentKeyword = val.trim();
       clearTimeout(searchTimer);
-      searchTimer = setTimeout(() => renderHistory(val.trim()), 300);
+      searchTimer = setTimeout(() => renderHistory(currentKeyword), 300);
     }
 
     async function renderHistory(keyword) {
       const list = document.getElementById('historyList');
       list.innerHTML = '<div class="loading-dots" style="padding:24px 0;justify-content:center"><span></span><span></span><span></span></div>';
 
+      // 検索中は月をまたいで全期間から探したいので月ナビは隠す（検索は当月以外もヒットする仕様は維持）
+      document.getElementById('listNav').style.display = keyword ? 'none' : '';
+      updateListMonthTitle();
+
       let data = [];
       if (keyword) {
         data = await searchLogs(householdId, keyword);
       } else {
+        const monthStart = calYear + '-' + String(calMonth+1).padStart(2,'0') + '-01';
+        const lastDate = new Date(calYear, calMonth+1, 0).getDate();
+        const monthEnd = calYear + '-' + String(calMonth+1).padStart(2,'0') + '-' + String(lastDate).padStart(2,'0');
         const { data: d } = await db
           .from('menu_logs')
           .select('*')
           .eq('household_id', householdId)
+          .gte('date', monthStart)
+          .lte('date', monthEnd)
           .order('date', { ascending: false })
           .order('meal_type')
-          .limit(100);
+          .limit(200);
         data = d || [];
       }
       allLogs = data;
@@ -597,7 +617,7 @@
         list.innerHTML = `
           <div class="empty-state">
             <div class="empty-icon">&#127869;&#65039;</div>
-            <p>${keyword ? `&#12300;${keyword}&#12301;の記録が見つかりません` : 'まだ献立が記録されていません'}</p>
+            <p>${keyword ? `&#12300;${keyword}&#12301;の記録が見つかりません` : 'この月はまだ献立が記録されていません'}</p>
             <a href="log.html" class="btn btn-primary">献立を記録する</a>
           </div>`;
         return;
@@ -718,8 +738,7 @@
         (byDate[l.date] = byDate[l.date] || []).push(l);
       });
 
-      const monthNames = ['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月'];
-      document.getElementById('calTitle').textContent = calYear + '年 ' + monthNames[calMonth];
+      document.getElementById('calTitle').textContent = calYear + '年 ' + MONTH_NAMES[calMonth];
 
       const todayStr = today.toISOString().slice(0, 10);
       const firstWd = new Date(calYear, calMonth, 1).getDay();
@@ -808,6 +827,23 @@
     function calSelectDate(date) {
       calSelDate = (calSelDate === date) ? null : date;
       renderCalendar();
+    }
+
+    function updateListMonthTitle() {
+      const el = document.getElementById('listMonthTitle');
+      if (el) el.textContent = calYear + '年 ' + MONTH_NAMES[calMonth];
+    }
+
+    function listMonthPrev() {
+      calMonth--;
+      if (calMonth < 0) { calMonth = 11; calYear--; }
+      renderHistory(currentKeyword);
+    }
+
+    function listMonthNext() {
+      calMonth++;
+      if (calMonth > 11) { calMonth = 0; calYear++; }
+      renderHistory(currentKeyword);
     }
 
     function calPrev() {
