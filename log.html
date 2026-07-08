@@ -116,8 +116,14 @@
     .comment-toggle-arrow { margin-left: auto; color: var(--muted); transition: transform 0.15s; }
     .comment-toggle-arrow.open { transform: rotate(90deg); }
     .comment-panel {
-      margin-top: 10px; padding: 14px;
-      background: var(--surface); border-radius: var(--radius-md);
+      margin-top: 12px; padding: 16px;
+      background: var(--white); border: 1.5px solid var(--border);
+      border-radius: var(--radius-md);
+      box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+    }
+    .comment-panel-title {
+      font-size: 0.82rem; font-weight: 700; color: var(--brown);
+      margin-bottom: 10px; display: flex; align-items: center; gap: 6px;
     }
     .comment-list {
       display: flex; flex-direction: column; gap: 8px;
@@ -179,18 +185,20 @@
       font-family: inherit; -webkit-tap-highlight-color: transparent;
     }
     .comment-stamp-btn:active { border-color: var(--terra); color: var(--terra); background: #FEF3EC; }
-    .comment-input-row { display: flex; gap: 8px; }
-    .comment-input-row input {
-      flex: 1;
-      border: 1.5px solid var(--border); border-radius: 99px;
-      padding: 10px 14px; font-size: 0.85rem;
+    .comment-input-area { display: flex; flex-direction: column; gap: 8px; }
+    .comment-input-area textarea {
+      width: 100%; box-sizing: border-box;
+      border: 1.5px solid var(--border); border-radius: 12px;
+      padding: 10px 12px; font-size: 0.85rem;
       outline: none; font-family: var(--font-body); color: var(--brown);
+      resize: vertical; min-height: 64px; line-height: 1.5;
     }
-    .comment-input-row input:focus { border-color: var(--olive); }
+    .comment-input-area textarea:focus { border-color: var(--olive); }
     .comment-send-btn {
-      width: 40px; height: 40px; border-radius: 50%;
+      width: 100%; padding: 11px 0; border-radius: var(--radius-sm);
       background: var(--terra); color: #fff; border: none;
-      font-size: 1rem; flex-shrink: 0; cursor: pointer;
+      font-size: 0.88rem; font-weight: 700; flex-shrink: 0; cursor: pointer;
+      font-family: inherit; -webkit-tap-highlight-color: transparent;
     }
     .comment-send-btn:disabled, .comment-stamp-btn:disabled {
       opacity: .4; cursor: default;
@@ -317,6 +325,7 @@
             <span class="comment-toggle-arrow" id="commentToggleArrow">›</span>
           </button>
           <div class="comment-panel hidden" id="commentPanel">
+            <div class="comment-panel-title">💬 コメント</div>
             <div class="comment-list" id="logCommentList"></div>
             <div class="comment-edit-bar" id="logCommentEditBar" style="display:none;">
               <span>✏️ コメントを編集中</span>
@@ -327,10 +336,9 @@
               <button id="logRoleCooker" onclick="setLogCommentStampMode('cooker')">👩‍🍳 つくってくれる側</button>
             </div>
             <div class="comment-stamps" id="logStamps"></div>
-            <div class="comment-input-row">
-              <input type="text" id="logCommentInput" placeholder="一言メモ（任意）" maxlength="100"
-                     onkeydown="if(event.key==='Enter')sendLogComment(null)">
-              <button class="comment-send-btn" type="button" onclick="sendLogComment(null)">➤</button>
+            <div class="comment-input-area">
+              <textarea id="logCommentInput" placeholder="一言メモ（任意）" maxlength="300" rows="3"></textarea>
+              <button class="comment-send-btn" type="button" onclick="sendLogComment(null)">コメントを送る ➤</button>
             </div>
           </div>
         </div>
@@ -821,7 +829,7 @@
 
     function setLogCommentSendingUI(busy) {
       const btn = document.querySelector('#commentPanel .comment-send-btn');
-      if (btn) { btn.disabled = busy; btn.textContent = busy ? '…' : '➤'; }
+      if (btn) { btn.disabled = busy; btn.textContent = busy ? '送信中…' : 'コメントを送る ➤'; }
       document.querySelectorAll('#logStamps button').forEach(b => b.disabled = busy);
     }
 
