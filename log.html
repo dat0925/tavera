@@ -668,6 +668,8 @@
 
       const dateStr = document.getElementById('dateInput').value;
       const memo = document.getElementById('memo').value.trim();
+      // saveLog()実行前に「新規記録かどうか」を確定させておく（保存後はexistingLogIdが更新されるため）
+      const isNewRecord = !existingLogId;
 
       const result = await saveLog({
         householdId,
@@ -684,6 +686,18 @@
 
       if (result) {
         showToast(isEditMode ? '更新しました！' : '記録しました！', 'success');
+        // 新規記録の場合のみ、「記録したよ」の自動コメントを投稿してLINE通知を飛ばす。
+        // 編集のたびに通知が飛ぶと煩わしいため、初回記録時（isNewRecord）に限定する。
+        // postMealComment内でLINE通知（tavera-comment-notify）まで呼ばれるが、
+        // 失敗しても記録自体は成功扱いにするためbest-effortで実行する。
+        if (isNewRecord) {
+          try {
+            await postMealComment(householdId, dateStr, selectedMeal, currentMemberId, {
+              stamp: null,
+              body: `📝 ${dishName} を記録したよ`,
+            });
+          } catch (e) { console.error('auto comment failed', e); }
+        }
         setTimeout(() => location.href = 'home.html', 1000);
       } else {
         showToast('保存に失敗しました', 'error');
