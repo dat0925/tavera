@@ -723,6 +723,19 @@
         showToast(success + '日分の給食を登録しました！', 'success');
       }
 
+      // 給食インポートは複数日分を一括登録するため、log.html（1件ずつの手動記録）のように
+      // 登録件数ぶんコメント＝LINE通知を出すと大量通知になってしまう（例：20日分で20通）。
+      // そのため個別の日付ごとには投稿せず、今日の日付・昼にまとめて1件だけ
+      // 「給食をX日分登録したよ」というダイジェストコメントを投稿し、通知も1通に抑える。
+      if (success > 0) {
+        try {
+          await postMealComment(householdId, toDateStr(), 'lunch', user.id, {
+            stamp: null,
+            body: `🍱 給食を${success}日分登録したよ`,
+          });
+        } catch (e) { console.error('auto comment failed', e); }
+      }
+
       // 成功した分だけ「登録済み」に更新（失敗分はチェックを保持し再試行できるようにする）
       succeededIndexes.forEach(function(i) {
         const m = parsedMenu[i];
