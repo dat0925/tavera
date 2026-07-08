@@ -141,7 +141,7 @@ async function deleteLog(logId) {
   return !error;
 }
 
-// 過去ログを検索
+// 過去ログを検索（期間の制限はなし。家族単位のデータ量なら全期間検索でも軽い）
 async function searchLogs(householdId, keyword) {
   const { data, error } = await db
     .from('menu_logs')
@@ -149,7 +149,7 @@ async function searchLogs(householdId, keyword) {
     .eq('household_id', householdId)
     .ilike('dish_name', `%${keyword}%`)
     .order('date', { ascending: false })
-    .limit(50);
+    .limit(100);
   if (error) { console.error(error); return []; }
   return data;
 }

@@ -298,6 +298,15 @@
       color: var(--brown);
       display: flex; align-items: center; justify-content: center;
     }
+    .cal-today-btn {
+      padding: 0 12px; height: 36px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      background: var(--surface);
+      font-size: 0.78rem; font-weight: 700;
+      cursor: pointer; color: var(--terra);
+      font-family: inherit; flex-shrink: 0;
+    }
     .cal-title {
       font-family: var(--font-display);
       font-size: 1.05rem;
@@ -449,6 +458,7 @@
       <div class="cal-nav" id="listNav" style="padding:10px 20px 4px">
         <button class="cal-nav-btn" onclick="listMonthPrev()">&#8249;</button>
         <span class="cal-title" id="listMonthTitle"></span>
+        <button class="cal-today-btn" onclick="goToday()">今日</button>
         <button class="cal-nav-btn" onclick="listMonthNext()">&#8250;</button>
       </div>
       <div class="history-list" id="historyList">
@@ -466,6 +476,7 @@
         <div class="cal-nav">
           <button class="cal-nav-btn" onclick="calPrev()">&#8249;</button>
           <span class="cal-title" id="calTitle"></span>
+          <button class="cal-today-btn" onclick="goToday()">今日</button>
           <button class="cal-nav-btn" onclick="calNext()">&#8250;</button>
         </div>
         <div class="cal-grid" id="calGrid"></div>
@@ -844,6 +855,14 @@
       calMonth++;
       if (calMonth > 11) { calMonth = 0; calYear++; }
       renderHistory(currentKeyword);
+    }
+
+    function goToday() {
+      calYear = today.getFullYear();
+      calMonth = today.getMonth();
+      calSelDate = null;
+      if (currentView === 'cal') renderCalendar();
+      else renderHistory(currentKeyword);
     }
 
     function calPrev() {
