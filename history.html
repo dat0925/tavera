@@ -451,16 +451,16 @@
           <button id="btnCal"              onclick="switchView('cal')">カレンダー</button>
         </div>
       </div>
-    </div>
-
-    <!-- リストビュー -->
-    <div id="listView" class="page" style="padding-bottom:80px">
-      <div class="cal-nav" id="listNav" style="padding:10px 20px 4px">
+      <div class="cal-nav" id="listNav" style="padding:8px 0 0; margin-top:2px; border-top:1px solid var(--border)">
         <button class="cal-nav-btn" onclick="listMonthPrev()">&#8249;</button>
         <span class="cal-title" id="listMonthTitle"></span>
         <button class="cal-today-btn" onclick="goToday()">今日</button>
         <button class="cal-nav-btn" onclick="listMonthNext()">&#8250;</button>
       </div>
+    </div>
+
+    <!-- リストビュー -->
+    <div id="listView" class="page" style="padding-bottom:80px">
       <div class="history-list" id="historyList">
         <div class="empty-state">
           <div class="empty-icon">&#128214;</div>
@@ -580,8 +580,9 @@
       document.getElementById('calView').style.display  = v === 'cal'  ? '' : 'none';
       document.getElementById('btnList').classList.toggle('active', v === 'list');
       document.getElementById('btnCal').classList.toggle('active', v === 'cal');
-      // カレンダー表示時は検索欄を非表示
+      // カレンダー表示時は検索欄と月ナビ（リスト用）を非表示
       document.getElementById('searchWrap').style.visibility = v === 'list' ? '' : 'hidden';
+      document.getElementById('listNav').style.display = (v === 'list' && !currentKeyword) ? '' : 'none';
       // カレンダー側で月を移動していた場合、リストに戻ったときも同じ月を表示する
       if (v === 'list') renderHistory(currentKeyword);
       if (v === 'cal') renderCalendar();
