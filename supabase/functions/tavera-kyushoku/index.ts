@@ -88,7 +88,7 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: CORS });
 
   try {
-    // ===== 認証・プラン別利用回数チェック =====
+    // ===== 認証・世帯単位プラン別利用回数チェック =====
     const authHeader = req.headers.get("Authorization") || "";
     const token = authHeader.replace("Bearer ", "");
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
@@ -101,21 +101,22 @@ Deno.serve(async (req) => {
 
     const { data: member } = await supabase
       .from("menu_members")
-      .select("plan, plan_expires_at, usage_limit_overrides")
+      .select("household_id, plan, plan_expires_at, usage_limit_overrides")
       .eq("id", user.id)
       .single();
-    const plan = member?.plan || "free";
-    const isPremium = plan === "premium" &&
-      (!member?.plan_expires_at || new Date(member.plan_expires_at) > new Date());
+    const householdId = member?.household_id;
+    // 世帯内に1人でも有効なプレミアムメンバーがいれば、世帯全体がプレミアム扱い（ファミリープレミアム）
+    const { data: isPremium } = await supabase.rpc("household_has_premium", { target_household_id: householdId });
     const overrideLimit = member?.usage_limit_overrides?.[FEATURE];
     const limit = typeof overrideLimit === "number" ? overrideLimit : (isPremium ? PREMIUM_LIMIT : FREE_LIMIT);
 
     const now = new Date();
     const month = now.toISOString().slice(0, 7);
+    // 利用回数は个人ではなく世帯単位で共有・集計
     const { data: usageRow } = await supabase
       .from("menu_ai_usage")
       .select("count")
-      .eq("user_id", user.id)
+      .eq("household_id", householdId)
       .eq("month", month)
       .eq("feature", FEATURE)
       .maybeSingle();
@@ -123,7 +124,9 @@ Deno.serve(async (req) => {
 
     if (used >= limit) {
       return new Response(JSON.stringify({
-        error: `今月の給食取り込み回数の上限（${limit}回）に達しました。${isPremium ? "" : "プレミアムプランなら月" + PREMIUM_LIMIT + "回まで利用できます。"}`,
+        error: isPremium
+          ? `今月の給食取り込み回数の上限（${limit}回）に達しました。来月また利用できます。`
+          : `今月の給食チェックを使い切りました（${limit}回）。来月もお子さんの給食アレルギーを確認し続けるなら、プレミアムプランへ。月480円（年払いなら月317円相当）で月${PREMIUM_LIMIT}回まで使えます。`,
         count: used, limit, plan: isPremium ? "premium" : "free",
       }), { status: 429, headers: { ...CORS, "Content-Type": "application/json" } });
     }
@@ -132,8 +135,6 @@ Deno.serve(async (req) => {
     const { year, month: bodyMonth } = body;
     let image: string = body.image;
     let mediaType: string = body.mediaType;
-    // 世帯の家族メンバーが登録しているアレルゲン一覧（フロントから送信）。
-    // 未設定・空の場合は何も変わらず、従来通りの動作になる。
     const allergyList: string[] = Array.isArray(body.allergies)
       ? body.allergies.filter((a: any) => typeof a === "string" && a.trim()).map((a: string) => a.trim())
       : [];
@@ -153,12 +154,8 @@ Deno.serve(async (req) => {
     }
 
     const mm = String(bodyMonth).padStart(2, "0");
-    // アレルゲンが登録されている場合のみ、判定の指示とレスポンス項目(allergenHits)を追加する。
-    // 食材表記に直接無くても、料理名から一般的に含まれると判断できる場合
-    // （例:「うどん」→小麦、「プリン」→卵・乳）も拾えるよう、Geminiの一般知識を使う。
-    // 親が「なぜそう判定されたか」を確認できるよう、判断理由(reason)も併せて返させる。
     const allergyInstruction = allergyList.length > 0
-      ? `\n- allergenHitsは、その日の料理に含まれる可能性がある対象アレルゲンの配列。各要素は{allergen, reason}の形式。allergenはアレルゲン名（対象アレルゲン一覧の表記そのまま）、reasonはなぜそのアレルゲンが含まれると判断したかを一文で簡潔に（例:「みそ汁に『豆乳』と記載されているため」「うどんには一般的に小麦が使われるため」）。対象アレルゲン一覧: ${allergyList.join("、")}。食材一覧に明記されていなくても、料理名から一般的に含まれると判断できる場合は含めること。可能性が無ければ空配列にすること。`
+      ? `\n- allergenHitsは、その日の料理に含まれる可能性がある対象アレルギーの配列。各要素は{allergen, reason}の形式。allergenはアレルギー名（対象アレルギー一覧の表記そのまま）、reasonはなぜそのアレルギーが含まれると判断したかを一文で簡潔に（例：「みそ汁に「豆乳」と記載されているため」「うどんには一般的に小麦が使われるため」）。対象アレルギー一覧: ${allergyList.join("、")}。食材一覧に明記されていなくても、料理名から一般的に含まれると判断できる場合は含めること。可能性が無ければ空配列にすること。`
       : "";
 
     const prompt = `この画像は${year}年${bodyMonth}月の給食献立表です。各日付のメニューと材料を抽出してください。
@@ -166,7 +163,7 @@ Deno.serve(async (req) => {
 ルール:
 - dateは${year}-${mm}-DD形式（DDは2桁の日付）
 - dishesは料理名の配列（主食・主菜・副菜・汁物など）
-- ingredientsは使用食材・アレルゲン等の補足情報の配列（記載がなければ空配列）
+- ingredientsは使用食材・アレルギー等の補足情報の配列（記載がなければ空配列）
 - 土日・祝日・給食なしの日は含めない
 - 料理名・食材名は簡潔に${allergyInstruction}`;
 
@@ -220,8 +217,8 @@ Deno.serve(async (req) => {
         errStr.includes("rate-limit") ||
         errStr.toLowerCase().includes("quota");
       const userMessage = isRateLimit
-        ? "AI解析の利用が集中しているため処理できませんでした。1〜2分待ってから再試行してください。"
-        : "AIが献立を読み取れませんでした。画像/PDFの内容を確認して再試行してください。";
+        ? "AI解析の利用が集中しているため処理できませんでした。1～2分待ってから再試行してください。"
+        : "AIが給食を読み取れませんでした。画像/PDFの内容を確認して再試行してください。";
       console.error("[kyushoku] no text:", errStr);
       return new Response(JSON.stringify({ error: userMessage, detail: errDetail }), {
         status: 500, headers: { ...CORS, "Content-Type": "application/json" },
@@ -255,11 +252,11 @@ Deno.serve(async (req) => {
     }
     console.log("[kyushoku] parsed menu items:", menu.length);
 
-    // ===== 成功時のみ利用回数をカウントアップ =====
+    // ===== 成功時のみ利用回数をカウントアップ（世帯単位） =====
     await supabase.from("menu_ai_usage").upsert({
-      user_id: user.id, month, feature: FEATURE,
+      household_id: householdId, user_id: user.id, month, feature: FEATURE,
       count: used + 1, updated_at: now.toISOString(),
-    }, { onConflict: "user_id,month,feature" });
+    }, { onConflict: "household_id,month,feature" });
 
     return new Response(JSON.stringify({ menu, remaining: limit - (used + 1), plan: isPremium ? "premium" : "free" }), {
       headers: { ...CORS, "Content-Type": "application/json" },

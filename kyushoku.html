@@ -562,6 +562,13 @@
         renderResults(year, month);
       } catch (e) {
         showToast('エラー: ' + e.message, 'error');
+        // 上限到達エラー時は、消えるトーストだけでなく常設のアップグレード導線を表示
+        if (e.message && e.message.indexOf('プレミアムプラン') !== -1 && !document.getElementById('kyUpgradeNotice')) {
+          btn.insertAdjacentHTML('afterend',
+            '<div id="kyUpgradeNotice" style="margin-top:12px;padding:14px;border:1.5px solid var(--terra);border-radius:12px;background:#fff;font-size:0.85rem;line-height:1.7;">' +
+            e.message +
+            '<a href="settings.html#plan" style="display:block;margin-top:10px;padding:10px;background:var(--terra);color:#fff;border-radius:10px;text-align:center;text-decoration:none;font-weight:600;">✨ プレミアムにアップグレード</a></div>');
+        }
         console.error(e);
       } finally {
         btn.disabled = false;

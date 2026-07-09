@@ -42,7 +42,7 @@ Deno.serve(async (req) => {
   try {
     const GEMINI_API_KEY = Deno.env.get("TAVERA_GEMINI_API_KEY")!;
 
-    // ===== 認証・プラン別利用回数チェック =====
+    // ===== 認証・世帯単位プラン別利用回数チェック =====
     const authHeader = req.headers.get("Authorization") || "";
     const token = authHeader.replace("Bearer ", "");
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
@@ -55,21 +55,22 @@ Deno.serve(async (req) => {
 
     const { data: member } = await supabase
       .from("menu_members")
-      .select("plan, plan_expires_at, usage_limit_overrides")
+      .select("household_id, plan, plan_expires_at, usage_limit_overrides")
       .eq("id", user.id)
       .single();
-    const plan = member?.plan || "free";
-    const isPremium = plan === "premium" &&
-      (!member?.plan_expires_at || new Date(member.plan_expires_at) > new Date());
+    const householdId = member?.household_id;
+    // 世帯内に1人でも有効なプレミアムメンバーがいれば、世帯全体がプレミアム扱い（ファミリープレミアム）
+    const { data: isPremium } = await supabase.rpc("household_has_premium", { target_household_id: householdId });
     const overrideLimit = member?.usage_limit_overrides?.[FEATURE];
     const limit = typeof overrideLimit === "number" ? overrideLimit : (isPremium ? PREMIUM_LIMIT : FREE_LIMIT);
 
     const now = new Date();
     const month = now.toISOString().slice(0, 7);
+    // 利用回数は个人ではなく世帯単位で共有・集計
     const { data: usageRow } = await supabase
       .from("menu_ai_usage")
       .select("count")
-      .eq("user_id", user.id)
+      .eq("household_id", householdId)
       .eq("month", month)
       .eq("feature", FEATURE)
       .maybeSingle();
@@ -77,7 +78,9 @@ Deno.serve(async (req) => {
 
     if (used >= limit) {
       return new Response(JSON.stringify({
-        error: `今月の食材取り込み回数の上限（${limit}回）に達しました。${isPremium ? "" : "プレミアムプランなら月" + PREMIUM_LIMIT + "回まで利用できます。"}`,
+        error: isPremium
+          ? `今月の食材取り込み回数の上限（${limit}回）に達しました。来月また利用できます。`
+          : `今月の食材取り込みを使い切りました（${limit}回）。プレミアムプランなら月${PREMIUM_LIMIT}回まで（月480円・年払いなら月317円相当）。`,
         count: used, limit, plan: isPremium ? "premium" : "free",
       }), { status: 429, headers: { ...CORS, "Content-Type": "application/json" } });
     }
@@ -125,7 +128,7 @@ Deno.serve(async (req) => {
       console.error("[fridge-scan] no text:", errStr);
       return new Response(JSON.stringify({
         error: isRateLimit
-          ? "AI解析の利用が集中しているため処理できませんでした。1〜2分待ってから再試行してください。"
+          ? "AI解析の利用が集中しているため処理できませんでした。1～2分待ってから再試行してください。"
           : "AIが画像を解析できませんでした。もう一度お試しください。",
         detail: errDetail,
         finishReason: result.candidates?.[0]?.finishReason || "unknown",
@@ -147,11 +150,11 @@ Deno.serve(async (req) => {
       });
     }
 
-    // ===== 成功時のみ利用回数をカウントアップ =====
+    // ===== 成功時のみ利用回数をカウントアップ（世帯単位） =====
     await supabase.from("menu_ai_usage").upsert({
-      user_id: user.id, month, feature: FEATURE,
+      household_id: householdId, user_id: user.id, month, feature: FEATURE,
       count: used + 1, updated_at: now.toISOString(),
-    }, { onConflict: "user_id,month,feature" });
+    }, { onConflict: "household_id,month,feature" });
 
     return new Response(JSON.stringify({ items, remaining: limit - (used + 1), plan: isPremium ? "premium" : "free" }), {
       headers: { ...CORS, "Content-Type": "application/json" },
