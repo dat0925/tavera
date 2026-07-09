@@ -1,7 +1,7 @@
 # Tavera 設計書・引き継ぎ書
 
-**バージョン**: 1.24.7
-**最終更新**: 2026-07-07
+**バージョン**: 1.24.8
+**最終更新**: 2026-07-09
 **ステータス**: 一般公開済み・本番Stripe決済稼働中・解約フロー実装済み
 
 ---
@@ -78,8 +78,8 @@
 | `TAVERA_STRIPE_YEARLY_PRICE_ID` | `price_1TngeRBNAV5e5rhc8CHzqEUT`（本番・年払い・¥3,800/年）**要Supabase Secret登録** |
 | `TAVERA_STRIPE_WEBHOOK_SECRET` | `whsec_8x4LMUX008s0rlDd99oidTQBjn6EzDCZ`（本番） |
 | `SUPABASE_SERVICE_ROLE_KEY` | 既存 |
-| `TAVERA_LINE_CHANNEL_SECRET` | **要登録**（LINE Developersコンソールで取得。未登録の間はtavera-line-webhookの署名検証が失敗する） |
-| `TAVERA_LINE_CHANNEL_ACCESS_TOKEN` | **要登録**（同上。長期チャネルアクセストークンを発行して登録） |
+| `TAVERA_LINE_CHANNEL_SECRET` | 登録済み・稼働確認済み（2026-07-09時点。LINE経由の献立記録・通知が実際に動作していることをユーザーが確認。以前の版で「要登録」としていたのは実態と合っていなかった古い記載） |
+| `TAVERA_LINE_CHANNEL_ACCESS_TOKEN` | 登録済み・稼働確認済み（同上） |
 
 ### Edge Functions
 
@@ -326,7 +326,8 @@ LINEでのフリーテキスト返信が「どの日付・食事区分へのコ�
 6. 料理名は「・」区切りで1件のlunch記録として保存
 
 ### URLタブの注意
-- 直接fetchできないCORSエラーの場合、`tavera-url-fetch` Edge Functionを使ったサーバー経由fetchにフォールバック（※`tavera-url-fetch`は未実装・必要になったら作成）
+- 直接fetchできないCORSエラーの場合、URLをそのまま`tavera-kyushoku`に渡し、Edge Function側の内部fetchで取得する方式になっている（`pendingUrl`を`tavera-kyushoku`のリクエストボディに含めるだけで、フロントから独立したURL取得エンドポイントは呼んでいない）
+- **2026-07-09調査で判明した齟齬**：`tavera-url-fetch`という同名のEdge Function自体はSupabaseに実際にデプロイ済み（version 8時点で存在）だが、リポジトリ内のどのHTML/JSからも呼び出されていない**未使用・孤立した関数**。以前の版では「未実装・必要になったら作成」と記載していたが誤り。実装当初はこの関数を使う設計だったが、最終的に`tavera-kyushoku`が自前でURLをfetchする方式に統合され、`tavera-url-fetch`だけが削除されずSupabase上に残った可能性が高い。実害は無いが、整理するなら削除候補
 
 ---
 
@@ -1343,6 +1344,17 @@ TAVERA_STRIPE_YEARLY_PRICE_ID = price_1TngeRBNAV5e5rhc8CHzqEUT
   - **対応**：各画面の`sendComment`/`sendLogComment`に処理中フラグ（`commentSending`/`logCommentSending`）を追加し、多重実行そのものをガード。あわせて`setCommentSendingUI(busy)`/`setLogCommentSendingUI(busy)`を新設し、送信中は送信ボタンのテキストを「➤」→「…」に切り替え、送信ボタン・スタンプボタン群を`disabled`にして視覚的にも「処理中」と分かるようにした（CSSに`.comment-send-btn:disabled, .comment-stamp-btn:disabled { opacity: .4; }`を追加）
   - コメント編集（`editingCommentId`あり）・新規投稿の両方の分岐に同じtry/finallyパターンを適用し、失敗時も確実にボタンが再度押せる状態へ戻るようにした
 - **教訓**：「機能的には動いているが、処理中であることを示すフィードバックが無い」ために誤操作を誘発するパターンは、コメント機能を3画面に横展開した際に3箇所とも同じ抜け漏れとして持ち込まれていた（元の実装をコピーして展開したため）。1画面で見つかったUXの抜けは、同じロジックをコピーして作った他画面にも同様に存在している可能性が高く、横断的にチェック・修正すべき典型例。
+
+### 引き継ぎ書の記載と実態の齟齬を点検・修正（v1.24.8）
+
+- **発端**：ユーザーから「LINE連携ちゃんと機能してるよ」との指摘。引き継ぎ書には`TAVERA_LINE_CHANNEL_SECRET`・`TAVERA_LINE_CHANNEL_ACCESS_TOKEN`が「要登録」（未設定）と記載されていたが、実態と矛盾していたため、コード・実際のデプロイ状況を調査した
+- **調査方法**：Supabase MCPで本番プロジェクト（`sfhtvtcmgueystyuhzvd`）のEdge Function一覧・ソースコード・直近のログを確認し、リポジトリのフロントエンドコードと突き合わせた
+- **判明した齟齬**：
+  1. **LINE連携のSecrets**：`tavera-line-webhook`は署名検証・メッセージ送受信に上記2つのSecretを必須で参照する実装になっており、ユーザー申告どおり実際に稼働している以上、これらは実際には登録済みだった。引き継ぎ書の「要登録」は古い/誤った記載だったため、「登録済み・稼働確認済み」に修正
+  2. **`tavera-url-fetch`関数**：引き継ぎ書には「未実装・必要になったら作成」と記載されていたが、Supabase上には実際にversion 8まで更新されたデプロイ済み関数として存在した。ただしリポジトリ内のどのHTML/JSからも呼び出されておらず、実際のCORSフォールバックは`tavera-kyushoku`が自前でURLを内部fetchする方式で実現されていた（`kyushoku.html`の`pendingUrl`をそのまま`tavera-kyushoku`に渡すだけ）。つまり`tavera-url-fetch`は「未実装」ではなく「実装したが使われなくなり残っている孤立した関数」だった
+- **対応**：上記2箇所の記載を実態に合わせて修正。`tavera-fridge-scan`のthinkingトークン対策についても念のためソースを確認したが、こちらはv5で既に対策済み（`thinkingConfig.thinkingBudget: 0`・`maxOutputTokens: 1024`）であることを確認でき、既存の記載（解決策v5のセクション）と齟齬は無かった
+- **未確認のまま残った項目**：`TAVERA_STRIPE_YEARLY_PRICE_ID`のSupabase Secret登録有無は、MCPツールにSecret一覧を直接取得する手段が無く未確認（次回Stripe年払い周りを触る際にあわせて確認すること）
+- **教訓**：引き継ぎ書の「要対応」「未実装」といったステータス表記は、一度書いた後に実際の対応が行われても更新し忘れられ、時間が経つほど実態と乖離しやすい。特に「他のAIや会話スレッドと並行して開発する」運用（本ドキュメント冒頭の前提）では、ある会話で対応した変更が別の会話の引き継ぎ書に反映されないまま放置されるリスクが高い。ユーザーからの「実際には動いている」という一言の指摘を鵜呑みにせず、コード・デプロイ状況を実際に確認してから修正する、というファクトチェックの姿勢が今回も有効だった。
 
 
 
