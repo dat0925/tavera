@@ -37,8 +37,6 @@ async function signInWithGoogle() {
 function showExternalBrowserGuide() {
   if (document.querySelector('.eb-guide-overlay')) return;
 
-  const currentUrl = window.location.href;
-
   const overlay = document.createElement('div');
   overlay.className = 'eb-guide-overlay';
   overlay.innerHTML = `
@@ -47,9 +45,8 @@ function showExternalBrowserGuide() {
       <h3 class="eb-guide-title">このアプリ内ブラウザでは<br>Googleログインができません</h3>
       <p class="eb-guide-text">
         Googleのセキュリティポリシーにより、LINEなどアプリ内のブラウザから直接ログインすることができません。<br>
-        右上の「•••」（メニュー）から<strong>「外部ブラウザで開く」</strong>を選択してから、もう一度お試しください。
+        右上の「•••」（メニュー）から<strong>「外部ブラウザで開く」</strong>を選択し、Safari（またはChrome）でTaveraを開き直してからログインしてください。
       </p>
-      <button class="eb-guide-copy-btn" id="ebGuideCopyBtn">このページのURLをコピーする</button>
       <button class="eb-guide-close-btn" id="ebGuideCloseBtn">閉じる</button>
     </div>
   `;
@@ -57,14 +54,6 @@ function showExternalBrowserGuide() {
 
   document.getElementById('ebGuideCloseBtn').addEventListener('click', () => {
     overlay.remove();
-  });
-  document.getElementById('ebGuideCopyBtn').addEventListener('click', async () => {
-    try {
-      await navigator.clipboard.writeText(currentUrl);
-      showToast('URLをコピーしました', 'success');
-    } catch (e) {
-      showToast('コピーに失敗しました', 'error');
-    }
   });
 
   // スタイル未挿入なら一度だけ挿入
@@ -100,13 +89,12 @@ function showExternalBrowserGuide() {
         font-size: 0.9rem; line-height: 1.7;
         margin: 0 0 20px;
       }
-      .eb-guide-copy-btn, .eb-guide-close-btn {
+      .eb-guide-close-btn {
         width: 100%; padding: 12px; border: none;
         border-radius: 99px; font-weight: 700; font-size: 0.9rem;
-        margin-bottom: 10px; cursor: pointer;
+        cursor: pointer;
+        background: var(--olive, #6B7A3A); color: #fff;
       }
-      .eb-guide-copy-btn { background: var(--olive, #6B7A3A); color: #fff; }
-      .eb-guide-close-btn { background: transparent; color: var(--muted, #9B8878); margin-bottom: 0; }
     `;
     document.head.appendChild(style);
   }

@@ -40,14 +40,10 @@ async function pushMessage(lineUserId: string, text: string) {
   });
 }
 
-// 献立（日付・食事区分）へ直接飛べるTavera側のディープリンクを生成
-// openExternalBrowser=1 を付与することで、LINEアプリ内ブラウザ(WebView)ではなく
-// 端末のデフォルトブラウザで開かせる（LINE公式が対応しているクエリパラメータ）。
-// これによりGoogleログイン時の「disallowed_useragent」エラーを未然に防ぐ。
-function buildMealLink(date: string, mealType: string): string {
-  return `https://tavera.taskra.jp/home.html?date=${date}&meal=${mealType}&openExternalBrowser=1`;
-}
-
+// 献立ページへのリンクは、LINEのアプリ内ブラウザ(WebView)経由だと
+// Googleログインがブロックされたり外部ブラウザに逃がしても元のページへ
+// 正しく戻れなかったりと体験が不安定なため、あえて貼らない方針にした
+// （Taveraアプリ本体を直接開いて確認・記録してもらう）。
 // 自動割り当てを訂正するためのクイックリプライ（現在の食事区分以外の2つの食事区分＋前日／翌日）
 function buildQuickReplyItems(commentId: string, currentMeal: string) {
   const mealOptions = [
@@ -161,7 +157,7 @@ Deno.serve(async (req) => {
       // 訂正は話題の「終わり」として扱い、文脈は更新しない（更新すると、この後の
       // 無関係な新しい発言まで訂正後の内容に引きずられてしまうため）
 
-      await replyMessage(event.replyToken, `✅ ${formatDateLabel(newDate)}の${MEAL_LABEL[newMeal]}に変更しました\n${buildMealLink(newDate, newMeal)}`);
+      await replyMessage(event.replyToken, `✅ ${formatDateLabel(newDate)}の${MEAL_LABEL[newMeal]}に変更しました`);
       continue;
     }
 
@@ -223,11 +219,10 @@ Deno.serve(async (req) => {
     await sb.from('menu_line_contexts').upsert({ member_id: member.id, household_id: member.household_id, date, meal_type: mealType, updated_at: new Date().toISOString() });
 
     const dateLabel = formatDateLabel(date);
-    const mealLink = buildMealLink(date, mealType);
     const quickReplyItems = buildQuickReplyItems(newComment.id, mealType);
     await replyMessage(
       replyToken,
-      `✅ 記録しました：${dateLabel}の${MEAL_LABEL[mealType]}に「${text}」\n${mealLink}\n違ったらこちらから選び直せます👇`,
+      `✅ 記録しました：${dateLabel}の${MEAL_LABEL[mealType]}に「${text}」\n違ったらこちらから選び直せます👇`,
       quickReplyItems
     );
 
@@ -235,7 +230,7 @@ Deno.serve(async (req) => {
     const { data: others } = await sb.from('menu_members').select('id, line_user_id, name')
       .eq('household_id', member.household_id).not('line_user_id', 'is', null).neq('id', member.id);
     for (const o of others || []) {
-      await pushMessage(o.line_user_id, `🍚 Tavera｜${dateLabel}の${MEAL_LABEL[mealType]}\n${member.name || '家族'}: ${text}\n${mealLink}`);
+      await pushMessage(o.line_user_id, `🍚 Tavera｜${dateLabel}の${MEAL_LABEL[mealType]}\n${member.name || '家族'}: ${text}`);
       await sb.from('menu_line_contexts').upsert({ member_id: o.id, household_id: member.household_id, date, meal_type: mealType, updated_at: new Date().toISOString() });
     }
   }
