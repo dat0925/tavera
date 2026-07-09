@@ -78,7 +78,9 @@ Deno.serve(async (req) => {
     const dateLabel = formatDateLabel(comment.date);
     const mealLabel = MEAL_LABEL[comment.meal_type] || comment.meal_type;
     const parts = [comment.stamp ? STAMP_LABEL[comment.stamp] || comment.stamp : null, comment.body].filter(Boolean);
-    const link = `https://tavera.taskra.jp/home.html?date=${comment.date}&meal=${comment.meal_type}`;
+    // openExternalBrowser=1: LINEアプリ内ブラウザではなく端末のデフォルトブラウザで開かせる
+    // （Googleログイン時の「disallowed_useragent」エラーを避けるため）
+    const link = `https://tavera.taskra.jp/home.html?date=${comment.date}&meal=${comment.meal_type}&openExternalBrowser=1`;
     const text = `🍚 Tavera｜${dateLabel}の${mealLabel}\n${authorName}: ${parts.join('　')}\n${link}\n\n（このままLINEで返信すると、この献立へのコメントとして記録されます）`;
 
     let notified = 0;

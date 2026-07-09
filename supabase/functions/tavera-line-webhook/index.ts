@@ -41,8 +41,11 @@ async function pushMessage(lineUserId: string, text: string) {
 }
 
 // 献立（日付・食事区分）へ直接飛べるTavera側のディープリンクを生成
+// openExternalBrowser=1 を付与することで、LINEアプリ内ブラウザ(WebView)ではなく
+// 端末のデフォルトブラウザで開かせる（LINE公式が対応しているクエリパラメータ）。
+// これによりGoogleログイン時の「disallowed_useragent」エラーを未然に防ぐ。
 function buildMealLink(date: string, mealType: string): string {
-  return `https://tavera.taskra.jp/home.html?date=${date}&meal=${mealType}`;
+  return `https://tavera.taskra.jp/home.html?date=${date}&meal=${mealType}&openExternalBrowser=1`;
 }
 
 // 自動割り当てを訂正するためのクイックリプライ（現在の食事区分以外の2つの食事区分＋前日／翌日）
