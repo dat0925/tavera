@@ -1132,6 +1132,8 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
     }
 
     async function startCheckout() {
+      window.dataLayer = window.dataLayer || [];
+      window.dataLayer.push({ event: 'begin_checkout', billing_cycle: selectedBilling });
       const btn = document.getElementById('upgradeBtn') || document.querySelector('.plan-upgrade-btn');
       if (btn) { btn.textContent = '処理中...'; btn.disabled = true; }
       try {

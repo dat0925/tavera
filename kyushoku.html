@@ -1,6 +1,13 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
+<!-- Google Tag Manager -->
+<script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+})(window,document,'script','dataLayer','GTM-ML7NKTDR');</script>
+<!-- End Google Tag Manager -->
   <meta charset="UTF-8">
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
@@ -234,6 +241,10 @@
   </style>
 </head>
 <body>
+<!-- Google Tag Manager (noscript) -->
+<noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-ML7NKTDR"
+height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
+<!-- End Google Tag Manager (noscript) -->
   <div class="app-container">
     <header class="app-header">
       <div class="logo">
@@ -560,10 +571,14 @@
         });
 
         renderResults(year, month);
+        window.dataLayer = window.dataLayer || [];
+        window.dataLayer.push({ event: 'kyushoku_success', plan: data.plan || 'free' });
       } catch (e) {
         showToast('エラー: ' + e.message, 'error');
         // 上限到達エラー時は、消えるトーストだけでなく常設のアップグレード導線を表示
         if (e.message && e.message.indexOf('プレミアムプラン') !== -1 && !document.getElementById('kyUpgradeNotice')) {
+          window.dataLayer = window.dataLayer || [];
+          window.dataLayer.push({ event: 'limit_reached', feature: 'kyushoku', plan: 'free' });
           btn.insertAdjacentHTML('afterend',
             '<div id="kyUpgradeNotice" style="margin-top:12px;padding:14px;border:1.5px solid var(--terra);border-radius:12px;background:#fff;font-size:0.85rem;line-height:1.7;">' +
             e.message +

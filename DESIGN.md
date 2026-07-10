@@ -1,6 +1,6 @@
 # Tavera 設計書・引き継ぎ書
 
-**バージョン**: 1.25.2
+**バージョン**: 1.25.3
 **最終更新**: 2026-07-10
 **ステータス**: 一般公開済み・本番Stripe決済稼働中・解約フロー実装済み
 
@@ -1457,3 +1457,17 @@ TAVERA_STRIPE_YEARLY_PRICE_ID = price_1TngeRBNAV5e5rhc8CHzqEUT
 - **⚠️ 重要な発見（並行開発ドリフト）**：リポジトリ内の`tavera-kyushoku`/`tavera-fridge-scan`のソースが本番デプロイ版より古かった（本番には世帯プレミアム判定`household_has_premium` RPCがあるがリポジトリ版には無かった）。リポジトリ版をそのままデプロイすると本番機能が巻き戻るため、**本番ソース（kyushoku v30 / fridge-scan v12）を取得してリポジトリに同期した上で、文言変更のみ適用してデプロイした**（kyushoku v31 / fridge-scan v13）。今後Edge Functionを触る際は、必ずSupabase MCPで本番ソースを取得してリポジトリと差分確認してからデプロイすること
 - **セキュリティ**：認証・決済ロジック・DBスキーマへの変更なし（表示文言とフロントUIのみ）。verify_jwtは両関数ともtrueのまま維持。RLS変更なし。触っていない箇所：tavera-suggest（フロント側showPaywallのみ変更、Edge Function本体は無変更）、tavera-checkout・tavera-webhook（決済系は一切触っていない）
 - **次にやるべきこと**：Phase 1のファネル計測（GA4等）導入、admin.htmlで実数確認→中間KPI設定、上限到達の実ユーザー発生時に文言のCVR効果を観察
+
+### GA4ファネル計測の導入（Phase 1）（v1.25.3）
+
+- **背景**：マーケ戦略Phase 1「登録→AI初回利用→上限到達→課金」のファネル計測。GA4プロパティ（Tavera / 543470745）とGTM（GTM-ML7NKTDR）は設定済みだったが、タグ設置はindex.html・settings.htmlのみだった
+- **変更内容**：
+  1. **GTMスニペットを全アプリページに追加**：home / suggest / kyushoku / log / history の5ページ（head + body直後のnoscript）。これでログイン後ページのpage_viewも計測される
+  2. **ファネルイベントをdataLayerに送信**：
+     - `ai_suggest_success`（suggest.html：AI提案成功時、plan付き）
+     - `kyushoku_success`（kyushoku.html：給食解析成功時、plan付き）
+     - `limit_reached`（suggest.html showPaywall / kyushoku.html 上限エラー時、feature・plan付き）
+     - `begin_checkout`（settings.html startCheckout冒頭、billing_cycle付き）
+     - `purchase_premium`（既存実装済み：settings.html plan=success時）
+- **⚠️ 残タスク（GTMコンソール側・人間の作業）**：カスタムイベントをGA4に転送するには、GTMで①トリガー「カスタムイベント」正規表現 `ai_suggest_success|kyushoku_success|limit_reached|begin_checkout` ②GA4イベントタグ（イベント名 `{{Event}}`、パラメータ feature/plan/billing_cycle をdataLayer変数から）を1セット作成して公開する。purchase_premiumのタグが既にあればそれを参考に。GTM設定が済むまでカスタムイベントはGA4に届かない（page_viewはGA4設定タグがあれば届く）
+- **セキュリティ**：認証・決済・DB変更なし。計測はGTM経由のクライアントサイドのみ
