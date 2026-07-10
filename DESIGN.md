@@ -1490,4 +1490,5 @@ TAVERA_STRIPE_YEARLY_PRICE_ID = price_1TngeRBNAV5e5rhc8CHzqEUT
   - `tavera-suggest` v33：referral_bonusを月間上限に加算。**リポジトリ側ソースが本番v32より古かったため（household_has_premium欠落）、本番ソースに同期してから変更を適用**（前回kyushoku/fridge-scanと同じドリフト。これでリポジトリ内の主要Edge Functionは本番同期済み）
 - **フロント**：settings.htmlに「友達紹介」セクション（#referral：コード表示・コピー・招待メッセージコピー・実績表示・コード入力欄）。suggest.htmlのペイウォールに「友達を招待すると毎月+10回」リンク追加。GA4イベント`referral_redeemed`送信（GTM側トリガー正規表現への追加が必要：`ai_suggest_success|kyushoku_success|limit_reached|begin_checkout|referral_redeemed`）
 - **触れなかった箇所**：決済系（tavera-checkout/tavera-webhook）、認証フロー本体
+- **修正（tavera-referral v2）**：初回リリース時、CORSのAllow-Headersに`apikey`・`x-client-info`が無く、supabase-jsの`functions.invoke`からのPOSTがブラウザにブロックされていた（ログ上OPTIONS 200のみでPOSTが無い状態）。`authorization, x-client-info, apikey, content-type`に修正してv2デプロイ済み。**教訓：invoke経由で呼ぶEdge FunctionのCORSはこの4ヘッダーをセットで許可すること**（raw fetchで呼ぶ既存関数は2ヘッダーでも動くため気づきにくい）
 - **次にやるべきこと**：実機での動作確認（コード発行→別アカウントでredeem→suggest上限が+10になるか）、GTMトリガーにreferral_redeemed追加、admin.htmlに紹介実績の表示を追加検討
