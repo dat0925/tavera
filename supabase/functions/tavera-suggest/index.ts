@@ -51,22 +51,23 @@ serve(async (req) => {
 
     const { data: member } = await supabase
       .from("menu_members")
-      .select("plan, plan_expires_at, usage_limit_overrides")
+      .select("household_id, plan, plan_expires_at, usage_limit_overrides, referral_bonus")
       .eq("id", user.id)
       .single();
 
-    const plan = member?.plan || "free";
-    const isPremium = plan === "premium" &&
-      (!member?.plan_expires_at || new Date(member.plan_expires_at) > new Date());
+    const householdId = member?.household_id;
+    // 世帯内に1人でも有効なプレミアムメンバーがいれば、世帯全体がプレミアム扱い（ファミリープレミアム）
+    const { data: isPremium } = await supabase.rpc("household_has_premium", { target_household_id: householdId });
 
     const now = new Date();
     const month = now.toISOString().slice(0, 7);
     const today = now.toISOString().slice(0, 10);
 
+    // 利用回数は个人ではなく世帯単位で共有・集計
     const { data: usage } = await supabase
       .from("menu_ai_usage")
       .select("count, day_count, last_day")
-      .eq("user_id", user.id)
+      .eq("household_id", householdId)
       .eq("month", month)
       .eq("feature", FEATURE)
       .maybeSingle();
@@ -76,7 +77,9 @@ serve(async (req) => {
 
     const overrideLimit = member?.usage_limit_overrides?.[FEATURE];
     const hasOverride = typeof overrideLimit === "number";
-    const monthLimit = hasOverride ? overrideLimit : (isPremium ? PREMIUM_LIMIT     : FREE_LIMIT);
+    // 紹介プログラムのボーナス回数（月間上限に加算。1日上限は据え置き）
+    const referralBonus = Number(member?.referral_bonus?.[FEATURE] || 0);
+    const monthLimit = (hasOverride ? overrideLimit : (isPremium ? PREMIUM_LIMIT     : FREE_LIMIT)) + referralBonus;
     const dayLimit   = hasOverride ? overrideLimit : (isPremium ? PREMIUM_DAY_LIMIT : 3);
 
     if (monthCount >= monthLimit || dayCount >= dayLimit) {
@@ -89,6 +92,7 @@ serve(async (req) => {
     }
 
     await supabase.from("menu_ai_usage").upsert({
+      household_id: householdId,
       user_id: user.id,
       month,
       feature: FEATURE,
@@ -96,7 +100,7 @@ serve(async (req) => {
       day_count: dayCount + 1,
       last_day: today,
       updated_at: now.toISOString(),
-    }, { onConflict: "user_id,month,feature" });
+    }, { onConflict: "household_id,month,feature" });
 
     const { messages, likedDishes, recentDishes, fridgeItems, familyMembers } = await req.json();
 
@@ -122,7 +126,6 @@ serve(async (req) => {
       });
       contextNote += `\n【家族構成】${memberProfiles.join(" / ")}`;
 
-      // アレルギーは「好み」と混ざらないよう切り出して、強い制約として明示する
       const membersWithAllergies = familyMembers.filter((m: any) => m.allergies?.length > 0);
       if (membersWithAllergies.length > 0) {
         const allergyLines = membersWithAllergies
@@ -155,13 +158,13 @@ serve(async (req) => {
     const { data: latestUsage } = await supabase
       .from("menu_ai_usage")
       .select("count")
-      .eq("user_id", user.id)
+      .eq("household_id", householdId)
       .eq("month", month)
       .eq("feature", FEATURE)
       .maybeSingle();
     const remaining = monthLimit - (latestUsage?.count || 0);
 
-    return new Response(JSON.stringify({ reply, remaining, limit: monthLimit, plan }), {
+    return new Response(JSON.stringify({ reply, remaining, limit: monthLimit, plan: isPremium ? "premium" : "free" }), {
       headers: { ...CORS, "Content-Type": "application/json" },
     });
 

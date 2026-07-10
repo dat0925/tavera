@@ -1,6 +1,6 @@
 # Tavera 設計書・引き継ぎ書
 
-**バージョン**: 1.25.4
+**バージョン**: 1.26.0
 **最終更新**: 2026-07-10
 **ステータス**: 一般公開済み・本番Stripe決済稼働中・解約フロー実装済み
 
@@ -1477,3 +1477,17 @@ TAVERA_STRIPE_YEARLY_PRICE_ID = price_1TngeRBNAV5e5rhc8CHzqEUT
 - **症状**：PCビュー（≥769px）でAI提案画面のナビが左サイドバーにならず、コンテンツ下部に縦積みで表示されていた
 - **原因**：suggest.htmlのインラインCSS「app-containerをflex縦並び＋100dvh」（iOSアドレスバー対策）がメディアクエリ外に書かれており、style.cssのPC用グリッド（`grid-template-columns: 220px 1fr`）を上書きしていた。v1.25.3のGTM追加とは無関係で、dvh対応時からの潜在バグ
 - **修正**：該当ルールを `@media (max-width: 768px)` で囲みスマホ専用化。PCはstyle.cssのグリッドが適用される。他ページに同様の非スコープapp-container上書きが無いことを確認済み
+
+### 友達紹介プログラム（Phase 2施策①）＋menu_members権限修正（v1.26.0）
+
+- **機能概要**：友達があなたの紹介コードで登録して入力すると、双方のAI提案が毎月+10回（紹介者は累計+50回=5人まで、被紹介者は登録30日以内のみ入力可・1回きり）。ボーナスは`referral_bonus` jsonbに保存され、tavera-suggestが月間上限に加算する（1日上限は据え置き）。自分のコード・同一世帯のコードは使用不可
+- **DB変更（migration: referral_program_and_member_column_lockdown）**：
+  - `menu_members`に`referral_code text UNIQUE`・`referral_bonus jsonb DEFAULT '{}'`を追加
+  - 新テーブル`menu_referrals`（referrer_id, referee_id UNIQUE, created_at）。**RLS有効化＋SELECTポリシー（本人が関与する行のみ）を同一マイグレーション内で設定済み。INSERT/UPDATE/DELETEポリシーは意図的に作成せず、書き込みはservice role（Edge Function）のみ**。rls_enabled=trueをSQL実測で確認済み
+- **🔐 重大なセキュリティ修正（既存の穴）**：menu_membersのRLSポリシー（id=auth.uid()の全カラムUPDATE可）により、**ブラウザ露出のanonキーからplan='premium'やusage_limit_overridesを自己書き換えできる状態だった**。カラムレベル権限で封鎖：authenticatedのINSERTは(id, household_id, name, role, allergies)、UPDATEは(household_id, name, role, allergies)のみに制限。plan/plan_expires_at/stripe_*/cancel_at_period_end/usage_limit_overrides/referral_code/referral_bonus/line_*はservice roleのみ書き込み可。フロントの正当な書き込み（menu-log.jsの世帯作成insert・世帯参加update）は権限内であることを確認済み
+- **Edge Function**：
+  - `tavera-referral` v1新規（verify_jwt:true）：action=get（コード発行・実績取得）/ redeem（コード適用）。二重取得はreferee_id UNIQUE制約が最終防衛線
+  - `tavera-suggest` v33：referral_bonusを月間上限に加算。**リポジトリ側ソースが本番v32より古かったため（household_has_premium欠落）、本番ソースに同期してから変更を適用**（前回kyushoku/fridge-scanと同じドリフト。これでリポジトリ内の主要Edge Functionは本番同期済み）
+- **フロント**：settings.htmlに「友達紹介」セクション（#referral：コード表示・コピー・招待メッセージコピー・実績表示・コード入力欄）。suggest.htmlのペイウォールに「友達を招待すると毎月+10回」リンク追加。GA4イベント`referral_redeemed`送信（GTM側トリガー正規表現への追加が必要：`ai_suggest_success|kyushoku_success|limit_reached|begin_checkout|referral_redeemed`）
+- **触れなかった箇所**：決済系（tavera-checkout/tavera-webhook）、認証フロー本体
+- **次にやるべきこと**：実機での動作確認（コード発行→別アカウントでredeem→suggest上限が+10になるか）、GTMトリガーにreferral_redeemed追加、admin.htmlに紹介実績の表示を追加検討

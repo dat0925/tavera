@@ -296,7 +296,8 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
       div.className = 'paywall-msg';
       div.innerHTML = '<p>今月のAI提案（' + (limit || 10) + '回）を使い切りました。<br>' +
         (plan === 'premium' ? '来月また利用できます。' : '来月も献立の相談を続けるなら、プレミアムプランへ。<br>月480円（年払いなら月317円相当）で月300回使えます。') + '</p>' +
-        (plan === 'premium' ? '' : '<a href="settings.html#plan" class="paywall-btn">✨ プレミアムにアップグレード</a>');
+        (plan === 'premium' ? '' : '<a href="settings.html#plan" class="paywall-btn">✨ プレミアムにアップグレード</a>' +
+          '<p style="margin:8px 0 0;font-size:0.78rem;"><a href="settings.html#referral" style="color:var(--terra);">🎁 友達を招待すると毎月+10回（無料）</a></p>');
       c.appendChild(div);
       c.scrollTop = 999999;
     }

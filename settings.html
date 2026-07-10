@@ -478,6 +478,14 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
         </div>
       </div>
 
+      <!-- 友達紹介 -->
+      <div class="settings-section" id="referral">
+        <div class="settings-label">友達紹介</div>
+        <div class="plan-card" id="referralCard">
+          <div class="loading-dots" style="padding:8px 0;justify-content:center"><span></span><span></span><span></span></div>
+        </div>
+      </div>
+
       <!-- その他 -->
       <div class="settings-section">
         <div class="settings-label">その他</div>
@@ -559,6 +567,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
       await renderHousehold();
       await renderFamMembers();
       await renderPlanCard();
+      renderReferralCard();
       await renderLineLinkStatus();
 
       // 管理者リンクの表示制御
@@ -1022,6 +1031,70 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
         const warnClass = remaining <= Math.max(2, Math.ceil(limit * 0.1)) ? 'warn' : '';
         return `<div class="usage-row"><span class="usage-label">${FEATURE_LABELS[key]}</span><span class="count ${warnClass}">${used} / ${limit}回</span></div>`;
       }).join('');
+    }
+
+    // =====================
+    //  友達紹介
+    // =====================
+    async function renderReferralCard() {
+      const card = document.getElementById('referralCard');
+      try {
+        const { data, error } = await db.functions.invoke('tavera-referral', { body: { action: 'get' } });
+        if (error || data?.error) throw new Error(data?.error || 'error');
+        let html =
+          '<p style="margin:0 0 10px;font-size:0.85rem;line-height:1.7;">友達があなたのコードで登録すると、<strong style="color:var(--terra);">ふたりともAI提案が毎月+' + data.bonusPerReferral + '回</strong>になります（あなたは最大+' + data.referrerCap + '回まで）</p>' +
+          '<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">' +
+            '<div style="flex:1;font-size:1.3rem;font-weight:700;letter-spacing:2px;text-align:center;padding:10px;background:#FEF3EC;border-radius:10px;">' + data.code + '</div>' +
+            '<button onclick="copyReferralCode(\'' + data.code + '\')" style="padding:10px 14px;border:1.5px solid var(--terra);background:#fff;color:var(--terra);border-radius:10px;font-weight:600;cursor:pointer;">コピー</button>' +
+          '</div>' +
+          '<button onclick="shareReferral(\'' + data.code + '\')" style="width:100%;padding:10px;background:var(--terra);color:#fff;border:none;border-radius:10px;font-weight:600;cursor:pointer;margin-bottom:10px;">📤 招待メッセージをコピー</button>' +
+          '<div style="font-size:0.78rem;color:var(--muted);">これまでの紹介：' + data.referralCount + '人 ／ 現在のボーナス：毎月+' + data.bonus + '回</div>';
+        if (!data.alreadyRedeemed) {
+          html += '<div style="border-top:1px solid var(--border);margin-top:12px;padding-top:12px;">' +
+            '<p style="margin:0 0 8px;font-size:0.8rem;color:var(--muted);">友達から紹介コードをもらった方はこちら（登録から30日以内）</p>' +
+            '<div style="display:flex;gap:8px;">' +
+              '<input id="referralInput" placeholder="例：ABCD2345" maxlength="8" style="flex:1;padding:10px;border:1.5px solid var(--border);border-radius:10px;font-size:0.9rem;text-transform:uppercase;">' +
+              '<button onclick="redeemReferral()" style="padding:10px 14px;background:var(--olive);color:#fff;border:none;border-radius:10px;font-weight:600;cursor:pointer;">適用</button>' +
+            '</div></div>';
+        }
+        card.innerHTML = html;
+      } catch (e) {
+        card.innerHTML = '<p style="margin:0;font-size:0.82rem;color:var(--muted);">読み込めませんでした。再読み込みしてください</p>';
+      }
+    }
+
+    function copyReferralCode(code) {
+      navigator.clipboard.writeText(code)
+        .then(() => showToast('紹介コードをコピーしました！', 'success'))
+        .catch(() => showToast('コピーに失敗しました', 'error'));
+    }
+
+    function shareReferral(code) {
+      const text = '献立アプリTaveraを一緒に使いませんか？🍚\n給食とかぶらない夕食をAIが提案してくれます。\n\n登録後に設定画面でこの紹介コードを入力すると、AI提案が毎月+10回もらえます！\n紹介コード：' + code + '\nhttps://tavera.taskra.jp/';
+      navigator.clipboard.writeText(text)
+        .then(() => showToast('招待メッセージをコピーしました！LINEなどで送ってください', 'success'))
+        .catch(() => showToast('コピーに失敗しました', 'error'));
+    }
+
+    async function redeemReferral() {
+      const input = document.getElementById('referralInput');
+      const code = (input?.value || '').trim();
+      if (!code) { showToast('コードを入力してください', 'error'); return; }
+      try {
+        const { data, error } = await db.functions.invoke('tavera-referral', { body: { action: 'redeem', code } });
+        if (error) {
+          let msg = '通信エラーが発生しました';
+          try { const body = await error.context.json(); if (body?.error) msg = body.error; } catch (_) {}
+          showToast(msg, 'error'); return;
+        }
+        if (data?.error) { showToast(data.error, 'error'); return; }
+        window.dataLayer = window.dataLayer || [];
+        window.dataLayer.push({ event: 'referral_redeemed' });
+        showToast(data.message || '適用しました！', 'success');
+        renderReferralCard();
+      } catch (e) {
+        showToast(e.message, 'error');
+      }
     }
 
     async function renderPlanCard() {
