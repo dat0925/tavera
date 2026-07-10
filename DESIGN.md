@@ -1,6 +1,6 @@
 # Tavera 設計書・引き継ぎ書
 
-**バージョン**: 1.25.3
+**バージョン**: 1.25.4
 **最終更新**: 2026-07-10
 **ステータス**: 一般公開済み・本番Stripe決済稼働中・解約フロー実装済み
 
@@ -1471,3 +1471,9 @@ TAVERA_STRIPE_YEARLY_PRICE_ID = price_1TngeRBNAV5e5rhc8CHzqEUT
      - `purchase_premium`（既存実装済み：settings.html plan=success時）
 - **⚠️ 残タスク（GTMコンソール側・人間の作業）**：カスタムイベントをGA4に転送するには、GTMで①トリガー「カスタムイベント」正規表現 `ai_suggest_success|kyushoku_success|limit_reached|begin_checkout` ②GA4イベントタグ（イベント名 `{{Event}}`、パラメータ feature/plan/billing_cycle をdataLayer変数から）を1セット作成して公開する。purchase_premiumのタグが既にあればそれを参考に。GTM設定が済むまでカスタムイベントはGA4に届かない（page_viewはGA4設定タグがあれば届く）
 - **セキュリティ**：認証・決済・DB変更なし。計測はGTM経由のクライアントサイドのみ
+
+### suggest.htmlのPCレイアウト崩れ修正（v1.25.4）
+
+- **症状**：PCビュー（≥769px）でAI提案画面のナビが左サイドバーにならず、コンテンツ下部に縦積みで表示されていた
+- **原因**：suggest.htmlのインラインCSS「app-containerをflex縦並び＋100dvh」（iOSアドレスバー対策）がメディアクエリ外に書かれており、style.cssのPC用グリッド（`grid-template-columns: 220px 1fr`）を上書きしていた。v1.25.3のGTM追加とは無関係で、dvh対応時からの潜在バグ
+- **修正**：該当ルールを `@media (max-width: 768px)` で囲みスマホ専用化。PCはstyle.cssのグリッドが適用される。他ページに同様の非スコープapp-container上書きが無いことを確認済み
