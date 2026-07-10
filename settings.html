@@ -414,6 +414,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
           <p>招待コードをコピーして<br>家族のTaveraアカウントで入力してもらってください</p>
           <div style="font-family:monospace;font-size:1.4rem;font-weight:700;color:var(--terra);letter-spacing:0.15em;margin-bottom:12px;" id="inviteCode">-</div>
           <button class="btn btn-primary" onclick="copyInviteCode()">コードをコピー</button>
+          <p style="margin:10px 0 0;font-size:0.75rem;color:var(--muted);">⚠️ このコードで参加した人とは献立・履歴・AI利用回数をすべて共有します。家族専用です。友達には「友達紹介」のコードを送ってください</p>
         </div>
       </div>
 
@@ -1043,6 +1044,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
         if (error || data?.error) throw new Error(data?.error || 'error');
         let html =
           '<p style="margin:0 0 10px;font-size:0.85rem;line-height:1.7;">友達があなたのコードで登録すると、<strong style="color:var(--terra);">ふたりともAI提案が毎月+' + data.bonusPerReferral + '回</strong>になります（あなたは最大+' + data.referrerCap + '回まで）</p>' +
+          '<p style="margin:0 0 10px;font-size:0.75rem;color:var(--muted);">🔒 家族招待とは別の仕組みです。献立や履歴が友達に見えることはありません（回数ボーナスだけが付きます）</p>' +
           '<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">' +
             '<div style="flex:1;font-size:1.3rem;font-weight:700;letter-spacing:2px;text-align:center;padding:10px;background:#FEF3EC;border-radius:10px;">' + data.code + '</div>' +
             '<button onclick="copyReferralCode(\'' + data.code + '\')" style="padding:10px 14px;border:1.5px solid var(--terra);background:#fff;color:var(--terra);border-radius:10px;font-weight:600;cursor:pointer;">コピー</button>' +

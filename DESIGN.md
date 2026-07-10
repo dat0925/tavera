@@ -1,6 +1,6 @@
 # Tavera 設計書・引き継ぎ書
 
-**バージョン**: 1.26.0
+**バージョン**: 1.26.1
 **最終更新**: 2026-07-10
 **ステータス**: 一般公開済み・本番Stripe決済稼働中・解約フロー実装済み
 
@@ -1492,3 +1492,8 @@ TAVERA_STRIPE_YEARLY_PRICE_ID = price_1TngeRBNAV5e5rhc8CHzqEUT
 - **触れなかった箇所**：決済系（tavera-checkout/tavera-webhook）、認証フロー本体
 - **修正（tavera-referral v2）**：初回リリース時、CORSのAllow-Headersに`apikey`・`x-client-info`が無く、supabase-jsの`functions.invoke`からのPOSTがブラウザにブロックされていた（ログ上OPTIONS 200のみでPOSTが無い状態）。`authorization, x-client-info, apikey, content-type`に修正してv2デプロイ済み。**教訓：invoke経由で呼ぶEdge FunctionのCORSはこの4ヘッダーをセットで許可すること**（raw fetchで呼ぶ既存関数は2ヘッダーでも動くため気づきにくい）
 - **次にやるべきこと**：実機での動作確認（コード発行→別アカウントでredeem→suggest上限が+10になるか）、GTMトリガーにreferral_redeemed追加、admin.htmlに紹介実績の表示を追加検討
+
+### 世帯招待と友達紹介の混同防止コピー追加（v1.26.1）
+
+- **背景**：世帯招待コード（献立・回数を全共有、家族用）と友達紹介コード（データ非共有、ボーナスのみ）はどちらも8文字前後で混同リスクがあるとの指摘
+- **変更**：世帯招待の発行画面に「献立・履歴・AI利用回数をすべて共有します。家族専用。友達には友達紹介コードを」の警告文、友達紹介カードに「家族招待とは別の仕組み。献立や履歴が友達に見えることはありません」の注記を追加。仕組み自体は元から完全分離（紹介コードのredeemは世帯参加を伴わず、同一世帯コードは拒否）
