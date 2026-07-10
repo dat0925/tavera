@@ -523,7 +523,8 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
         <div style="position:absolute;top:60px;right:16px;background:#fff;border-radius:12px;box-shadow:0 8px 32px rgba(0,0,0,.15);overflow:hidden;min-width:180px;" onclick="event.stopPropagation()">
           <div id="accountMenuEmail" style="padding:14px 16px 10px;font-size:0.78rem;color:var(--muted);border-bottom:1px solid var(--border);"></div>
           <button onclick="hideAccountMenu()" style="display:block;width:100%;padding:12px 16px;text-align:left;font-size:0.875rem;background:none;border:none;cursor:pointer;color:var(--brown);font-family:inherit;">キャンセル</button>
-          <button onclick="confirmSignOut()" style="display:block;width:100%;padding:12px 16px;text-align:left;font-size:0.875rem;background:none;border:none;cursor:pointer;color:var(--terra);font-family:inherit;border-top:1px solid var(--border);">サインアウト</button>
+          <button onclick="switchAccount()" style="display:block;width:100%;padding:12px 16px;text-align:left;font-size:0.875rem;background:none;border:none;cursor:pointer;color:var(--brown);font-family:inherit;border-top:1px solid var(--border);">🔄 アカウント切り替え</button>
+          <button onclick="confirmSignOut()" style="display:block;width:100%;padding:12px 16px;text-align:left;font-size:0.875rem;background:none;border:none;cursor:pointer;color:var(--terra);font-family:inherit;border-top:1px solid var(--border);">ログアウト</button>
         </div>
       </div>
       </div>
@@ -1360,6 +1361,12 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
     async function confirmSignOut() {
       hideAccountMenu();
       await signOut();
+    }
+    async function switchAccount() {
+      hideAccountMenu();
+      // ログアウト後、ログイン済みリダイレクトを回避してLPのログイン導線へ直行
+      await db.auth.signOut();
+      window.location.href = 'index.html?lp=1';
     }
 
     init();
