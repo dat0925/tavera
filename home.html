@@ -1363,9 +1363,20 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
     }
     async function switchAccount() {
       hideAccountMenu();
-      // ログアウト後、ログイン済みリダイレクトを回避してLPのログイン導線へ直行
+      if (typeof isInAppBrowser === 'function' && isInAppBrowser()) {
+        showExternalBrowserGuide();
+        return;
+      }
+      // ログアウト後、Googleのアカウント選択画面を直接開く（prompt=select_accountで強制表示）
       await db.auth.signOut();
-      window.location.href = 'index.html?lp=1';
+      const { error } = await db.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: 'https://tavera.taskra.jp/home.html',
+          queryParams: { prompt: 'select_account' }
+        }
+      });
+      if (error) window.location.href = 'index.html?lp=1';
     }
 
     init();
