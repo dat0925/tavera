@@ -1043,14 +1043,14 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
         const { data, error } = await db.functions.invoke('tavera-referral', { body: { action: 'get' } });
         if (error || data?.error) throw new Error(data?.error || 'error');
         let html =
-          '<p style="margin:0 0 10px;font-size:0.85rem;line-height:1.7;">友達があなたのコードで登録すると、<strong style="color:var(--terra);">ふたりともAI提案が毎月+' + data.bonusPerReferral + '回</strong>になります（あなたは最大+' + data.referrerCap + '回まで）</p>' +
-          '<p style="margin:0 0 10px;font-size:0.75rem;color:var(--muted);">🔒 家族招待とは別の仕組みです。献立や履歴が友達に見えることはありません（回数ボーナスだけが付きます）</p>' +
+          '<p style="margin:0 0 10px;font-size:0.85rem;line-height:1.7;">友達があなたのコードで登録すると、<strong style="color:var(--terra);">ふたりともプレミアムが1ヶ月無料</strong>になります（あなたは最大' + data.referrerCap + '人まで＝' + data.referrerCap + 'ヶ月分）</p>' +
+          '<p style="margin:0 0 10px;font-size:0.75rem;color:var(--muted);">🔒 家族招待とは別の仕組みです。献立や履歴が友達に見えることはありません（特典だけが付きます）</p>' +
           '<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">' +
             '<div style="flex:1;font-size:1.3rem;font-weight:700;letter-spacing:2px;text-align:center;padding:10px;background:#FEF3EC;border-radius:10px;">' + data.code + '</div>' +
             '<button onclick="copyReferralCode(\'' + data.code + '\')" style="padding:10px 14px;border:1.5px solid var(--terra);background:#fff;color:var(--terra);border-radius:10px;font-weight:600;cursor:pointer;">コピー</button>' +
           '</div>' +
           '<button onclick="shareReferral(\'' + data.code + '\')" style="width:100%;padding:10px;background:var(--terra);color:#fff;border:none;border-radius:10px;font-weight:600;cursor:pointer;margin-bottom:10px;">📤 招待メッセージをコピー</button>' +
-          '<div style="font-size:0.78rem;color:var(--muted);">これまでの紹介：' + data.referralCount + '人 ／ 現在のボーナス：毎月+' + data.bonus + '回</div>';
+          '<div style="font-size:0.78rem;color:var(--muted);">これまでの紹介：' + data.referralCount + '人</div>';
         if (!data.alreadyRedeemed) {
           html += '<div style="border-top:1px solid var(--border);margin-top:12px;padding-top:12px;">' +
             '<p style="margin:0 0 8px;font-size:0.8rem;color:var(--muted);">友達から紹介コードをもらった方はこちら（登録から30日以内）</p>' +
@@ -1072,7 +1072,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
     }
 
     function shareReferral(code) {
-      const text = '献立アプリTaveraを一緒に使いませんか？🍚\n給食とかぶらない夕食をAIが提案してくれます。\n\n登録後に設定画面でこの紹介コードを入力すると、AI提案が毎月+10回もらえます！\n紹介コード：' + code + '\nhttps://tavera.taskra.jp/';
+      const text = '給食の献立表を写真で撮ると、夕飯とのかぶりを防いでくれるアプリ使ってるよ🍳\n登録して設定画面で紹介コード「' + code + '」を入れると、おたがいプレミアムが1ヶ月無料になるみたい\n\nhttps://tavera.taskra.jp/?lp=1';
       navigator.clipboard.writeText(text)
         .then(() => showToast('招待メッセージをコピーしました！LINEなどで送ってください', 'success'))
         .catch(() => showToast('コピーに失敗しました', 'error'));

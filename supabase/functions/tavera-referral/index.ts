@@ -7,9 +7,9 @@ const CORS = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-const FEATURE = "suggest";          // ボーナス対象機能
-const BONUS_PER_REFERRAL = 10;      // 1紹介あたりのAI提案上乗せ回数（双方）
-const REFERRER_BONUS_CAP = 50;      // 紹介者の累計ボーナス上限（5人分）
+// 特典: 双方にプレミアム1ヶ月（2026-08-30 に AI+10回 から変更）
+const REWARD_DAYS = 31;             // 1紹介あたりのプレミアム付与日数（双方）
+const REFERRER_CAP = 5;             // 紹介者が特典を受け取れる人数の上限（=最大5ヶ月分）
 const REDEEM_WINDOW_DAYS = 30;      // 被紹介者はアカウント作成からこの日数以内のみ入力可
 
 // 紛らわしい文字（0/O/1/I/L）を除いた8文字コード
@@ -27,6 +27,32 @@ function json(body: unknown, status = 200) {
   });
 }
 
+// プレミアム1ヶ月を付与する。
+// - Stripe課金が生きている人には触らない（Stripe側が正。二重管理を避ける）
+// - 既にプレミアム（手動/紹介分）なら期限に31日を積み増す
+// 戻り値: 付与できたか
+async function grantPremium(supabase: any, memberId: string): Promise<boolean> {
+  const { data: m } = await supabase
+    .from("menu_members")
+    .select("id, plan, plan_expires_at, stripe_subscription_id")
+    .eq("id", memberId)
+    .single();
+  if (!m) return false;
+  if (m.stripe_subscription_id) return false; // Stripe課金中はスキップ
+
+  const now = Date.now();
+  const base = m.plan === "premium" && m.plan_expires_at
+    ? Math.max(now, new Date(m.plan_expires_at).getTime())
+    : now;
+  const expires = new Date(base + REWARD_DAYS * 86400000).toISOString();
+
+  const { error } = await supabase
+    .from("menu_members")
+    .update({ plan: "premium", plan_expires_at: expires, cancel_at_period_end: false })
+    .eq("id", memberId);
+  return !error;
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: CORS });
 
@@ -39,7 +65,7 @@ Deno.serve(async (req) => {
 
     const { data: me } = await supabase
       .from("menu_members")
-      .select("id, household_id, referral_code, referral_bonus, created_at")
+      .select("id, household_id, referral_code, plan, plan_expires_at, stripe_subscription_id, created_at")
       .eq("id", user.id)
       .single();
     if (!me) return json({ error: "メンバー情報が見つかりません" }, 404);
@@ -74,14 +100,13 @@ Deno.serve(async (req) => {
       return json({
         code,
         referralCount: count || 0,
-        bonus: Number(me.referral_bonus?.[FEATURE] || 0),
-        bonusPerReferral: BONUS_PER_REFERRAL,
-        referrerCap: REFERRER_BONUS_CAP,
+        rewardDays: REWARD_DAYS,
+        referrerCap: REFERRER_CAP,
         alreadyRedeemed: !!redeemed,
       });
     }
 
-    // ===== 紹介コードを入力してボーナス受け取り =====
+    // ===== 紹介コードを入力して双方にプレミアム1ヶ月 =====
     if (action === "redeem") {
       const inputCode = String(body.code || "").trim().toUpperCase();
       if (!inputCode) return json({ error: "コードを入力してください" }, 400);
@@ -101,13 +126,13 @@ Deno.serve(async (req) => {
 
       const { data: referrer } = await supabase
         .from("menu_members")
-        .select("id, household_id, referral_bonus")
+        .select("id, household_id")
         .eq("referral_code", inputCode)
         .maybeSingle();
       if (!referrer) return json({ error: "コードが見つかりません" }, 404);
       if (referrer.id === user.id) return json({ error: "自分のコードは使えません" }, 400);
       if (referrer.household_id && referrer.household_id === me.household_id) {
-        return json({ error: "同じ世帯のメンバーのコードは使えません（世帯内はAI回数を共有しています）" }, 400);
+        return json({ error: "同じ世帯のメンバーのコードは使えません（世帯内はプレミアムを共有しています）" }, 400);
       }
 
       // 記録（referee_id UNIQUE制約が二重取得の最終防衛線）
@@ -116,22 +141,24 @@ Deno.serve(async (req) => {
         .insert({ referrer_id: referrer.id, referee_id: user.id });
       if (insErr) return json({ error: "紹介コードは1回しか使えません" }, 400);
 
-      // 被紹介者：+10（1回きり）
-      const myBonus = Number(me.referral_bonus?.[FEATURE] || 0) + BONUS_PER_REFERRAL;
-      await supabase.from("menu_members")
-        .update({ referral_bonus: { ...(me.referral_bonus || {}), [FEATURE]: myBonus } })
-        .eq("id", user.id);
+      // 被紹介者: プレミアム1ヶ月
+      const granted = await grantPremium(supabase, user.id);
 
-      // 紹介者：+10（累計上限あり）
-      const refBonus = Math.min(
-        Number(referrer.referral_bonus?.[FEATURE] || 0) + BONUS_PER_REFERRAL,
-        REFERRER_BONUS_CAP,
-      );
-      await supabase.from("menu_members")
-        .update({ referral_bonus: { ...(referrer.referral_bonus || {}), [FEATURE]: refBonus } })
-        .eq("id", referrer.id);
+      // 紹介者: プレミアム1ヶ月（今回の分を含めて上限人数まで）
+      const { count: refCount } = await supabase
+        .from("menu_referrals")
+        .select("id", { count: "exact", head: true })
+        .eq("referrer_id", referrer.id);
+      if ((refCount || 0) <= REFERRER_CAP) {
+        await grantPremium(supabase, referrer.id);
+      }
 
-      return json({ ok: true, myBonus, message: `🎉 AI提案が毎月+${BONUS_PER_REFERRAL}回になりました！` });
+      return json({
+        ok: true,
+        message: granted
+          ? `🎉 プレミアムが${REWARD_DAYS}日間無料になりました！`
+          : "紹介を登録しました（現在有料プラン契約中のため、期間の付与はありません）",
+      });
     }
 
     return json({ error: "unknown action" }, 400);
