@@ -20,7 +20,19 @@ async function getUser() {
   const session = await getSession();
   if (!session) return null;
   currentUser = session.user;
+  pushUserIdToDataLayer(currentUser.id);
   return currentUser;
+}
+
+// GA4 に user_id（Supabase の UUID）を渡す。
+// メールアドレスなど個人を直接特定できる値は送らない。
+// getUser() はページ内で何度も呼ばれるので、1ページにつき1回だけ push する。
+let userIdPushed = false;
+function pushUserIdToDataLayer(userId) {
+  if (userIdPushed || !userId) return;
+  userIdPushed = true;
+  window.dataLayer = window.dataLayer || [];
+  window.dataLayer.push({ user_id: userId });
 }
 
 // ログインページへリダイレクト（未認証時）

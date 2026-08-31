@@ -185,6 +185,12 @@ async function getOrCreateHousehold(userId) {
 
   if (hErr) { console.error(hErr); return null; }
 
+  // 世帯が新しく作られた＝このサービスでの「登録」。
+  // DB 側の登録数（menu_households の行数）と定義を揃えるため、
+  // ログイン時点ではなくここで sign_up を送る。
+  window.dataLayer = window.dataLayer || [];
+  window.dataLayer.push({ event: 'sign_up', method: 'google' });
+
   await db.from('menu_members').insert({
     id: userId,
     household_id: household.id,
