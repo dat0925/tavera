@@ -26,7 +26,7 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="js/supabase.js?v=20260831"></script>
   <script src="js/auth.js?v=20260629"></script>
-  <script src="js/menu-log.js?v=20260831"></script>
+  <script src="js/menu-log.js?v=20260906"></script>
   <style>
     .date-strip {
       display: flex;
@@ -59,6 +59,32 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
     .date-chip .chip-day { font-size: 0.65rem; color: inherit; opacity: 0.7; }
     .date-chip .chip-date { font-size: 1rem; font-weight: 700; }
     .date-chip.active .chip-day { opacity: 0.8; }
+
+    /* 献立ログが1件もない新規ユーザー向けの導線バナー（v1.26.6 オンボーディング改善） */
+    .onboarding-banner {
+      margin: 16px 20px 0;
+      padding: 16px;
+      background: linear-gradient(135deg, var(--terra), var(--amber));
+      border-radius: var(--radius-md);
+      color: var(--white);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+    .onboarding-banner-text { font-size: 0.85rem; line-height: 1.6; }
+    .onboarding-banner-text strong { font-family: var(--font-display); font-size: 0.95rem; display: block; margin-bottom: 2px; }
+    .onboarding-banner-btn {
+      flex-shrink: 0;
+      background: var(--white);
+      color: var(--terra);
+      font-size: 0.78rem;
+      font-weight: 700;
+      padding: 10px 14px;
+      border-radius: var(--radius-sm);
+      text-decoration: none;
+      white-space: nowrap;
+    }
 
     .today-section { padding: 16px 20px 0; }
     .today-date {
@@ -534,6 +560,15 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
       <!-- 日付スクロールバー -->
       <div class="date-strip" id="dateStrip"></div>
 
+      <!-- 献立ログが1件もない新規ユーザー向けの導線バナー -->
+      <div class="onboarding-banner hidden" id="onboardingBanner">
+        <div class="onboarding-banner-text">
+          <strong>📋 まずは給食の献立表を取り込みましょう</strong>
+          献立のかぶりを自動でチェックできます
+        </div>
+        <a href="kyushoku.html" class="onboarding-banner-btn">献立表を取り込む →</a>
+      </div>
+
       <!-- 今日の献立 -->
       <div class="today-section">
         <div class="today-date" id="todayLabel">今日の献立</div>
@@ -726,6 +761,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
       await renderFridgeItems();
       await renderLikedList();
       await renderShoppingList();
+      await renderOnboardingBanner();
 
       if (deepLinkDate) {
         const d = new Date(deepLinkDate + 'T00:00:00');
@@ -807,6 +843,19 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
           </div>
         `;
       }).join('');
+    }
+
+    // 献立ログが1件もない（＝給食インポートやAI提案をまだ体験していない）新規ユーザーにだけ
+    // 献立表取り込みへの導線バナーを出す（v1.26.6 オンボーディング改善）
+    async function renderOnboardingBanner() {
+      const banner = document.getElementById('onboardingBanner');
+      if (!banner || !householdId) return;
+      try {
+        const hasLog = await hasAnyMenuLog(householdId);
+        banner.classList.toggle('hidden', hasLog);
+      } catch (e) {
+        console.error(e);
+      }
     }
 
     // ---- 献立コメント ----

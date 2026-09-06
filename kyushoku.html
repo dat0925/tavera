@@ -26,7 +26,7 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="js/supabase.js?v=20260831"></script>
   <script src="js/auth.js?v=20260629"></script>
-  <script src="js/menu-log.js?v=20260831"></script>
+  <script src="js/menu-log.js?v=20260906"></script>
   <style>
     .ky-wrap { padding: 20px; }
 
@@ -41,6 +41,44 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
       border-left: 3px solid var(--amber);
     }
     .ky-intro strong { color: var(--terra); }
+
+    /* サンプル体験導線（v1.26.6 オンボーディング改善） */
+    .ky-sample-btn {
+      display: block;
+      width: 100%;
+      margin: -8px 0 20px;
+      padding: 10px;
+      background: none;
+      border: 1.5px dashed var(--amber);
+      border-radius: var(--radius-md);
+      color: var(--terra);
+      font-size: 0.82rem;
+      font-weight: 600;
+      font-family: inherit;
+      cursor: pointer;
+      text-align: center;
+    }
+    .ky-sample-banner {
+      background: var(--surface);
+      border: 1.5px solid var(--amber);
+      border-radius: var(--radius-md);
+      padding: 14px 16px;
+      margin-bottom: 16px;
+      font-size: 0.85rem;
+      color: var(--brown);
+      line-height: 1.7;
+    }
+    .ky-sample-banner-cta {
+      display: inline-block;
+      margin-top: 8px;
+      padding: 9px 16px;
+      background: var(--terra);
+      color: #fff;
+      border-radius: 99px;
+      font-size: 0.82rem;
+      font-weight: 700;
+      text-decoration: none;
+    }
 
     /* アップロードエリア */
     .hidden { display: none !important; }
@@ -263,6 +301,11 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
           給食の献立表を<strong>写真またはPDF</strong>でアップロードすると、AIが日付とメニューを読み取ってTaveraに取り込みます。
         </div>
 
+        <!-- サンプル体験導線：手元に献立表が無くても結果画面をすぐ見られる -->
+        <button class="ky-sample-btn" id="sampleBtn" onclick="showSampleResults()">
+          📄 サンプルの献立表で結果を見てみる
+        </button>
+
         <!-- 年月選択 -->
         <div class="ky-month-row">
           <label>対象月</label>
@@ -318,6 +361,13 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
             ⚠️ アレルギーの可能性がある日は、見落として一括登録しないよう自動でチェックを外しています。内容を確認のうえ、問題なければチェックを入れて登録してください。
           </div>
           <div id="dayCards"></div>
+
+          <!-- サンプル表示中はインポートの代わりにこちらを出し、架空データが本物の記録に混ざらないようにする -->
+          <div class="ky-sample-banner hidden" id="sampleBanner">
+            📄 これは<strong>サンプルの献立表</strong>で試した結果です。実際のデータとしては登録されません。<br>
+            気に入ったら、お手元の献立表でも試してみましょう。
+            <a href="#" class="ky-sample-banner-cta" onclick="exitSampleMode(event)">実際の献立表をアップロードする</a>
+          </div>
         </div>
 
       </div>
@@ -368,6 +418,47 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
     let fileData = null;   // { base64, mediaType } or null if URL mode
     let pendingUrl = null; // URLモード時にセット
     let parsedMenu = [];   // [{ date, dishes, checked, alreadyExists, allergyHits }]
+    let isSampleMode = false; // true の間は doImport を無効化し、案内バーを出す（v1.26.6）
+
+    // サンプル体験用の架空データ（本物のAI解析を通さずその場で結果画面を表示する）
+    const SAMPLE_DISHES = [
+      { dishes: ['ごはん', '鮭の塩焼き', 'ほうれん草の胡麻和え', 'みそ汁'], ingredients: ['米', '鮭', 'ほうれん草', 'ごま', '豆腐', 'わかめ'] },
+      { dishes: ['カレーライス', '海藻サラダ', 'フルーツ盛り合わせ'], ingredients: ['米', '豚肉', 'じゃがいも', 'にんじん', '玉ねぎ', 'カレー粉'] },
+      { dishes: ['きつねうどん', '野菜の煮浸し'], ingredients: ['うどん', '油揚げ', 'だし', '小松菜', 'にんじん'] },
+      { dishes: ['チキンライス', 'コーンスープ', 'ミニトマト'], ingredients: ['米', '鶏肉', 'にんじん', '玉ねぎ', 'コーン'] },
+      { dishes: ['さばの味噌煮', 'ごはん', 'きんぴらごぼう', 'みそ汁'], ingredients: ['さば', '米', 'ごぼう', 'にんじん', '豆腐'] },
+    ];
+
+    function buildSampleMenu(year, month) {
+      const days = [3, 4, 7, 8, 9]; // 月初の平日っぽい5日分
+      return days.map((day, i) => ({
+        date: year + '-' + String(month).padStart(2, '0') + '-' + String(day).padStart(2, '0'),
+        dishes: SAMPLE_DISHES[i].dishes,
+        ingredients: SAMPLE_DISHES[i].ingredients,
+        allergyHits: [],
+        checked: false, // サンプルは登録対象ではないので既定で未チェック
+        alreadyExists: false,
+      }));
+    }
+
+    function showSampleResults() {
+      const year  = parseInt(document.getElementById('kyYear').value);
+      const month = parseInt(document.getElementById('kyMonth').value);
+      isSampleMode = true;
+      parsedMenu = buildSampleMenu(year, month);
+      // ファイル/URL入力の状態は変わっていないため解析ボタンの活性状態はそのまま保つ
+      renderResults(year, month);
+    }
+
+    function exitSampleMode(e) {
+      if (e) e.preventDefault();
+      isSampleMode = false;
+      document.getElementById('resultsSection').classList.add('hidden');
+      document.getElementById('importBar').style.display = 'none';
+      parsedMenu = [];
+      switchTab('file');
+      document.getElementById('uploadArea').scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
 
     // =====================
     //  初期化
@@ -453,6 +544,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
 
         fileData = { base64: b64, mediaType };
         pendingUrl = null;
+        isSampleMode = false;
         status.textContent = '✅ 読み込み完了（' + Math.round(blob.size / 1024) + 'KB）';
         document.getElementById('parseBtn').disabled = false;
         document.getElementById('resultsSection').classList.add('hidden');
@@ -464,6 +556,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
           // base64をフロントに戻さず、URLをEdge Functionに直接渡すモードで保存
           pendingUrl = url;
           fileData = null;
+          isSampleMode = false;
           status.textContent = '✅ 読み込み完了（サーバー経由で解析します）';
           document.getElementById('parseBtn').disabled = false;
           document.getElementById('resultsSection').classList.add('hidden');
@@ -487,6 +580,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
         const base64 = result.split(',')[1];
         fileData = { base64, mediaType: file.type };
         pendingUrl = null;
+        isSampleMode = false;
 
         // プレビュー
         const preview  = document.getElementById('uploadPreview');
@@ -514,6 +608,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
     // =====================
     async function parseMenu() {
       if (!fileData && !pendingUrl) return;
+      isSampleMode = false;
       const btn = document.getElementById('parseBtn');
       btn.disabled = true;
       btn.textContent = '解析中...'
@@ -598,7 +693,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
       const section = document.getElementById('resultsSection');
       const cards   = document.getElementById('dayCards');
       document.getElementById('resultsTitle').textContent =
-        year + '年' + month + '月の給食（' + parsedMenu.length + '日分）';
+        (isSampleMode ? '【サンプル】' : '') + year + '年' + month + '月の給食（' + parsedMenu.length + '日分）';
 
       const hasAnyAllergyHit = parsedMenu.some(m => m.allergyHits && m.allergyHits.length > 0);
       const noteEl = document.getElementById('allergyNote');
@@ -692,9 +787,17 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
     }
 
     function updateImportBar() {
+      const sampleBanner = document.getElementById('sampleBanner');
+      const bar = document.getElementById('importBar');
+      if (isSampleMode) {
+        // サンプルは架空データなので、通常のインポートバーではなく専用の案内を出す
+        sampleBanner.classList.remove('hidden');
+        bar.style.display = 'none';
+        return;
+      }
+      sampleBanner.classList.add('hidden');
       const count = parsedMenu.filter(m => m.checked).length;
       document.getElementById('importCount').textContent = count;
-      const bar = document.getElementById('importBar');
       bar.style.display = count > 0 ? 'block' : 'none';
     }
 
@@ -702,6 +805,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
     //  インポート実行
     // =====================
     async function doImport() {
+      if (isSampleMode) return; // サンプルデータは登録対象外（念のための二重ガード）
       const targets = parsedMenu.filter(m => m.checked);
       if (!targets.length) return;
       const btn = document.getElementById('importBtn');

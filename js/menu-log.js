@@ -76,6 +76,16 @@ async function getLogsByDate(householdId, dateStr) {
   return data;
 }
 
+// 献立ログが1件でも存在するか（ホーム画面のオンボーディングバナー表示判定用）
+async function hasAnyMenuLog(householdId) {
+  const { count, error } = await db
+    .from('menu_logs')
+    .select('id', { count: 'exact', head: true })
+    .eq('household_id', householdId);
+  if (error) { console.error(error); return true; } // エラー時は誤表示を避けるため「あり」扱い
+  return (count || 0) > 0;
+}
+
 // 月間ログ取得（カレンダー表示用）
 async function getLogsForMonth(householdId, year, month) {
   const from = `${year}-${String(month).padStart(2,'0')}-01`;
