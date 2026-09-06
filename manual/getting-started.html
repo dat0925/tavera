@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Taveraのはじめかた｜ログイン・家族の招待方法｜Tavera使い方マニュアル</title>
+<meta name="description" content="Tavera（タベラ）の使い始め方を解説。Googleログイン、世帯の作成、招待コードで家族を招待する方法まで、図解つきで紹介します。">
+<link rel="canonical" href="https://tavera.taskra.jp/manual/getting-started.html">
+<meta property="og:title" content="Taveraのはじめかた｜ログイン・家族の招待方法">
+<meta property="og:description" content="Googleログインから家族の招待まで、最初の3ステップを解説します。">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://tavera.taskra.jp/manual/getting-started.html">
+<link rel="icon" href="../assets/icon-32.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Kaisei+Decol:wght@400;700&family=Zen+Kaku+Gothic+New:wght@300;400;500;700&display=swap" rel="stylesheet">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "Article",
+  "headline": "Taveraのはじめかた｜ログイン・家族の招待方法",
+  "datePublished": "2026-09-06",
+  "dateModified": "2026-09-06",
+  "author": {"@type": "Person", "name": "endo"},
+  "publisher": {"@type": "Organization", "name": "Tavera", "logo": {"@type": "ImageObject", "url": "https://tavera.taskra.jp/assets/icon-512.png"}},
+  "mainEntityOfPage": "https://tavera.taskra.jp/manual/getting-started.html"
+}
+</script>
+<style>
+:root {
+  --terra:  #C8522A;
+  --amber:  #E8932A;
+  --cream:  #FDF6EC;
+  --olive:  #6B7A3A;
+  --brown:  #4A2E1A;
+  --muted:  #9B8878;
+  --white:  #FFFFFF;
+  --surface:#FFF9F2;
+  --border: #EAD9C8;
+  --shadow: rgba(74,46,26,0.10);
+  --font-display: 'Kaisei Decol', serif;
+  --font-body: 'Zen Kaku Gothic New', sans-serif;
+  --radius: 16px;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body { font-family: var(--font-body); background: var(--cream); color: var(--brown); line-height: 1.9; }
+a { color: var(--terra); text-decoration: none; }
+header { position: sticky; top: 0; background: rgba(253,246,236,0.92); backdrop-filter: blur(8px); border-bottom: 1px solid var(--border); z-index: 10; }
+.header-inner { max-width: 960px; margin: 0 auto; padding: 12px 20px; display: flex; align-items: center; gap: 16px; }
+.logo { display: flex; align-items: center; gap: 8px; font-family: var(--font-display); font-size: 1.15rem; font-weight: 700; color: var(--brown); }
+.logo img { width: 28px; height: 28px; }
+header nav { margin-left: auto; display: flex; gap: 20px; }
+header nav a { font-size: 0.85rem; font-weight: 500; color: var(--muted); }
+header nav a:hover { color: var(--terra); }
+main { max-width: 720px; margin: 0 auto; padding: 40px 20px 80px; }
+.breadcrumb { font-size: 0.78rem; color: var(--muted); margin-bottom: 24px; }
+article h1 { font-family: var(--font-display); font-size: 1.7rem; line-height: 1.5; margin-bottom: 12px; }
+.article-meta { font-size: 0.8rem; color: var(--muted); margin-bottom: 36px; }
+article h2 { font-family: var(--font-display); font-size: 1.25rem; margin: 48px 0 16px; padding-left: 12px; border-left: 4px solid var(--terra); line-height: 1.5; }
+article h3 { font-size: 1.02rem; margin: 28px 0 10px; color: var(--terra); }
+article p { margin-bottom: 1.2em; }
+article ul, article ol { margin: 0 0 1.2em 1.4em; }
+article li { margin-bottom: 0.4em; }
+.point-box { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px 24px; margin: 24px 0; box-shadow: 0 2px 8px var(--shadow); }
+.point-box strong { color: var(--terra); }
+.cta-box { background: linear-gradient(135deg, var(--terra), var(--amber)); border-radius: var(--radius); padding: 32px 28px; margin: 56px 0 0; color: #fff; text-align: center; }
+.cta-box h2 { font-family: var(--font-display); font-size: 1.3rem; border: none; padding: 0; margin: 0 0 10px; color: #fff; }
+.cta-box p { font-size: 0.92rem; opacity: 0.95; margin-bottom: 20px; }
+.cta-btn { display: inline-block; background: #fff; color: var(--terra); font-weight: 700; padding: 13px 34px; border-radius: 999px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); }
+.related { margin-top: 48px; padding-top: 24px; border-top: 1px solid var(--border); }
+.related h2 { border: none; padding: 0; font-size: 1.05rem; margin: 0 0 12px; }
+footer { border-top: 1px solid var(--border); padding: 28px 20px; text-align: center; font-size: 0.78rem; color: var(--muted); }
+.footer-links { display: flex; gap: 16px; justify-content: center; margin-top: 8px; flex-wrap: wrap; }
+.footer-links a { color: var(--muted); }
+@media (max-width: 600px) { header nav { gap: 12px; } article h1 { font-size: 1.45rem; } }
+
+/* 手順ステップ */
+.step-list { list-style:none; margin:0 0 1.2em; padding:0; display:flex; flex-direction:column; gap:22px; }
+.step-item { display:flex; gap:16px; align-items:flex-start; }
+.step-num { flex-shrink:0; width:32px; height:32px; border-radius:50%; background:var(--terra); color:#fff; font-family:var(--font-display); font-weight:700; display:flex; align-items:center; justify-content:center; font-size:0.95rem; }
+.step-body h3 { margin:0 0 6px; font-size:1rem; color:var(--brown); }
+.step-body p { margin:0; font-size:0.88rem; color:var(--muted); line-height:1.7; }
+
+/* スマホモックフレーム */
+.phone-frame { max-width:300px; margin:20px auto 32px; background:#fff; border:1.5px solid var(--border); border-radius:24px; overflow:hidden; box-shadow:0 8px 32px var(--shadow); }
+.phone-frame-header { background:#fff; border-bottom:1px solid var(--border); padding:10px 14px; font-size:0.78rem; font-weight:700; color:var(--brown); display:flex; align-items:center; justify-content:space-between; }
+.phone-frame-body { padding:16px; }
+
+/* このページ固有：ログインボタン・招待コードモック */
+.mock-google-btn { display:flex; align-items:center; justify-content:center; gap:8px; background:#fff; border:1.5px solid var(--border); border-radius:99px; padding:11px; font-size:0.82rem; font-weight:700; color:var(--brown); }
+.mock-invite-row { background:var(--surface); border:1.5px dashed var(--border); border-radius:10px; padding:14px; text-align:center; margin-bottom:10px; }
+.mock-invite-code { font-family:var(--font-display); font-size:1.3rem; letter-spacing:0.15em; color:var(--terra); font-weight:700; }
+.mock-invite-label { font-size:0.65rem; color:var(--muted); margin-bottom:4px; }
+.mock-fam-list { display:flex; flex-direction:column; gap:8px; }
+.mock-fam-chip { display:flex; align-items:center; gap:8px; background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:8px 12px; font-size:0.78rem; }
+.mock-fam-avatar { width:26px; height:26px; border-radius:50%; background:#FEF3EC; display:flex; align-items:center; justify-content:center; font-size:0.8rem; flex-shrink:0; }
+.mock-tag { font-size:0.62rem; background:#fff; border:1px solid var(--border); border-radius:99px; padding:1px 7px; color:var(--muted); }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-inner">
+    <a href="/?lp=1" class="logo"><img src="../assets/logo.png" alt="Tavera">Tavera</a>
+    <nav>
+      <a href="./">マニュアル目次</a>
+      <a href="/?lp=1">アプリについて</a>
+    </nav>
+  </div>
+</header>
+
+<main>
+<div class="breadcrumb"><a href="/?lp=1">Tavera</a> › <a href="./">使い方マニュアル</a> › はじめかた</div>
+
+<article>
+<h1>Taveraのはじめかた｜ログインから家族の招待まで</h1>
+<div class="article-meta">最終更新：2026-09-06</div>
+
+<p>Taveraはアカウント登録の手間がありません。Googleアカウントがあれば、最短1分で使い始められます。ここでは最初の3ステップを紹介します。</p>
+
+<h2>最初の3ステップ</h2>
+<ol class="step-list">
+  <li class="step-item">
+    <div class="step-num">1</div>
+    <div class="step-body">
+      <h3>Googleでログインする</h3>
+      <p>トップページの「Googleで無料ではじめる」をタップし、お使いのGoogleアカウントを選ぶだけ。パスワードの設定やメール認証は不要です。</p>
+    </div>
+  </li>
+  <li class="step-item">
+    <div class="step-num">2</div>
+    <div class="step-body">
+      <h3>世帯（家族グループ）ができる</h3>
+      <p>初回ログイン時に、あなた専用の「世帯」が自動的に作成されます。この世帯単位で献立・冷蔵庫食材・AI利用回数などが管理されます。</p>
+    </div>
+  </li>
+  <li class="step-item">
+    <div class="step-num">3</div>
+    <div class="step-body">
+      <h3>家族を招待する（任意）</h3>
+      <p>設定画面の「世帯・共有」から招待コードを発行し、家族に共有すれば、同じ献立カレンダーをみんなで見られるようになります。詳しい手順は<a href="family.html">家族メンバーの管理</a>のページで解説しています。</p>
+    </div>
+  </li>
+</ol>
+
+<div class="phone-frame">
+  <div class="phone-frame-header">
+    <span>🍱 Tavera へようこそ</span>
+  </div>
+  <div class="phone-frame-body">
+    <div class="mock-google-btn">🔵 Googleでログイン</div>
+    <div style="text-align:center;font-size:0.62rem;color:var(--muted);margin:10px 0 16px;">ログインするだけで世帯が自動作成されます</div>
+    <div class="mock-invite-row">
+      <div class="mock-invite-label">招待コード</div>
+      <div class="mock-invite-code">A3F7K9</div>
+    </div>
+    <div style="font-size:0.65rem;color:var(--muted);text-align:center;">このコードを家族に共有すると参加できます</div>
+  </div>
+</div>
+
+<h2>ログインできない・別アカウントで使いたいとき</h2>
+<p>ホーム画面右上のアイコンをタップすると「アカウント切り替え」からログインし直せます。誤操作防止のため、ログアウトには確認ステップがあります。</p>
+
+<div class="point-box">
+  <strong>ポイント：</strong>1つのGoogleアカウント＝1人のメンバーです。家族それぞれが自分のGoogleアカウントでログインし、同じ世帯に参加する使い方を推奨しています。
+</div>
+
+<div class="related">
+<h2>関連ページ</h2>
+<p><a href="family.html">家族メンバーの管理（招待コード・アレルギー登録）</a></p>
+<p><a href="log.html">献立を記録する</a></p>
+</div>
+
+<div class="cta-box">
+<h2>まだ始めていない方は</h2>
+<p>無料で今すぐ使い始められます。</p>
+<a class="cta-btn" href="/?lp=1">Tavera を無料ではじめる →</a>
+</div>
+
+</article>
+</main>
+
+<footer>
+  <p>© 2026 Tavera（運営：Taskra）. All rights reserved.</p>
+  <div class="footer-links">
+    <a href="../terms.html">利用規約</a>
+    <a href="../privacy.html">プライバシーポリシー</a>
+    <a href="../tokushoho.html">特定商取引法</a>
+    <a href="../contact.html">お問い合わせ</a>
+  </div>
+</footer>
+
+</body>
+</html>

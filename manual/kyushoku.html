@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>給食献立表の取り込み方｜写真1枚でAIが自動解析｜Tavera使い方マニュアル</title>
+<meta name="description" content="Tavera（タベラ）の給食インポート機能の使い方を解説。給食献立表の写真・PDFをAIが解析し、アレルギー自動チェック付きで一括登録する手順を紹介します。">
+<link rel="canonical" href="https://tavera.taskra.jp/manual/kyushoku.html">
+<meta property="og:title" content="給食献立表の取り込み方｜写真1枚でAIが自動解析">
+<meta property="og:description" content="給食表を撮るだけでAIが解析。アレルギー自動チェック・給食かぶり防止に。">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://tavera.taskra.jp/manual/kyushoku.html">
+<link rel="icon" href="../assets/icon-32.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Kaisei+Decol:wght@400;700&family=Zen+Kaku+Gothic+New:wght@300;400;500;700&display=swap" rel="stylesheet">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "Article",
+  "headline": "給食献立表の取り込み方｜写真1枚でAIが自動解析",
+  "datePublished": "2026-09-06",
+  "dateModified": "2026-09-06",
+  "author": {"@type": "Person", "name": "endo"},
+  "publisher": {"@type": "Organization", "name": "Tavera", "logo": {"@type": "ImageObject", "url": "https://tavera.taskra.jp/assets/icon-512.png"}},
+  "mainEntityOfPage": "https://tavera.taskra.jp/manual/kyushoku.html"
+}
+</script>
+<style>
+:root {
+  --terra:  #C8522A; --amber:  #E8932A; --cream:  #FDF6EC; --olive:  #6B7A3A;
+  --brown:  #4A2E1A; --muted:  #9B8878; --white:  #FFFFFF; --surface:#FFF9F2;
+  --border: #EAD9C8; --shadow: rgba(74,46,26,0.10);
+  --font-display: 'Kaisei Decol', serif; --font-body: 'Zen Kaku Gothic New', sans-serif; --radius: 16px;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body { font-family: var(--font-body); background: var(--cream); color: var(--brown); line-height: 1.9; }
+a { color: var(--terra); text-decoration: none; }
+header { position: sticky; top: 0; background: rgba(253,246,236,0.92); backdrop-filter: blur(8px); border-bottom: 1px solid var(--border); z-index: 10; }
+.header-inner { max-width: 960px; margin: 0 auto; padding: 12px 20px; display: flex; align-items: center; gap: 16px; }
+.logo { display: flex; align-items: center; gap: 8px; font-family: var(--font-display); font-size: 1.15rem; font-weight: 700; color: var(--brown); }
+.logo img { width: 28px; height: 28px; }
+header nav { margin-left: auto; display: flex; gap: 20px; }
+header nav a { font-size: 0.85rem; font-weight: 500; color: var(--muted); }
+header nav a:hover { color: var(--terra); }
+main { max-width: 720px; margin: 0 auto; padding: 40px 20px 80px; }
+.breadcrumb { font-size: 0.78rem; color: var(--muted); margin-bottom: 24px; }
+article h1 { font-family: var(--font-display); font-size: 1.7rem; line-height: 1.5; margin-bottom: 12px; }
+.article-meta { font-size: 0.8rem; color: var(--muted); margin-bottom: 36px; }
+article h2 { font-family: var(--font-display); font-size: 1.25rem; margin: 48px 0 16px; padding-left: 12px; border-left: 4px solid var(--terra); line-height: 1.5; }
+article h3 { font-size: 1.02rem; margin: 28px 0 10px; color: var(--terra); }
+article p { margin-bottom: 1.2em; }
+article ul, article ol { margin: 0 0 1.2em 1.4em; }
+article li { margin-bottom: 0.4em; }
+table { width: 100%; border-collapse: collapse; margin: 20px 0; font-size: 0.9rem; }
+th, td { border: 1px solid var(--border); padding: 10px 12px; text-align: left; vertical-align: top; }
+th { background: var(--surface); font-weight: 700; }
+.point-box { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px 24px; margin: 24px 0; box-shadow: 0 2px 8px var(--shadow); }
+.point-box strong { color: var(--terra); }
+.cta-box { background: linear-gradient(135deg, var(--terra), var(--amber)); border-radius: var(--radius); padding: 32px 28px; margin: 56px 0 0; color: #fff; text-align: center; }
+.cta-box h2 { font-family: var(--font-display); font-size: 1.3rem; border: none; padding: 0; margin: 0 0 10px; color: #fff; }
+.cta-box p { font-size: 0.92rem; opacity: 0.95; margin-bottom: 20px; }
+.cta-btn { display: inline-block; background: #fff; color: var(--terra); font-weight: 700; padding: 13px 34px; border-radius: 999px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); }
+.related { margin-top: 48px; padding-top: 24px; border-top: 1px solid var(--border); }
+.related h2 { border: none; padding: 0; font-size: 1.05rem; margin: 0 0 12px; }
+footer { border-top: 1px solid var(--border); padding: 28px 20px; text-align: center; font-size: 0.78rem; color: var(--muted); }
+.footer-links { display: flex; gap: 16px; justify-content: center; margin-top: 8px; flex-wrap: wrap; }
+.footer-links a { color: var(--muted); }
+@media (max-width: 600px) { header nav { gap: 12px; } article h1 { font-size: 1.45rem; } }
+
+.step-list { list-style:none; margin:0 0 1.2em; padding:0; display:flex; flex-direction:column; gap:22px; }
+.step-item { display:flex; gap:16px; align-items:flex-start; }
+.step-num { flex-shrink:0; width:32px; height:32px; border-radius:50%; background:var(--terra); color:#fff; font-family:var(--font-display); font-weight:700; display:flex; align-items:center; justify-content:center; font-size:0.95rem; }
+.step-body h3 { margin:0 0 6px; font-size:1rem; color:var(--brown); }
+.step-body p { margin:0; font-size:0.88rem; color:var(--muted); line-height:1.7; }
+
+/* このページ固有：給食モック（LPと同じ手法） */
+.kyushoku-mock { max-width:340px; margin:20px auto 32px; background:#fff; border:1.5px solid var(--border); border-radius:20px; overflow:hidden; box-shadow:0 8px 32px var(--shadow); }
+.ky-mock-header { background:#fff; border-bottom:1px solid var(--border); padding:12px 16px; display:flex; align-items:center; justify-content:space-between; }
+.ky-mock-body { padding:12px 14px; }
+.ky-mock-upload { background:var(--surface); border:1.5px dashed var(--border); border-radius:10px; padding:18px; text-align:center; margin-bottom:14px; }
+.ky-mock-result-label { font-size:0.68rem; font-weight:700; color:var(--muted); margin-bottom:6px; letter-spacing:0.05em; }
+.ky-mock-item { display:flex; align-items:center; gap:8px; padding:8px 0; border-bottom:1px solid var(--border); }
+.ky-mock-item.allergy { background:#FFF8EC; margin:0 -4px; padding:8px 4px; border-radius:6px; border-bottom:none; margin-bottom:1px; }
+.ky-mock-date { font-size:0.65rem; font-weight:700; color:var(--muted); min-width:52px; }
+.ky-mock-dish { font-size:0.7rem; color:var(--brown); flex:1; line-height:1.4; }
+.ky-allergy-badge { font-size:0.62rem; color:#B45309; background:#FEF3C7; border-radius:4px; padding:2px 6px; margin-top:3px; display:inline-block; }
+.ky-mock-check { width:20px; height:20px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:0.65rem; flex-shrink:0; }
+.ky-mock-check.checked { background:var(--olive); color:#fff; }
+.ky-mock-check.unchecked { background:var(--border); color:var(--muted); }
+.ky-mock-footer { display:flex; align-items:center; justify-content:space-between; margin-top:10px; }
+.ky-import-btn { background:var(--terra); color:#fff; border-radius:99px; padding:6px 14px; font-size:0.72rem; font-weight:700; }
+.mock-tabs { display:flex; gap:6px; margin-bottom:10px; }
+.mock-tab { flex:1; text-align:center; padding:6px; border-radius:8px; border:1.5px solid var(--border); font-size:0.7rem; font-weight:700; color:var(--muted); }
+.mock-tab.active { background:var(--terra); border-color:var(--terra); color:#fff; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-inner">
+    <a href="/?lp=1" class="logo"><img src="../assets/logo.png" alt="Tavera">Tavera</a>
+    <nav>
+      <a href="./">マニュアル目次</a>
+      <a href="/?lp=1">アプリについて</a>
+    </nav>
+  </div>
+</header>
+
+<main>
+<div class="breadcrumb"><a href="/?lp=1">Tavera</a> › <a href="./">使い方マニュアル</a> › 給食献立を取り込む</div>
+
+<article>
+<h1>給食献立表の取り込み方｜写真1枚でAIが自動解析</h1>
+<div class="article-meta">最終更新：2026-09-06</div>
+
+<p>学校・保育園の給食献立表をカメラで撮るだけで、AIが日付ごとの料理を自動認識して取り込みます。夕食が給食とかぶる心配がなくなり、アレルギーも自動チェックされます。</p>
+
+<h2>取り込みの4ステップ</h2>
+<ol class="step-list">
+  <li class="step-item">
+    <div class="step-num">1</div>
+    <div class="step-body">
+      <h3>ホーム右上「📋 給食」ボタンから開く</h3>
+      <p>対象の年月を選んでください。1ヶ月分をまとめて取り込めます。</p>
+    </div>
+  </li>
+  <li class="step-item">
+    <div class="step-num">2</div>
+    <div class="step-body">
+      <h3>ファイルまたはURLで給食表を渡す</h3>
+      <p>「ファイル」タブでは写真・PDFを選択、「URL」タブでは学校配布のPDFのURLを直接入力できます。</p>
+    </div>
+  </li>
+  <li class="step-item">
+    <div class="step-num">3</div>
+    <div class="step-body">
+      <h3>「AIで解析する」をタップ</h3>
+      <p>AIが日付・料理名・使用食材を自動抽出し、家族のアレルギー情報と照合します。該当する日には警告バッジが表示されます。</p>
+    </div>
+  </li>
+  <li class="step-item">
+    <div class="step-num">4</div>
+    <div class="step-body">
+      <h3>内容を確認してチェック・一括登録</h3>
+      <p>誤認識があればチェックを外して除外できます。「一括登録する」で選択した日付分がまとめて記録されます。</p>
+    </div>
+  </li>
+</ol>
+
+<div class="kyushoku-mock">
+  <div class="ky-mock-header">
+    <span style="font-weight:700;font-size:0.85rem;">🍱 給食献立を取り込む</span>
+    <span style="font-size:0.7rem;color:var(--muted);">2026年9月</span>
+  </div>
+  <div class="ky-mock-body">
+    <div class="mock-tabs">
+      <div class="mock-tab active">ファイル</div>
+      <div class="mock-tab">URL</div>
+    </div>
+    <div class="ky-mock-upload">
+      <div style="font-size:1.8rem;margin-bottom:6px;">📸</div>
+      <div style="font-size:0.78rem;font-weight:700;color:var(--terra);">給食表を撮影 / PDF選択</div>
+      <div style="font-size:0.65rem;color:var(--muted);margin-top:2px;">AI解析中…</div>
+    </div>
+    <div class="ky-mock-result-label">解析結果（月分）</div>
+    <div class="ky-mock-item">
+      <div class="ky-mock-date">9/2（月）</div>
+      <div class="ky-mock-dish">ご飯・みそ汁・鶏の唐揚げ・和え物</div>
+      <div class="ky-mock-check checked">✓</div>
+    </div>
+    <div class="ky-mock-item allergy">
+      <div class="ky-mock-date">9/3（火）</div>
+      <div>
+        <div class="ky-mock-dish">パン・牛乳・卵スープ・グラタン</div>
+        <div class="ky-allergy-badge">⚠️ 太郎：卵の可能性</div>
+      </div>
+      <div class="ky-mock-check unchecked">−</div>
+    </div>
+    <div class="ky-mock-item">
+      <div class="ky-mock-date">9/4（水）</div>
+      <div class="ky-mock-dish">ご飯・豚汁・さばの塩焼き</div>
+      <div class="ky-mock-check checked">✓</div>
+    </div>
+    <div class="ky-mock-footer">
+      <div style="font-size:0.72rem;color:var(--muted);">2日分 チェックを外しました</div>
+      <div class="ky-import-btn">一括登録する</div>
+    </div>
+  </div>
+</div>
+
+<h2>取り込んだあとの使われ方</h2>
+<ul>
+<li>給食で食べた料理をAIが把握し、<a href="ai-suggest.html">AI献立提案</a>で夕食がかぶらないように調整されます</li>
+<li>取り込んだ献立は<a href="family.html">家族全員のスマホ</a>で共有されます</li>
+<li>料理名は「・」区切りで1件のお昼ご飯として記録されます</li>
+</ul>
+
+<div class="point-box">
+  <strong>アレルギー表示について：</strong>「⚠️ 太郎：卵の可能性」のような警告は、登録済みの家族メンバーのアレルギー情報と、AIが解析した料理名・食材を照合して自動表示されます。あくまでAIによる推定のため、心配な場合は学校配布の詳細な献立表と照らし合わせてご確認ください。
+</div>
+
+<h2>利用回数の上限</h2>
+<table>
+<tr><th>プラン</th><th>月次上限</th></tr>
+<tr><td>Free</td><td>3回</td></tr>
+<tr><td>Premium</td><td>30回（世帯で共有）</td></tr>
+</table>
+
+<div class="related">
+<h2>関連ページ</h2>
+<p><a href="family.html">家族メンバーの管理（アレルギー登録）</a></p>
+<p><a href="ai-suggest.html">AIに献立を提案してもらう</a></p>
+</div>
+
+<div class="cta-box">
+<h2>まだ始めていない方は</h2>
+<p>無料で今すぐ使い始められます。</p>
+<a class="cta-btn" href="/?lp=1">Tavera を無料ではじめる →</a>
+</div>
+
+</article>
+</main>
+
+<footer>
+  <p>© 2026 Tavera（運営：Taskra）. All rights reserved.</p>
+  <div class="footer-links">
+    <a href="../terms.html">利用規約</a>
+    <a href="../privacy.html">プライバシーポリシー</a>
+    <a href="../tokushoho.html">特定商取引法</a>
+    <a href="../contact.html">お問い合わせ</a>
+  </div>
+</footer>
+
+</body>
+</html>
