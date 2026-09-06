@@ -69,7 +69,7 @@
 | AI提案 | Anthropic Claude Haiku 4.5 | Edge Function経由 |
 | 画像認識 | Gemini 2.5 Flash | 給食スキャン・冷蔵庫スキャン |
 | 決済 | Stripe | 本番稼働中 |
-| アクセス解析 | GTM（GTM-ML7NKTDR）+ GA4（G-XWVMN30LFD） | index.html・settings.html設置済み |
+| アクセス解析 | GTM（GTM-ML7NKTDR）+ GA4（G-XWVMN30LFD／プロパティ543470745） | 全ページ設置済み。GTMバージョン5がライブ（2026-08-31） |
 | お問い合わせ | Formspree（xpqbkdea） | Taskraと共有 |
 
 ---
@@ -1524,3 +1524,15 @@ TAVERA_STRIPE_YEARLY_PRICE_ID = price_1TngeRBNAV5e5rhc8CHzqEUT
 
 - **症状**：v1.26.2の「アカウント切り替え」はログアウト→LP遷移のみで、体験がログアウトと同一だった
 - **修正**：signOut後に`signInWithOAuth`を`queryParams: { prompt: 'select_account' }`付きで即起動し、Googleのアカウント選択画面を直接表示。LINE内ブラウザの場合は既存の外部ブラウザ誘導を再利用。OAuth起動失敗時は`index.html?lp=1`にフォールバック
+
+### ファネル計測の穴を塞ぐ：sign_up・user_id・イベントパラメータ（v1.26.5）
+
+- **背景**：GA4の実測（過去28日 2026-08-03〜08-30）で、届いているイベントが自動収集の5種（page_view 96 / scroll 64 / user_engagement 63 / session_start 35 / first_visit 2、総ユーザー8人）だけだった。カスタムイベントは0件。**DBと突き合わせると同じ28日間の献立表取込・AI提案は実行0回**（`menu_ai_usage`の最終記録は2026-07、直近の`menu_logs` 8件は全て`source='manual'`）で、**タグ不良ではなく計測対象の行動が起きていなかった**のが主因。ただし調査の過程で計測側の穴が3つ見つかった
+- **穴①：登録イベントが無かった**。`signInWithGoogle()`にdataLayer送信が無く、ファネル1段目が取れない（`first_visit`は訪問であって登録ではない）。→ `js/menu-log.js`の`getOrCreateHousehold()`で**世帯が新しく作られた分岐**に`sign_up`をpush。ログイン時点ではなくここに置くことで、**DB側の登録数（`menu_households`の行数）と定義が一致する**。`leaveHousehold()`の世帯作成では送らない
+- **穴②：user_idを送っていなかった**ためGA4のコホートで継続を追えない。→ `js/supabase.js`の`getUser()`で`dataLayer.push({user_id})`（Supabase の UUID。メールなど個人を直接特定できる値は送らない）。`getUser()`は1ページで何度も呼ばれるので`userIdPushed`フラグで1回だけにしている
+- **穴③：GTMのトリガー正規表現に`referral_redeemed`が入っていなかった**（v1.26.0の残タスクのまま）。→ 正規表現を `sign_up|ai_suggest_success|kyushoku_success|limit_reached|begin_checkout|referral_redeemed` に更新
+- **さらに判明：GA4イベントタグのイベントパラメータが空だった**。v1.25.3の記録では`feature`/`plan`/`billing_cycle`をdataLayer変数から送る想定だったが、実際のタグには1つも設定されておらず**パラメータは一切GA4に届いていなかった**。「GA4 - ファネルイベント」に`user_id`/`feature`/`plan`/`billing_cycle`、`purchase_premium`に`user_id`/`billing_cycle`を設定
+- **GTM側の作業（完了）**：データレイヤー変数`DLV - user_id`を新規作成し、上記のタグ2つとトリガー1つを修正して**バージョン5を公開済み**（2026-08-31 23:11）。今回は「人間の残タスク」を残していない
+- **キャッシュ**：`js/supabase.js`と`js/menu-log.js`の`?v=`を`20260831`に更新（全HTML）
+- **セキュリティ**：認証・決済・DB・RLSの変更なし。計測はGTM経由のクライアントサイドのみ。GA4に送るのはSupabaseのUUIDで、メールアドレス・氏名は送っていない
+- **次にやるべきこと**：実機で1件、新規アカウントの登録→献立表取込を通してGA4のリアルタイム/DebugViewに`sign_up`と`kyushoku_success`が`user_id`付きで届くのを確認する。**ユーザー数が2桁のうちは数字の正本はDB側**（登録・アクティブ・有料を数えるSQLは第2の脳の`3サービスの週次KPIをDBから数える.md`にある）
