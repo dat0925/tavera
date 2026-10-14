@@ -187,28 +187,22 @@ async function getOrCreateHousehold(userId) {
 
   if (member?.household_id) return member.household_id;
 
-  const { data: household, error: hErr } = await db
-    .from('menu_households')
-    .insert({ created_by: userId, name: 'わが家' })
-    .select()
-    .single();
+  // 世帯とメンバー行の作成はサーバー側（RPC）で行う。
+  // クライアントから household_id / role を直接書けると、他人の世帯に入り込めてしまうため。
+  const { data, error } = await db.rpc('tavera_ensure_household');
+  if (error) { console.error(error); return null; }
+  const row = Array.isArray(data) ? data[0] : data;
+  if (!row) return null;
 
-  if (hErr) { console.error(hErr); return null; }
+  if (row.created) {
+    // 世帯が新しく作られた＝このサービスでの「登録」。
+    // DB 側の登録数（menu_households の行数）と定義を揃えるため、
+    // ログイン時点ではなくここで sign_up を送る。
+    window.dataLayer = window.dataLayer || [];
+    window.dataLayer.push({ event: 'sign_up', method: 'google' });
+  }
 
-  // 世帯が新しく作られた＝このサービスでの「登録」。
-  // DB 側の登録数（menu_households の行数）と定義を揃えるため、
-  // ログイン時点ではなくここで sign_up を送る。
-  window.dataLayer = window.dataLayer || [];
-  window.dataLayer.push({ event: 'sign_up', method: 'google' });
-
-  await db.from('menu_members').insert({
-    id: userId,
-    household_id: household.id,
-    name: 'オーナー',
-    role: 'owner',
-  });
-
-  return household.id;
+  return row.household_id;
 }
 
 // meal_typeの表示名
@@ -229,33 +223,13 @@ async function getHouseholdMembers(householdId) {
 }
 
 // 招待コードで世帯に参加
+// コードの照合と参加はサーバー側（RPC）で行う。世帯の一覧はクライアントから見えない
 async function joinHouseholdByCode(userId, code) {
-  const { data: households, error: searchErr } = await db
-    .rpc('find_household_by_code', { code: code.toLowerCase() });
-
-  if (searchErr) { console.error(searchErr); return { ok: false, message: 'エラーが発生しました' }; }
-  if (!households || households.length === 0) return { ok: false, message: '招待コードが見つかりません' };
-  if (households.length > 1) return { ok: false, message: 'コードが一致する世帯が複数あります。もう一度お試しください' };
-
-  const targetHousehold = households[0];
-
-  const { data: existing } = await db
-    .from('menu_members')
-    .select('household_id')
-    .eq('id', userId)
-    .single();
-
-  if (existing?.household_id === targetHousehold.id) {
-    return { ok: false, message: 'すでにこの世帯のメンバーです' };
-  }
-
-  const { error: updateErr } = await db
-    .from('menu_members')
-    .update({ household_id: targetHousehold.id, role: 'member' })
-    .eq('id', userId);
-
-  if (updateErr) { console.error(updateErr); return { ok: false, message: '参加に失敗しました' }; }
-  return { ok: true, householdName: targetHousehold.name };
+  const { data, error } = await db.rpc('tavera_join_household', { p_code: code });
+  if (error) { console.error(error); return { ok: false, message: 'エラーが発生しました' }; }
+  const row = Array.isArray(data) ? data[0] : data;
+  if (!row?.ok) return { ok: false, message: row?.message || '参加に失敗しました' };
+  return { ok: true, householdName: row.household_name };
 }
 
 // =====================

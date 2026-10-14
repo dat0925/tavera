@@ -26,7 +26,7 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="js/supabase.js?v=20260930"></script>
   <script src="js/auth.js?v=20260629"></script>
-  <script src="js/menu-log.js?v=20260906"></script>
+  <script src="js/menu-log.js?v=20261014"></script>
   <style>
     .settings-section { padding: 20px 20px 0; }
     .settings-section + .settings-section { padding-top: 8px; }
@@ -943,12 +943,9 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
       if (!confirm('この世帯を離れますか？\n\n・あなたのアカウントに新しい個人世帯が作られます\n・元の世帯の記録はそのまま残ります')) return;
       const btn = event.target;
       btn.textContent = '処理中...'; btn.disabled = true;
-      const { data: newHousehold, error: hErr } = await db
-        .from('menu_households').insert({ created_by: currentUser.id, name: 'わが家' }).select().single();
-      if (hErr) { showToast('エラーが発生しました', 'error'); btn.textContent = 'この世帯を離れる'; btn.disabled = false; return; }
-      const { error: mErr } = await db.from('menu_members')
-        .update({ household_id: newHousehold.id, role: 'owner' }).eq('id', currentUser.id);
-      if (mErr) { showToast('エラーが発生しました', 'error'); btn.textContent = 'この世帯を離れる'; btn.disabled = false; return; }
+      // 新しい個人世帯の作成と付け替えはサーバー側（RPC）で行う
+      const { error: lErr } = await db.rpc('tavera_leave_household');
+      if (lErr) { console.error(lErr); showToast('エラーが発生しました', 'error'); btn.textContent = 'この世帯を離れる'; btn.disabled = false; return; }
       showToast('世帯を離れました', 'info');
       setTimeout(() => location.reload(), 1200);
     }
