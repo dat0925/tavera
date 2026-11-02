@@ -10,7 +10,12 @@
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
-  <url>
+    <url>
+    <loc>https://tavera.taskra.jp/blog/kyushoku-allergy-check.html</loc>
+    <lastmod>2026-11-02</lastmod>
+    <priority>0.7</priority>
+  </url>
+<url>
     <loc>https://tavera.taskra.jp/blog/kyushoku-nai-hi-hirugohan.html</loc>
     <lastmod>2026-11-01</lastmod>
     <priority>0.7</priority>
