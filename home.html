@@ -25,7 +25,7 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
   <meta name="theme-color" content="#C8522A">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="js/supabase.js?v=20260930"></script>
-  <script src="js/auth.js?v=20260629"></script>
+  <script src="js/auth.js?v=20261114"></script>
   <script src="js/menu-log.js?v=20261014"></script>
   <style>
     .date-strip {
@@ -1081,16 +1081,25 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
 
     async function deleteFridgeSheetItem() {
       if (!sheetItemId) return;
-      const ok = await deleteFridgeItem(sheetItemId);
-      if (ok) {
-        closeFridgeSheet();
-        await renderFridgeItems();
-      } else {
-        showToast('削除に失敗しました', 'error');
-      }
+      // closeFridgeSheet() が sheetItemId を null にするため、先に控える
+      const id = sheetItemId;
+      const name = document.getElementById('bsTitle').textContent.trim();
+      closeFridgeSheet();
+      // UI洗練2: 即消し＋Undo（実削除は猶予経過後に auth.js の遅延削除が実行）
+      scheduleDeferredDelete({
+        key: 'fridge:' + id,
+        message: name ? name + ' を削除しました' : '削除しました',
+        execute: () => deleteFridgeItem(id),
+        onUndo: () => renderFridgeItems(),
+        onCommit: () => renderFridgeItems(),
+        onFail: () => renderFridgeItems(),
+      });
+      await renderFridgeItems();
     }
 
     // 「使い切ったので削除、かつ買い忘れないよう買い物リストへ」をワンタップで行う
+    // ※買い物リスト追加と一体の複合操作のため、UI洗練2の遅延削除（Undo）の
+    //   対象外として従来どおり即時実行のままにしている
     async function deleteFridgeSheetItemToShoppingList() {
       if (!sheetItemId) return;
       const name = document.getElementById('bsTitle').textContent.trim();
@@ -1112,13 +1121,15 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
 
       const items = await getFridgeItems(householdId);
       container.removeAttribute('aria-busy');
-      if (items.length === 0) {
+      // UI洗練2: 遅延削除の猶予中の食材は、DBにまだ残っていても表示から除く
+      const visibleItems = items.filter(item => !isPendingDelete('fridge:' + item.id));
+      if (visibleItems.length === 0) {
         container.innerHTML = '<span class="fridge-empty">食材を登録するとAIが献立を提案しやすくなります</span>';
         return;
       }
 
       const today = toDateStr();
-      container.innerHTML = items.map(item => {
+      container.innerHTML = visibleItems.map(item => {
         const expiry = buildExpiryText(item, today);
         const soon = expiry && expiry.soon;
         const chipClass = 'fridge-chip' + (soon ? ' expiring-soon' : '');
@@ -1169,12 +1180,16 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
     }
 
     async function removeFridgeItemUI(itemId) {
-      const ok = await deleteFridgeItem(itemId);
-      if (ok) {
-        await renderFridgeItems();
-      } else {
-        showToast('削除に失敗しました', 'error');
-      }
+      // UI洗練2: deleteFridgeSheetItem と同じ遅延削除（Undo付き）に統一
+      scheduleDeferredDelete({
+        key: 'fridge:' + itemId,
+        message: '削除しました',
+        execute: () => deleteFridgeItem(itemId),
+        onUndo: () => renderFridgeItems(),
+        onCommit: () => renderFridgeItems(),
+        onFail: () => renderFridgeItems(),
+      });
+      await renderFridgeItems();
     }
 
     // ---- また食べたいランキング ----
@@ -1252,12 +1267,13 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
       const allItems = Object.entries(ingredientCount)
         .sort((a, b) => b[1] - a[1])
         .map(([name]) => name);
-      const autoNeedToBuy = allItems.filter(name => !fridgeNames.includes(name) && !dismissedNames.includes(name));
+      // UI洗練2: 遅延削除の猶予中の項目は、DB側の除外指定がまだ入っていなくても表示から除く
+      const autoNeedToBuy = allItems.filter(name => !fridgeNames.includes(name) && !dismissedNames.includes(name) && !isPendingDelete('shopping-auto:' + name));
       const alreadyHave = allItems.filter(name => fridgeNames.includes(name));
 
       // 手動追加分（自動検出とかぶるものは除く）
       const autoNames = new Set(autoNeedToBuy);
-      const manualNeedToBuy = manualItems.filter(m => !autoNames.has(m.name));
+      const manualNeedToBuy = manualItems.filter(m => !autoNames.has(m.name) && !isPendingDelete('shopping-manual:' + m.id));
 
       const totalCount = autoNeedToBuy.length + manualNeedToBuy.length;
 
@@ -1307,29 +1323,32 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
     }
 
     async function removeManualShoppingItem(btn, id) {
-      const ok = await deleteShoppingManualItem(id);
-      if (!ok) { showToast('削除に失敗しました', 'error'); return; }
-      btn.closest('.shopping-item').remove();
-      const remaining = document.querySelectorAll('#shoppingList .shopping-item').length;
-      const metaEl = document.getElementById('shoppingMeta');
-      if (!remaining) {
-        document.getElementById('shoppingList').innerHTML = '<div class="shopping-empty">今週の食材は冷蔵庫にすべて揃っています 🎉</div>';
-      } else {
-        metaEl.textContent = metaEl.textContent.replace(/^\d+品/, remaining + '品');
-      }
+      // UI洗練2: 即消し＋Undo（実削除は猶予経過後）。件数・空表示は再描画側で揃う
+      const row = btn.closest('.shopping-item');
+      const nameEl = row ? row.querySelector('.shopping-item-name') : null;
+      const name = nameEl ? nameEl.textContent.trim() : '';
+      scheduleDeferredDelete({
+        key: 'shopping-manual:' + id,
+        message: name ? name + ' を削除しました' : '削除しました',
+        execute: () => deleteShoppingManualItem(id),
+        onUndo: () => renderShoppingList(),
+        onCommit: () => renderShoppingList(),
+        onFail: () => renderShoppingList(),
+      });
+      await renderShoppingList();
     }
 
     async function removeShoppingItem(btn, name) {
-      const ok = await dismissShoppingItem(householdId, name);
-      if (!ok) { showToast('削除に失敗しました', 'error'); return; }
-      btn.closest('.shopping-item').remove();
-      const remaining = document.querySelectorAll('#shoppingList .shopping-item').length;
-      const metaEl = document.getElementById('shoppingMeta');
-      if (!remaining) {
-        document.getElementById('shoppingList').innerHTML = '<div class="shopping-empty">今週の食材は冷蔵庫にすべて揃っています 🎉</div>';
-      } else {
-        metaEl.textContent = metaEl.textContent.replace(/^\d+品/, remaining + '品');
-      }
+      // UI洗練2: 即消し＋Undo（非表示指定の実登録は猶予経過後）
+      scheduleDeferredDelete({
+        key: 'shopping-auto:' + name,
+        message: name + ' を削除しました',
+        execute: () => dismissShoppingItem(householdId, name),
+        onUndo: () => renderShoppingList(),
+        onCommit: () => renderShoppingList(),
+        onFail: () => renderShoppingList(),
+      });
+      await renderShoppingList();
     }
 
     async function toggleShoppingItem(el) {

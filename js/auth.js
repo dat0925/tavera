@@ -157,6 +157,163 @@ function showToast(message, type = 'info') {
 }
 
 // =====================
+// Undo付きトースト／遅延削除（UI洗練2）
+// =====================
+// 削除を「画面から即消す → 約6秒のUndo猶予が過ぎてからDB削除を実行する」
+// 遅延削除にするための共有土台。UndoされればDBには一切触れないため、
+// 復元時にIDが変わるなどの事故が起きない。
+// 猶予中にページ遷移が起きた場合は pagehide / beforeunload で保留中の
+// 削除を即実行に回し（ベストエフォート）、画面で見た「消えた」状態と
+// DBの一致を図る。
+const UNDO_DELETE_DELAY_MS = 6000;
+const pendingDeletes = new Map();
+
+function showToastWithAction(message, actionLabel, onAction, durationMs = UNDO_DELETE_DELAY_MS, type = 'info') {
+  // 置換ルールは通常トーストと同じ（既存の .toast は消える）
+  const existing = document.querySelector('.toast');
+  if (existing) existing.remove();
+
+  const colors = {
+    info:    'var(--brown)',
+    success: 'var(--olive)',
+    error:   'var(--terra)',
+  };
+
+  const toast = document.createElement('div');
+  toast.className = 'toast toast-action';
+  Object.assign(toast.style, {
+    position: 'fixed',
+    bottom: '100px',
+    left: '50%',
+    transform: 'translateX(-50%)',
+    background: colors[type] || colors.info,
+    color: '#fff',
+    padding: '10px 12px 10px 20px',
+    borderRadius: '99px',
+    fontSize: '0.85rem',
+    fontWeight: '700',
+    zIndex: '9999',
+    boxShadow: '0 4px 16px rgba(0,0,0,0.15)',
+    animation: 'fadeInUp 0.3s ease',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '12px',
+    maxWidth: 'calc(100vw - 32px)',
+    boxSizing: 'border-box',
+  });
+
+  const msg = document.createElement('span');
+  msg.textContent = message;
+  Object.assign(msg.style, {
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+    whiteSpace: 'nowrap',
+    minWidth: '0',
+  });
+
+  const btn = document.createElement('button');
+  btn.type = 'button';
+  btn.textContent = actionLabel;
+  Object.assign(btn.style, {
+    flexShrink: '0',
+    background: '#fff',
+    color: colors[type] || colors.info,
+    border: 'none',
+    borderRadius: '99px',
+    padding: '6px 14px',
+    fontSize: '0.85rem',
+    fontWeight: '700',
+    fontFamily: 'inherit',
+    cursor: 'pointer',
+  });
+
+  const timer = setTimeout(() => toast.remove(), durationMs);
+  btn.addEventListener('click', () => {
+    clearTimeout(timer);
+    toast.remove();
+    if (onAction) onAction();
+  });
+
+  toast.appendChild(msg);
+  toast.appendChild(btn);
+  document.body.appendChild(toast);
+  return toast;
+}
+
+function isPendingDelete(key) {
+  return pendingDeletes.has(key);
+}
+
+// scheduleDeferredDelete({ key, message, execute, onUndo, onCommit, onFail })
+// - key: 対象を一意に指す文字列（例 'fridge:<id>'）。同じkeyの二重登録は無視する
+// - execute: 猶予経過後に実行する実削除。trueを返したら成功扱い
+// - onUndo / onCommit / onFail: それぞれの確定時に呼ばれる再描画用コールバック
+function scheduleDeferredDelete(opts) {
+  if (!opts || !opts.key || typeof opts.execute !== 'function') return false;
+  if (pendingDeletes.has(opts.key)) return false;
+
+  const entry = {
+    execute: opts.execute,
+    onCommit: opts.onCommit,
+    onFail: opts.onFail,
+    timer: null,
+    settled: false,
+  };
+  pendingDeletes.set(opts.key, entry);
+  entry.timer = setTimeout(() => { commitDeferredDelete(opts.key); }, UNDO_DELETE_DELAY_MS);
+
+  showToastWithAction(opts.message || '削除しました', '元に戻す', () => {
+    if (entry.settled) return;
+    entry.settled = true;
+    clearTimeout(entry.timer);
+    pendingDeletes.delete(opts.key);
+    if (opts.onUndo) opts.onUndo();
+  });
+  return true;
+}
+
+async function commitDeferredDelete(key) {
+  const entry = pendingDeletes.get(key);
+  if (!entry || entry.settled) return;
+  entry.settled = true;
+  pendingDeletes.delete(key);
+
+  let ok = false;
+  try {
+    ok = await entry.execute();
+  } catch (e) {
+    console.error(e);
+    ok = false;
+  }
+  if (ok) {
+    if (entry.onCommit) entry.onCommit();
+  } else {
+    if (entry.onFail) entry.onFail();
+    showToast('削除に失敗しました', 'error');
+  }
+}
+
+// ページを離れる時は保留中の削除を即実行する（画面の状態とDBを一致させる）。
+// unload中の非同期リクエストはブラウザに打ち切られる場合があるため
+// ベストエフォートとして扱う。
+function flushPendingDeletes() {
+  for (const [key, entry] of Array.from(pendingDeletes.entries())) {
+    if (entry.settled) continue;
+    entry.settled = true;
+    clearTimeout(entry.timer);
+    pendingDeletes.delete(key);
+    try {
+      const p = entry.execute();
+      if (p && typeof p.catch === 'function') p.catch(e => console.error(e));
+    } catch (e) {
+      console.error(e);
+    }
+  }
+}
+window.addEventListener('pagehide', flushPendingDeletes);
+window.addEventListener('beforeunload', flushPendingDeletes);
+
+// =====================
 //  Pull to Refresh
 // =====================
 function initPullToRefresh(onRefresh) {
