@@ -779,6 +779,14 @@ textarea.form-input { resize: vertical; min-height: 80px; }
 .modal-actions { display:flex;gap:10px;margin-top:20px; }
 .modal-actions .btn { flex:1;padding:14px;font-size:0.88rem; }
 
+/* シート／モーダル表示中の背景スクロール固定（UI洗練 項目9本格）。
+   共通土台（js/auth.js の openSheet / closeSheet）が開閉に合わせて
+   html / body へ .sheet-open を付け外しする。
+   PTR は touch 監視ベースで overflow の影響を受けず、シート内の
+   スクロールは内部コンテナ（.comment-list 等）が担うため妨げない。 */
+html.sheet-open,
+body.sheet-open { overflow: hidden; }
+
 
 /* =====================
    iPad / PC レイアウト（≥769px）
