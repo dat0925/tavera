@@ -26,7 +26,7 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="js/supabase.js?v=20260930"></script>
   <script src="js/auth.js?v=20261114"></script>
-  <script src="js/menu-log.js?v=20261014"></script>
+  <script src="js/menu-log.js?v=20261114"></script>
   <style>
     .date-strip {
       display: flex;
@@ -944,13 +944,25 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
       document.getElementById('csEditBar').style.display = 'none';
     }
 
-    async function deleteCommentItem(id) {
-      if (!confirm('このコメントを削除しますか？')) return;
-      const ok = await deleteMealComment(id);
-      if (!ok) { showToast('削除に失敗しました', 'error'); return; }
+    function deleteCommentItem(id) {
+      // UI洗練（コメント削除のUndo化）: 冷蔵庫・買い物リストと同じ遅延削除に統一。
+      // confirm は外し、即座に一覧から消して約6秒後にDB削除を実行する。
+      // 保留中のコメントは取得層（menu-log.js）のフィルタで一覧・件数から除外されるため
+      // 再描画されても復活せず、Undo時はDBに触れないので再描画だけで元に戻る。
       if (editingCommentId === id) cancelCommentEdit();
-      await renderCommentList();
-      if (commentSheetDate === currentGridDate) await renderMealGrid(currentGridDate);
+      const refresh = async () => {
+        await renderCommentList();
+        if (commentSheetDate === currentGridDate) await renderMealGrid(currentGridDate);
+      };
+      const ok = scheduleDeferredDelete({
+        key: commentDeleteKey(id),
+        message: 'コメントを削除しました',
+        execute: () => deleteMealComment(id),
+        onUndo: refresh,
+        onCommit: refresh,
+        onFail: refresh,
+      });
+      if (ok) refresh();
     }
 
     let commentSending = false;

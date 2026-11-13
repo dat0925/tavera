@@ -370,15 +370,17 @@ function srcBadge(log) {
 // =====================
 
 // 指定日の朝・昼・夜それぞれのコメント件数 { breakfast: n, lunch: n, dinner: n }
+// UI洗練（コメント削除のUndo化）: 削除保留中（Undo猶予中）のコメントは件数に含めない。
+// 保留判定にはコメントIDが要るため select に id を含める（判定は auth.js の共有レジストリ）。
 async function getMealCommentCounts(householdId, dateStr) {
   const { data, error } = await db
     .from('menu_meal_comments')
-    .select('meal_type')
+    .select('id, meal_type')
     .eq('household_id', householdId)
     .eq('date', dateStr);
   if (error) { console.error(error); return {}; }
   const counts = {};
-  (data || []).forEach(r => { counts[r.meal_type] = (counts[r.meal_type] || 0) + 1; });
+  excludePendingDeletedComments(data).forEach(r => { counts[r.meal_type] = (counts[r.meal_type] || 0) + 1; });
   return counts;
 }
 
@@ -386,11 +388,12 @@ async function getMealCommentCounts(householdId, dateStr) {
 async function getAllMealCommentCounts(householdId) {
   const { data, error } = await db
     .from('menu_meal_comments')
-    .select('date, meal_type')
+    .select('id, date, meal_type')
     .eq('household_id', householdId);
   if (error) { console.error(error); return {}; }
   const counts = {};
-  (data || []).forEach(r => {
+  // UI洗練（コメント削除のUndo化）: 削除保留中のコメントは件数に含めない
+  excludePendingDeletedComments(data).forEach(r => {
     const key = r.date + '_' + r.meal_type;
     counts[key] = (counts[key] || 0) + 1;
   });
@@ -407,7 +410,9 @@ async function getMealComments(householdId, dateStr, mealType) {
     .eq('meal_type', mealType)
     .order('created_at', { ascending: true });
   if (error) { console.error(error); return []; }
-  return data || [];
+  // UI洗練（コメント削除のUndo化）: 削除保留中のコメントは一覧に出さない。
+  // home / history / log のコメント描画はすべてこの関数経由のため、ここ1か所で全経路に効く
+  return excludePendingDeletedComments(data);
 }
 
 // 「食べる側」向けスタンプ（記録前の献立へのリクエスト・記録後の感想など）

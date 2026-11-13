@@ -26,7 +26,7 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="js/supabase.js?v=20260930"></script>
   <script src="js/auth.js?v=20261114"></script>
-  <script src="js/menu-log.js?v=20261014"></script>
+  <script src="js/menu-log.js?v=20261114"></script>
   <style>
     .log-form { padding: 20px; }
 
@@ -828,13 +828,24 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
       document.getElementById('logCommentEditBar').style.display = 'none';
     }
 
-    async function deleteLogCommentItem(id) {
-      if (!confirm('このコメントを削除しますか？')) return;
-      const ok = await deleteMealComment(id);
-      if (!ok) { showToast('削除に失敗しました', 'error'); return; }
+    function deleteLogCommentItem(id) {
+      // UI洗練（コメント削除のUndo化）: home/history と同じ遅延削除（Undo付き）に統一し confirm を外す。
+      // 保留中のコメントは取得層（menu-log.js）のフィルタで一覧・件数から除外されるため、
+      // バッジ件数も削除した瞬間に減り、Undoで戻る。
       if (editingLogCommentId === id) cancelLogCommentEdit();
-      await renderLogCommentList();
-      await refreshCommentCount();
+      const refresh = async () => {
+        await renderLogCommentList();
+        await refreshCommentCount();
+      };
+      const ok = scheduleDeferredDelete({
+        key: commentDeleteKey(id),
+        message: 'コメントを削除しました',
+        execute: () => deleteMealComment(id),
+        onUndo: refresh,
+        onCommit: refresh,
+        onFail: refresh,
+      });
+      if (ok) refresh();
     }
 
     let logCommentSending = false;
