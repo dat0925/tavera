@@ -654,6 +654,78 @@ textarea.form-input { resize: vertical; min-height: 80px; }
   from { transform: rotate(0deg); }
   to   { transform: rotate(360deg); }
 }
+/* =====================
+   Skeleton（UI洗練0）
+   読み込み中に実物の形の仮表示を出すための共通部品。
+   色は背景（--cream #FDF6EC / --surface #FFF9F2）に同化しないよう
+   --border より一段濃い #E4CDAE を使う（Flowraで薄すぎて調整した教訓）。
+   明滅は opacity のみで表現する。
+   ===================== */
+.skel {
+  background: #E4CDAE;
+  border-radius: 6px;
+  animation: skel-pulse 1.2s ease-in-out infinite;
+}
+@keyframes skel-pulse {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.55; }
+}
+.skel-line    { height: 12px; }
+.skel-line-sm { height: 9px; }
+.skel-circle  { border-radius: 50%; flex-shrink: 0; }
+.skel-chip    { height: 29px; border-radius: 99px; }
+.skel-chips   { display: flex; flex-wrap: wrap; gap: 8px; }
+.skel-stack   { display: flex; flex-direction: column; gap: 8px; }
+.skel-flex    { display: flex; align-items: center; gap: 10px; }
+
+/* 献立グリッド（home）のセル型 */
+.skel-meal-cell {
+  cursor: default;
+  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 62px;
+}
+
+/* 履歴（history）の日グループ型 */
+.skel-day {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+.skel-day-head {
+  padding: 12px 14px;
+  background: var(--cream);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.skel-day-body {
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+/* =====================
+   Reduced Motion（土台）
+   style.css 内の共通アニメーションのみを対象にする。
+   ページ内インラインのアニメーションは各項目で個別に扱う。
+   ===================== */
+@media (prefers-reduced-motion: reduce) {
+  .skel,
+  .loading-dots span,
+  .fade-in,
+  .ptr-indicator.refreshing svg {
+    animation: none !important;
+  }
+}
+
 
 /* =====================
    iPad / PC レイアウト（≥769px）

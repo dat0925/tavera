@@ -15,7 +15,7 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
   <title>履歴 - Tavera</title>
   <link rel="icon" href="assets/logo.png">
-  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/style.css?v=20261113">
   <link rel="manifest" href="manifest.json">
   <link rel="apple-touch-icon" href="assets/icon-180.png">
   <meta name="mobile-web-app-capable" content="yes">
@@ -472,11 +472,27 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
 
     <!-- リストビュー -->
     <div id="listView" class="page" style="padding-bottom:80px">
-      <div class="history-list" id="historyList">
-        <div class="empty-state">
-          <div class="empty-icon">&#128214;</div>
-          <p>まだ献立が記録されていません</p>
-          <a href="log.html" class="btn btn-primary">最初の献立を記録する</a>
+      <div class="history-list" id="historyList" aria-busy="true">
+        <div class="skel-day" aria-hidden="true">
+          <div class="skel-day-head"><div class="skel skel-line" style="width:64px"></div><div class="skel skel-line-sm" style="width:40px"></div></div>
+          <div class="skel-day-body">
+            <div class="skel-flex"><div class="skel skel-chip" style="width:34px;height:20px"></div><div class="skel skel-line" style="width:56%"></div></div>
+            <div class="skel-flex"><div class="skel skel-chip" style="width:34px;height:20px"></div><div class="skel skel-line" style="width:44%"></div></div>
+          </div>
+        </div>
+        <div class="skel-day" aria-hidden="true">
+          <div class="skel-day-head"><div class="skel skel-line" style="width:64px"></div><div class="skel skel-line-sm" style="width:40px"></div></div>
+          <div class="skel-day-body">
+            <div class="skel-flex"><div class="skel skel-chip" style="width:34px;height:20px"></div><div class="skel skel-line" style="width:62%"></div></div>
+            <div class="skel-flex"><div class="skel skel-chip" style="width:34px;height:20px"></div><div class="skel skel-line" style="width:38%"></div></div>
+            <div class="skel-flex"><div class="skel skel-chip" style="width:34px;height:20px"></div><div class="skel skel-line" style="width:50%"></div></div>
+          </div>
+        </div>
+        <div class="skel-day" aria-hidden="true">
+          <div class="skel-day-head"><div class="skel skel-line" style="width:64px"></div><div class="skel skel-line-sm" style="width:40px"></div></div>
+          <div class="skel-day-body">
+            <div class="skel-flex"><div class="skel skel-chip" style="width:34px;height:20px"></div><div class="skel skel-line" style="width:48%"></div></div>
+          </div>
         </div>
       </div>
     </div>
@@ -608,9 +624,23 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
       searchTimer = setTimeout(() => renderHistory(currentKeyword), 300);
     }
 
+    // UI洗練0: 履歴リストのスケルトン（日グループ×3、静的HTMLの初期表示と同形）
+    function historySkeletonHTML() {
+      const rows = n => Array.from({length: n}, (_, i) => `
+            <div class="skel-flex"><div class="skel skel-chip" style="width:34px;height:20px"></div><div class="skel skel-line" style="width:${[56,44,62,38,50][i % 5]}%"></div></div>`).join('');
+      const day = n => `
+        <div class="skel-day" aria-hidden="true">
+          <div class="skel-day-head"><div class="skel skel-line" style="width:64px"></div><div class="skel skel-line-sm" style="width:40px"></div></div>
+          <div class="skel-day-body">${rows(n)}
+          </div>
+        </div>`;
+      return day(2) + day(3) + day(1);
+    }
+
     async function renderHistory(keyword) {
       const list = document.getElementById('historyList');
-      list.innerHTML = '<div class="loading-dots" style="padding:24px 0;justify-content:center"><span></span><span></span><span></span></div>';
+      list.setAttribute('aria-busy', 'true');
+      list.innerHTML = historySkeletonHTML();
 
       // 検索中は月をまたいで全期間から探したいので月ナビは隠す（検索は当月以外もヒットする仕様は維持）
       document.getElementById('listNav').style.display = keyword ? 'none' : '';
@@ -637,6 +667,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
       allLogs = data;
 
       if (!data.length) {
+        list.removeAttribute('aria-busy');
         list.innerHTML = `
           <div class="empty-state">
             <div class="empty-icon">&#127869;&#65039;</div>
@@ -660,6 +691,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
         }
       });
 
+      list.removeAttribute('aria-busy');
       list.innerHTML = groups.map((g, gi) => {
         const d = new Date(g.date);
         const isToday = g.date === todayStr;
