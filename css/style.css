@@ -726,6 +726,59 @@ textarea.form-input { resize: vertical; min-height: 80px; }
   }
 }
 
+/* =====================
+   Bottom Sheet / Modal（UI洗練3: 9-軽）
+   home・history に複製されていたボトムシート（系統A）と、
+   history・suggest に複製されていたモーダル（系統B）のうち、
+   完全に同一だったルールをここに集約した（値はページ側と同一で変更なし）。
+   .modal-sheet は下パディングがページごとに違う（history 40px / suggest 32px）、
+   .modal-title も値が違うため、各ページ側に残置している。
+   fadeIn / slideUp の @keyframes も各ページ側の定義をそのまま使う。
+   ===================== */
+.bottom-sheet-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.4);
+  z-index: 200;
+  animation: fadeIn 0.2s ease;
+}
+.bottom-sheet-overlay.open { display: block; }
+.bottom-sheet {
+  position: fixed;
+  bottom: 0; left: 0; right: 0;
+  background: var(--white);
+  border-radius: 20px 20px 0 0;
+  padding: 20px 20px 40px;
+  z-index: 201;
+  transform: translateY(100%);
+  transition: transform 0.25s cubic-bezier(0.32, 0.72, 0, 1);
+}
+.bottom-sheet.open { transform: translateY(0); }
+.bs-handle {
+  width: 40px; height: 4px;
+  background: var(--border);
+  border-radius: 2px;
+  margin: 0 auto 18px;
+}
+.bs-title {
+  font-size: 1rem; font-weight: 700;
+  color: var(--brown); margin-bottom: 16px;
+}
+.comment-sheet-label {
+  font-size: 0.82rem; color: var(--muted); margin-bottom: 12px;
+}
+.modal-overlay {
+  position: fixed; inset: 0;
+  background: rgba(74,46,26,0.4);
+  z-index: 200;
+  display: flex; align-items: flex-end; justify-content: center;
+  animation: fadeIn 0.2s ease;
+}
+.modal-handle { width:40px;height:4px;background:var(--border);border-radius:99px;margin:0 auto 20px; }
+.modal-actions { display:flex;gap:10px;margin-top:20px; }
+.modal-actions .btn { flex:1;padding:14px;font-size:0.88rem; }
+
 
 /* =====================
    iPad / PC レイアウト（≥769px）

@@ -15,7 +15,7 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
   <title>AI献立提案 - Tavera</title>
   <link rel="icon" href="assets/logo.png">
-  <link rel="stylesheet" href="css/style.css?v=20261113">
+  <link rel="stylesheet" href="css/style.css?v=20261114">
   <link rel="manifest" href="manifest.json">
   <link rel="apple-touch-icon" href="assets/icon-180.png">
   <meta name="mobile-web-app-capable" content="yes">
@@ -106,14 +106,9 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
       cursor:pointer; font-family:inherit; text-decoration:none;
     }
 
-    /* ---- 記録モーダル（日付・食事区分選択） ---- */
-    .modal-overlay {
-      position: fixed; inset: 0;
-      background: rgba(74,46,26,0.4);
-      z-index: 200;
-      display: flex; align-items: flex-end; justify-content: center;
-      animation: fadeIn 0.2s ease;
-    }
+    /* ---- 記録モーダル（日付・食事区分選択） ----
+       overlay / handle / actions は css/style.css の共有定義を使う
+       （UI洗練3: 9-軽）。sheet と title は値がページごとに違うため残す */
     @keyframes fadeIn { from { opacity:0 } to { opacity:1 } }
     .modal-sheet {
       width: 100%; max-width: 480px;
@@ -123,7 +118,6 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
       animation: slideUp 0.25s ease;
     }
     @keyframes slideUp { from { transform:translateY(60px);opacity:0 } to { transform:translateY(0);opacity:1 } }
-    .modal-handle { width:40px;height:4px;background:var(--border);border-radius:99px;margin:0 auto 20px; }
     .modal-title { font-family:var(--font-display);font-size:1.1rem;color:var(--brown);margin-bottom:16px;line-height:1.5; }
     .record-field-label { font-size:0.75rem;font-weight:700;color:var(--muted);letter-spacing:0.04em;margin-bottom:6px; }
     .record-date-input {
@@ -146,8 +140,6 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
       display:none;
     }
     .record-warning.visible { display:block; }
-    .modal-actions { display:flex;gap:10px;margin-top:20px; }
-    .modal-actions .btn { flex:1;padding:14px;font-size:0.88rem; }
 
     /* ---- 新しい相談ボタン ----
        .app-header .header-right / .kyushoku-btn はiPad/PCレイアウトで
@@ -656,6 +648,13 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
       if (e && e.target.id !== 'recordModal') return;
       document.getElementById('recordModal').classList.add('hidden');
     }
+
+    // 下スワイプで閉じる（UI洗練3: 5-軽）。開始領域はハンドルとタイトルのみ
+    initSheetDragClose(
+      document.querySelector('#recordModal .modal-sheet'),
+      [document.querySelector('#recordModal .modal-handle'), document.getElementById('recordModalTitle')],
+      () => closeRecordModal()
+    );
 
     function confirmRecord() {
       if (!pendingRecord) return;
