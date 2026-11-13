@@ -384,6 +384,60 @@ function initSheetDragClose(sheetEl, dragEls, onClose) {
 }
 
 // =====================
+//  一覧の差し替え（UI洗練3-軽: 差分更新の軽い分）
+// =====================
+// コメント一覧のように「取得 → innerHTML 全再構築」が基本の一覧で、
+// 再取得のたびに起きる点滅（ちらつき）を抑えるための共有ヘルパー。
+// 行単位の diffing はせず、次の3点だけを行う:
+//  1. 同一HTMLなら差し替えない（点滅なし、スクロール・DOM状態を保持）
+//  2. 差し替える場合も、末尾付近を見ていない時は scrollTop を復元する。
+//     末尾付近を見ている時と、初回・ローディングからの差し替え時は
+//     従来どおり末尾へスクロールし、最新コメントを見せる挙動を維持する
+//  3. 同じ対象の再取得では loading-dots に置き換えず、
+//     既存表示のまま裏で取得して、差分がある時だけ差し替える
+//     （対象が変わった場合は従来どおりローディング表示にする）
+const LIST_LOADING_HTML = '<div class="loading-dots" style="justify-content:center;padding:8px 0"><span></span><span></span><span></span></div>';
+const LIST_NEAR_BOTTOM_PX = 48;
+const listAppliedHTML = new WeakMap();
+const listTargetKeys = new WeakMap();
+
+// 差し替え後のスクロール位置を決める（純粋関数・単体テスト対象）
+function listScrollTopAfterApply(state) {
+  return (state.wasPlaceholder || state.nearBottom) ? state.scrollHeight : state.prevTop;
+}
+
+// 取得開始時の表示切替。同じ対象で実コンテンツ表示中なら何もしない
+// （既存表示のまま裏で取得する）。それ以外はローディング表示にする。
+function beginListLoad(list, key) {
+  if (!list) return;
+  const sameTarget = key != null && listTargetKeys.get(list) === key;
+  const hasContent = !!list.children.length && !list.querySelector('.loading-dots');
+  if (sameTarget && hasContent) return;
+  listTargetKeys.set(list, key);
+  list.innerHTML = LIST_LOADING_HTML;
+  listAppliedHTML.set(list, LIST_LOADING_HTML);
+}
+
+// 生成したHTMLを一覧へ反映する。同一なら差し替え自体をスキップする。
+// 戻り値: 実際に差し替えたら true
+function applyListHTML(list, html) {
+  if (!list) return false;
+  if (listAppliedHTML.get(list) === html || list.innerHTML === html) {
+    listAppliedHTML.set(list, html);
+    return false;
+  }
+  const wasPlaceholder = !list.children.length || !!list.querySelector('.loading-dots');
+  const prevTop = list.scrollTop;
+  const nearBottom = list.scrollHeight - prevTop - list.clientHeight <= LIST_NEAR_BOTTOM_PX;
+  list.innerHTML = html;
+  listAppliedHTML.set(list, html);
+  list.scrollTop = listScrollTopAfterApply({
+    wasPlaceholder, nearBottom, prevTop, scrollHeight: list.scrollHeight,
+  });
+  return true;
+}
+
+// =====================
 //  Pull to Refresh
 // =====================
 function initPullToRefresh(onRefresh) {

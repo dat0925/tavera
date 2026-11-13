@@ -897,14 +897,16 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
 
     async function renderCommentList() {
       const list = document.getElementById('csList');
-      list.innerHTML = '<div class="loading-dots" style="justify-content:center;padding:8px 0"><span></span><span></span><span></span></div>';
+      // UI洗練3-軽: 同じ献立の再取得ではドットに置き換えず既存表示のまま裏で取得し、
+      //同一HTMLなら差し替えない・スクロールは末尾付近でなければ復元（共有ヘルパー）
+      beginListLoad(list, `${commentSheetDate}_${commentSheetMeal}`);
       const comments = await getMealComments(householdId, commentSheetDate, commentSheetMeal);
       lastComments = comments;
       if (!comments.length) {
-        list.innerHTML = '<div class="comment-empty">まだコメントはありません</div>';
+        applyListHTML(list, '<div class="comment-empty">まだコメントはありません</div>');
         return;
       }
-      list.innerHTML = comments.map(c => {
+      applyListHTML(list, comments.map(c => {
         const name = c.menu_members?.name || (c.source === 'line' ? 'LINEから' : '家族');
         const text = [c.stamp ? MEAL_COMMENT_STAMPS[c.stamp] || c.stamp : null, c.body].filter(Boolean).join('　');
         const time = new Date(c.created_at).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' });
@@ -919,8 +921,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
             <div>${text}</div>
             <div class="meta">${name}・${time}${c.source === 'line' ? '・LINE' : ''}${editedTag}${actions}</div>
           </div>`;
-      }).join('');
-      list.scrollTop = list.scrollHeight;
+      }).join(''));
     }
 
     function startEditComment(id) {
