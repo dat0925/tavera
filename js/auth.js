@@ -314,6 +314,28 @@ window.addEventListener('pagehide', flushPendingDeletes);
 window.addEventListener('beforeunload', flushPendingDeletes);
 
 // =====================
+// コメント削除の保留判定（UI洗練 残り候補: コメント削除のUndo化）
+// =====================
+// 保留中コメントIDのレジストリは pendingDeletes そのものを使う
+// （key = 'comment:<commentId>'）。scheduleDeferredDelete の二重登録ガードもそのまま効く。
+// 一覧・件数の取得層（js/menu-log.js）がこの判定だけを参照すれば、
+// home / history / log の描画側にフィルタを複製せずに済み、
+// 保留中のコメントが再描画や件数バッジに復活しない。
+function commentDeleteKey(commentId) {
+  return 'comment:' + commentId;
+}
+
+function isCommentDeletePending(commentId) {
+  return isPendingDelete(commentDeleteKey(commentId));
+}
+
+// 取得したコメント行の配列から削除保留中のものを取り除く
+// （一覧取得・件数集計の共通フィルタ。行には id が含まれる前提）
+function excludePendingDeletedComments(rows) {
+  return (rows || []).filter(r => !isCommentDeletePending(r.id));
+}
+
+// =====================
 //  シートの下スワイプで閉じる（UI洗練3: 5-軽）
 // =====================
 // ボトムシート／下付きモーダルのハンドル／タイトル領域からだけ
