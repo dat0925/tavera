@@ -15,7 +15,7 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
   <title>設定 - Tavera</title>
   <link rel="icon" href="assets/logo.png">
-  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/style.css?v=20261113">
   <link rel="manifest" href="manifest.json">
   <link rel="apple-touch-icon" href="assets/icon-180.png">
   <meta name="mobile-web-app-capable" content="yes">
@@ -291,8 +291,14 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
       <!-- プロフィール -->
       <div class="settings-section">
         <div class="settings-label">プロフィール</div>
-        <div class="profile-card" id="profileCard">
-          <div class="loading-dots"><span></span><span></span><span></span></div>
+        <div class="profile-card" id="profileCard" aria-busy="true">
+          <div class="skel-flex" aria-hidden="true" style="flex:1">
+            <div class="skel skel-circle" style="width:52px;height:52px"></div>
+            <div class="skel-stack" style="flex:1">
+              <div class="skel skel-line" style="width:42%"></div>
+              <div class="skel skel-line-sm" style="width:68%"></div>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -354,8 +360,15 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
           </div>
         </div>
         <!-- メンバー一覧 -->
-        <div class="fam-list" id="famList">
-          <div class="loading-dots" style="padding:16px 0;justify-content:center"><span></span><span></span><span></span></div>
+        <div class="fam-list" id="famList" aria-busy="true">
+          <div class="fam-card" aria-hidden="true">
+            <div class="skel-flex" style="margin-bottom:10px"><div class="skel skel-circle" style="width:36px;height:36px"></div><div class="skel skel-line" style="width:38%"></div></div>
+            <div class="skel-chips"><span class="skel skel-chip" style="width:58px;height:24px"></span><span class="skel skel-chip" style="width:72px;height:24px"></span></div>
+          </div>
+          <div class="fam-card" aria-hidden="true">
+            <div class="skel-flex" style="margin-bottom:10px"><div class="skel skel-circle" style="width:36px;height:36px"></div><div class="skel skel-line" style="width:30%"></div></div>
+            <div class="skel-chips"><span class="skel skel-chip" style="width:66px;height:24px"></span></div>
+          </div>
         </div>
         <!-- 追加ボタン -->
         <button class="fam-add-btn" id="famAddBtn" style="margin-top:10px" onclick="showNewMemberForm()">
@@ -474,16 +487,25 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
       <!-- プラン -->
       <div class="settings-section" id="plan">
         <div class="settings-label">プラン</div>
-        <div class="plan-card" id="planCard">
-          <div class="loading-dots" style="padding:8px 0;justify-content:center"><span></span><span></span><span></span></div>
+        <div class="plan-card" id="planCard" aria-busy="true">
+          <div class="skel-stack" aria-hidden="true">
+            <div class="skel skel-chip" style="width:110px;height:24px"></div>
+            <div class="skel skel-line" style="width:82%"></div>
+            <div class="skel skel-line" style="width:64%"></div>
+            <div class="skel" style="width:100%;height:42px;border-radius:99px;margin-top:6px"></div>
+          </div>
         </div>
       </div>
 
       <!-- 友達紹介 -->
       <div class="settings-section" id="referral">
         <div class="settings-label">友達紹介</div>
-        <div class="plan-card" id="referralCard">
-          <div class="loading-dots" style="padding:8px 0;justify-content:center"><span></span><span></span><span></span></div>
+        <div class="plan-card" id="referralCard" aria-busy="true">
+          <div class="skel-stack" aria-hidden="true">
+            <div class="skel skel-line" style="width:88%"></div>
+            <div class="skel skel-line" style="width:58%"></div>
+            <div class="skel" style="width:100%;height:44px;border-radius:10px;margin-top:6px"></div>
+          </div>
         </div>
       </div>
 
@@ -554,6 +576,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
       // プロフィール
       const card = document.getElementById('profileCard');
       const meta = user.user_metadata;
+      card.removeAttribute('aria-busy');
       card.innerHTML = `
         <img class="profile-avatar" src="${meta.avatar_url || ''}" alt="${meta.full_name || ''}">
         <div class="profile-info">
@@ -608,10 +631,12 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
       famMembers = data || [];
 
       if (!famMembers.length) {
+        list.removeAttribute('aria-busy');
         list.innerHTML = '<div style="font-size:0.82rem;color:var(--muted);padding:4px 2px">まだメンバーが登録されていません</div>';
         return;
       }
 
+      list.removeAttribute('aria-busy');
       list.innerHTML = famMembers.map(m => buildFamCard(m)).join('');
     }
 
@@ -767,9 +792,11 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
     function renderFamMembersSync() {
       const list = document.getElementById('famList');
       if (!famMembers.length) {
+        list.removeAttribute('aria-busy');
         list.innerHTML = '<div style="font-size:0.82rem;color:var(--muted);padding:4px 2px">まだメンバーが登録されていません</div>';
         return;
       }
+      list.removeAttribute('aria-busy');
       list.innerHTML = famMembers.map(m => buildFamCard(m)).join('');
     }
     async function saveEditMember(id) {
@@ -1040,6 +1067,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
     // =====================
     async function renderReferralCard() {
       const card = document.getElementById('referralCard');
+      if (card) card.removeAttribute('aria-busy');
       try {
         const { data, error } = await db.functions.invoke('tavera-referral', { body: { action: 'get' } });
         if (error || data?.error) throw new Error(data?.error || 'error');
@@ -1104,6 +1132,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
       if (!currentUser) return;
       const card = document.getElementById('planCard');
       if (!card) return;
+      card.removeAttribute('aria-busy');
 
       const { data: member } = await db
         .from('menu_members')

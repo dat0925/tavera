@@ -15,7 +15,7 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
   <title>ホーム - Tavera</title>
   <link rel="icon" href="assets/logo.png">
-  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/style.css?v=20261113">
   <link rel="manifest" href="manifest.json">
   <link rel="apple-touch-icon" href="assets/icon-180.png">
   <meta name="mobile-web-app-capable" content="yes">
@@ -572,18 +572,18 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
       <!-- 今日の献立 -->
       <div class="today-section">
         <div class="today-date" id="todayLabel">今日の献立</div>
-        <div class="meal-grid" id="mealGrid">
-          <div class="meal-cell">
-            <div class="meal-type">朝</div>
-            <div class="meal-empty">未登録</div>
+        <div class="meal-grid" id="mealGrid" aria-busy="true">
+          <div class="meal-cell skel-meal-cell" aria-hidden="true">
+            <div class="skel skel-line-sm" style="width:34%"></div>
+            <div class="skel" style="width:72%;height:14px"></div>
           </div>
-          <div class="meal-cell">
-            <div class="meal-type">昼</div>
-            <div class="meal-empty">未登録</div>
+          <div class="meal-cell skel-meal-cell" aria-hidden="true">
+            <div class="skel skel-line-sm" style="width:34%"></div>
+            <div class="skel" style="width:58%;height:14px"></div>
           </div>
-          <div class="meal-cell">
-            <div class="meal-type">夜</div>
-            <div class="meal-empty">未登録</div>
+          <div class="meal-cell skel-meal-cell" aria-hidden="true">
+            <div class="skel skel-line-sm" style="width:34%"></div>
+            <div class="skel" style="width:66%;height:14px"></div>
           </div>
         </div>
       </div>
@@ -611,8 +611,13 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
       </div>
       <div class="fridge-section">
         <!-- 登録済み食材チップ -->
-        <div class="fridge-chips" id="fridgeChips">
-          <span class="fridge-empty">食材を登録するとAIが献立を提案しやすくなります</span>
+        <div class="fridge-chips" id="fridgeChips" aria-busy="true">
+          <div class="skel-chips" aria-hidden="true">
+            <span class="skel skel-chip" style="width:72px"></span>
+            <span class="skel skel-chip" style="width:56px"></span>
+            <span class="skel skel-chip" style="width:84px"></span>
+            <span class="skel skel-chip" style="width:64px"></span>
+          </div>
         </div>
         <!-- 追加フォーム -->
         <div class="fridge-add-row">
@@ -672,9 +677,11 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
         <span class="section-title">⭐ また食べたいランキング</span>
       </div>
       <div class="liked-section">
-        <div class="liked-list" id="likedList">
-          <div class="empty-state" style="padding:24px 0;">
-            <p class="text-sm text-muted">献立を記録すると<br>ランキングが表示されます</p>
+        <div class="liked-list" id="likedList" aria-busy="true">
+          <div aria-hidden="true">
+            <div class="skel-flex" style="padding:7px 0"><div class="skel skel-circle" style="width:28px;height:28px"></div><div class="skel skel-line" style="width:52%"></div></div>
+            <div class="skel-flex" style="padding:7px 0"><div class="skel skel-circle" style="width:28px;height:28px"></div><div class="skel skel-line" style="width:44%"></div></div>
+            <div class="skel-flex" style="padding:7px 0"><div class="skel skel-circle" style="width:28px;height:28px"></div><div class="skel skel-line" style="width:60%"></div></div>
           </div>
         </div>
       </div>
@@ -689,8 +696,12 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
       </div>
       <div class="shopping-section">
         <div class="shopping-meta" id="shoppingMeta"></div>
-        <div class="shopping-list" id="shoppingList">
-          <div class="shopping-empty">献立を記録すると食材リストが自動生成されます</div>
+        <div class="shopping-list" id="shoppingList" aria-busy="true">
+          <div aria-hidden="true">
+            <div class="skel-flex" style="padding:9px 2px"><div class="skel" style="width:20px;height:20px;border-radius:6px"></div><div class="skel skel-line" style="width:46%"></div></div>
+            <div class="skel-flex" style="padding:9px 2px"><div class="skel" style="width:20px;height:20px;border-radius:6px"></div><div class="skel skel-line" style="width:58%"></div></div>
+            <div class="skel-flex" style="padding:9px 2px"><div class="skel" style="width:20px;height:20px;border-radius:6px"></div><div class="skel skel-line" style="width:38%"></div></div>
+          </div>
         </div>
         <div class="shopping-add-row">
           <input type="text" id="shoppingManualInput" class="shopping-add-input"
@@ -810,9 +821,26 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
       await renderMealGrid(dateStr);
     }
 
+    // UI洗練0: 献立グリッドのスケルトン（静的HTMLの初期表示と同形）
+    function mealGridSkeletonHTML() {
+      return [72, 58, 66].map(w => `
+        <div class="meal-cell skel-meal-cell" aria-hidden="true">
+          <div class="skel skel-line-sm" style="width:34%"></div>
+          <div class="skel" style="width:${w}%;height:14px"></div>
+        </div>`).join('');
+    }
+
+    // UI洗練0: 買い物リストのスケルトン（チェックボックス＋行）
+    function shoppingSkeletonHTML() {
+      return '<div aria-hidden="true">' + [46, 58, 38].map(w => `
+        <div class="skel-flex" style="padding:9px 2px"><div class="skel" style="width:20px;height:20px;border-radius:6px"></div><div class="skel skel-line" style="width:${w}%"></div></div>`).join('') + '</div>';
+    }
+
     async function renderMealGrid(dateStr) {
       const grid = document.getElementById('mealGrid');
       if (!householdId) return;
+      grid.setAttribute('aria-busy', 'true');
+      grid.innerHTML = mealGridSkeletonHTML();
 
       currentGridDate = dateStr;
       const [logs, commentCounts] = await Promise.all([
@@ -843,6 +871,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
           </div>
         `;
       }).join('');
+      grid.removeAttribute('aria-busy');
     }
 
     // 献立ログが1件もない（＝給食インポートやAI提案をまだ体験していない）新規ユーザーにだけ
@@ -1082,6 +1111,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
       if (!householdId) return;
 
       const items = await getFridgeItems(householdId);
+      container.removeAttribute('aria-busy');
       if (items.length === 0) {
         container.innerHTML = '<span class="fridge-empty">食材を登録するとAIが献立を提案しやすくなります</span>';
         return;
@@ -1153,7 +1183,15 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
       if (!householdId) return;
 
       const dishes = await getLikedDishes(householdId, 5);
-      if (!dishes.length) return;
+      list.removeAttribute('aria-busy');
+      if (!dishes.length) {
+        // スケルトンのまま残らないよう、0件時は従来の案内文に戻す
+        list.innerHTML = `
+          <div class="empty-state" style="padding:24px 0;">
+            <p class="text-sm text-muted">献立を記録すると<br>ランキングが表示されます</p>
+          </div>`;
+        return;
+      }
 
       const medals = ['🥇','🥈','🥉','4','5'];
       list.innerHTML = dishes.map((d, i) => `
@@ -1174,7 +1212,8 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
       const actionsEl = document.getElementById('shoppingActions');
       if (!householdId) return;
 
-      listEl.innerHTML = '<div class="shopping-empty">読み込み中...</div>';
+      listEl.setAttribute('aria-busy', 'true');
+      listEl.innerHTML = shoppingSkeletonHTML();
       actionsEl.style.display = 'none';
       metaEl.textContent = '';
 
@@ -1223,6 +1262,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
       const totalCount = autoNeedToBuy.length + manualNeedToBuy.length;
 
       if (totalCount === 0) {
+        listEl.removeAttribute('aria-busy');
         listEl.innerHTML = allItems.length
           ? '<div class="shopping-empty">今週の食材は冷蔵庫にすべて揃っています 🎉</div>'
           : '<div class="shopping-empty">今週の献立に食材情報がありません。<br>献立記録時に食材を入力するか、下から手動で追加できます。</div>';
@@ -1251,6 +1291,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
           <button class="shopping-item-del" onclick="event.stopPropagation(); removeManualShoppingItem(this, '${m.id}')" title="リストから削除">✕</button>
         </div>
       `).join('');
+      listEl.removeAttribute('aria-busy');
       listEl.innerHTML = autoHtml + manualHtml;
       actionsEl.style.display = 'flex';
     }
