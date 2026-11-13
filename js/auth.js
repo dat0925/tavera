@@ -314,6 +314,76 @@ window.addEventListener('pagehide', flushPendingDeletes);
 window.addEventListener('beforeunload', flushPendingDeletes);
 
 // =====================
+//  シートの下スワイプで閉じる（UI洗練3: 5-軽）
+// =====================
+// ボトムシート／下付きモーダルのハンドル／タイトル領域からだけ
+// ドラッグを開始し、下方向へ閾値を超えたら既存の閉じる処理を呼ぶ。
+// シート内コンテンツのスクロールとは競合しない（開始領域が非スクロール）。
+// ドラッグ中は transition を切り、transform のみで追従させる。
+// 途中で離した場合は transform を戻し、シート側の transition で滑らかに復帰する。
+const SHEET_DRAG_CLOSE_THRESHOLD_PX = 80;
+
+function sheetDragOffset(startY, currentY) {
+  return Math.max(0, currentY - startY);
+}
+
+function sheetDragShouldClose(dy) {
+  return dy > SHEET_DRAG_CLOSE_THRESHOLD_PX;
+}
+
+// initSheetDragClose(sheetEl, dragEls, onClose)
+// - dragEls: ドラッグ開始領域（要素、または要素の配列。ハンドルとタイトルを渡す）
+// - onClose: 既存の閉じる処理そのもの（状態リセット含む）を渡す
+function initSheetDragClose(sheetEl, dragEls, onClose) {
+  if (!sheetEl || typeof onClose !== 'function') return;
+  const els = (Array.isArray(dragEls) ? dragEls : [dragEls]).filter(Boolean);
+  if (!els.length) return;
+
+  let startY = null;
+  let currentDy = 0;
+
+  function onPointerDown(e) {
+    if (e.button !== undefined && e.button !== 0) return;
+    startY = e.clientY;
+    currentDy = 0;
+    sheetEl.style.transition = 'none';
+    try { e.currentTarget.setPointerCapture(e.pointerId); } catch (_) {}
+  }
+
+  function onPointerMove(e) {
+    if (startY === null) return;
+    currentDy = sheetDragOffset(startY, e.clientY);
+    sheetEl.style.transform = `translateY(${currentDy}px)`;
+  }
+
+  function finishDrag(shouldClose) {
+    if (startY === null) return;
+    startY = null;
+    // シート側に transition が無いモーダル（系統B）でも滑らかに戻せるよう、
+    // 復帰・退場の間だけ一時的な transition を当て、終わったら元の定義に戻す
+    sheetEl.style.transition = 'transform 0.2s ease';
+    sheetEl.style.transform = '';
+    if (shouldClose && sheetDragShouldClose(currentDy)) {
+      onClose();
+    }
+    currentDy = 0;
+    setTimeout(() => { sheetEl.style.transition = ''; }, 220);
+  }
+
+  els.forEach(el => {
+    el.style.touchAction = 'none';
+    el.addEventListener('pointerdown', onPointerDown);
+    el.addEventListener('pointermove', onPointerMove);
+    el.addEventListener('pointerup', () => finishDrag(true));
+    el.addEventListener('pointercancel', () => finishDrag(false));
+    // auth.js の Pull to Refresh（document の touch 監視）にシートの
+    // ドラッグを拾わせないため、開始領域からの touch はここで止める
+    el.addEventListener('touchstart', e => e.stopPropagation(), { passive: true });
+    el.addEventListener('touchmove', e => e.stopPropagation(), { passive: true });
+  });
+}
+
+// =====================
 //  Pull to Refresh
 // =====================
 function initPullToRefresh(onRefresh) {

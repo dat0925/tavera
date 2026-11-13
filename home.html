@@ -15,7 +15,7 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
   <title>ホーム - Tavera</title>
   <link rel="icon" href="assets/logo.png">
-  <link rel="stylesheet" href="css/style.css?v=20261113">
+  <link rel="stylesheet" href="css/style.css?v=20261114">
   <link rel="manifest" href="manifest.json">
   <link rel="apple-touch-icon" href="assets/icon-180.png">
   <meta name="mobile-web-app-capable" content="yes">
@@ -180,37 +180,9 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
     }
     .chip-del:hover { opacity: 1; }
 
-    /* ボトムシート */
-    .bottom-sheet-overlay {
-      display: none;
-      position: fixed;
-      inset: 0;
-      background: rgba(0,0,0,0.4);
-      z-index: 200;
-      animation: fadeIn 0.2s ease;
-    }
-    .bottom-sheet-overlay.open { display: block; }
-    .bottom-sheet {
-      position: fixed;
-      bottom: 0; left: 0; right: 0;
-      background: var(--white);
-      border-radius: 20px 20px 0 0;
-      padding: 20px 20px 40px;
-      z-index: 201;
-      transform: translateY(100%);
-      transition: transform 0.25s cubic-bezier(0.32, 0.72, 0, 1);
-    }
-    .bottom-sheet.open { transform: translateY(0); }
-    .bs-handle {
-      width: 40px; height: 4px;
-      background: var(--border);
-      border-radius: 2px;
-      margin: 0 auto 18px;
-    }
-    .bs-title {
-      font-size: 1rem; font-weight: 700;
-      color: var(--brown); margin-bottom: 16px;
-    }
+    /* ボトムシート本体（overlay / sheet / handle / title）は
+       css/style.css の共有定義を使う（UI洗練3: 9-軽）。
+       ここには冷蔵庫シート専用の bs-* のみ残す */
     .bs-row {
       display: flex; align-items: center;
       gap: 10px; margin-bottom: 14px;
@@ -438,9 +410,6 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
       border-radius: 99px;
       display: flex; align-items: center; justify-content: center;
       line-height: 1;
-    }
-    .comment-sheet-label {
-      font-size: 0.82rem; color: var(--muted); margin-bottom: 12px;
     }
     .comment-list {
       display: flex; flex-direction: column; gap: 8px;
@@ -1053,6 +1022,18 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
       document.getElementById('bsOverlay').classList.remove('open');
       document.getElementById('fridgeSheet').classList.remove('open');
     }
+
+    // 下スワイプで閉じる（UI洗練3: 5-軽）。開始領域はハンドルとタイトルのみ
+    initSheetDragClose(
+      document.getElementById('fridgeSheet'),
+      [document.querySelector('#fridgeSheet .bs-handle'), document.getElementById('bsTitle')],
+      closeFridgeSheet
+    );
+    initSheetDragClose(
+      document.getElementById('commentSheet'),
+      [document.querySelector('#commentSheet .bs-handle'), document.getElementById('csTitle')],
+      closeCommentSheet
+    );
 
     async function saveFridgeSheet() {
       if (!sheetItemId) return;
