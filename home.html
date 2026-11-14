@@ -875,8 +875,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
       cancelCommentEdit();
       if (currentMemberRole === null) currentMemberRole = await getMemberRole(currentMemberId);
       setCommentStampMode(currentMemberRole === 'owner' ? 'cooker' : 'eater');
-      document.getElementById('csOverlay').classList.add('open');
-      document.getElementById('commentSheet').classList.add('open');
+      openSheet('comment');
       await renderCommentList();
     }
 
@@ -891,8 +890,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
     }
 
     function closeCommentSheet() {
-      document.getElementById('csOverlay').classList.remove('open');
-      document.getElementById('commentSheet').classList.remove('open');
+      closeSheet('comment');
     }
 
     async function renderCommentList() {
@@ -1026,15 +1024,40 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
       sheetItemId = itemId;
       document.getElementById('bsTitle').textContent = itemName;
       document.getElementById('bsDateInput').value = expiresOn || '';
-      document.getElementById('bsOverlay').classList.add('open');
-      document.getElementById('fridgeSheet').classList.add('open');
+      openSheet('fridge');
     }
 
     function closeFridgeSheet() {
       sheetItemId = null;
-      document.getElementById('bsOverlay').classList.remove('open');
-      document.getElementById('fridgeSheet').classList.remove('open');
+      closeSheet('fridge');
     }
+
+    // シートの共通土台への登録（UI洗練 項目9本格）。表示切替は土台の
+    // registerSheet に集約し、開く時は openSheet、閉じる時は自ページの
+    // close 関数から closeSheet を呼ぶ形に揃える。Esc は土台が
+    // close（状態リセット込みの既存関数）を経由して閉じる
+    registerSheet('fridge', {
+      show: () => {
+        document.getElementById('bsOverlay').classList.add('open');
+        document.getElementById('fridgeSheet').classList.add('open');
+      },
+      hide: () => {
+        document.getElementById('bsOverlay').classList.remove('open');
+        document.getElementById('fridgeSheet').classList.remove('open');
+      },
+      close: () => closeFridgeSheet(),
+    });
+    registerSheet('comment', {
+      show: () => {
+        document.getElementById('csOverlay').classList.add('open');
+        document.getElementById('commentSheet').classList.add('open');
+      },
+      hide: () => {
+        document.getElementById('csOverlay').classList.remove('open');
+        document.getElementById('commentSheet').classList.remove('open');
+      },
+      close: () => closeCommentSheet(),
+    });
 
     // 下スワイプで閉じる（UI洗練3: 5-軽）。開始領域はハンドルとタイトルのみ
     initSheetDragClose(

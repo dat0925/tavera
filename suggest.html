@@ -641,13 +641,22 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
       document.getElementById('recordModalTitle').textContent = dish ? (dish + 'を記録する') : 'この献立を記録する';
       document.getElementById('recordDateInput').value = slot.date;
       selectRecordMealTab(slot.mealType);
-      document.getElementById('recordModal').classList.remove('hidden');
+      openSheet('record');
     }
 
     function closeRecordModal(e) {
-      if (e && e.target.id !== 'recordModal') return;
-      document.getElementById('recordModal').classList.add('hidden');
+      if (e && e.target && e.target.id !== 'recordModal') return;
+      closeSheet('record');
     }
+
+    // モーダルの共通土台への登録（UI洗練 項目9本格）。開く時は openSheet、
+    // 閉じる時は自ページの close 関数から closeSheet を呼ぶ形に揃える。
+    // Esc は土台が close（引数なしの closeRecordModal）を経由して閉じる
+    registerSheet('record', {
+      show: () => document.getElementById('recordModal').classList.remove('hidden'),
+      hide: () => document.getElementById('recordModal').classList.add('hidden'),
+      close: () => closeRecordModal(),
+    });
 
     // 下スワイプで閉じる（UI洗練3: 5-軽）。開始領域はハンドルとタイトルのみ
     initSheetDragClose(

@@ -926,14 +926,21 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
         const t = new Date().toISOString().split('T')[0];
         location.href = `log.html?date=${t}&meal=dinner&dish=${encodeURIComponent(log.dish_name)}`;
       };
-      document.getElementById('detailModal').classList.remove('hidden');
+      openSheet('detail');
     }
 
     function closeModal(e) {
-      if (e.target.id === 'detailModal') {
-        document.getElementById('detailModal').classList.add('hidden');
-      }
+      if (e && e.target && e.target.id !== 'detailModal') return;
+      closeSheet('detail');
     }
+
+    // モーダルの共通土台への登録（UI洗練 項目9本格）。Esc は土台が
+    // close（オーバーレイ自身のクリックと同じ形の closeModal）を経由して閉じる
+    registerSheet('detail', {
+      show: () => document.getElementById('detailModal').classList.remove('hidden'),
+      hide: () => document.getElementById('detailModal').classList.add('hidden'),
+      close: () => closeModal({ target: document.getElementById('detailModal') }),
+    });
 
     // 下スワイプで閉じる（UI洗練3: 5-軽）。閉じる処理は既存の closeModal を
     // オーバーレイ自身のクリックと同じ形で呼ぶ。開始領域はハンドルとタイトルのみ
@@ -979,8 +986,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
       cancelCommentEdit();
       if (currentMemberRole === null) currentMemberRole = await getMemberRole(currentMemberId);
       setCommentStampMode(currentMemberRole === 'owner' ? 'cooker' : 'eater');
-      document.getElementById('csOverlay').classList.add('open');
-      document.getElementById('commentSheet').classList.add('open');
+      openSheet('comment');
       await renderCommentList();
     }
 
@@ -995,9 +1001,22 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
     }
 
     function closeCommentSheet() {
-      document.getElementById('csOverlay').classList.remove('open');
-      document.getElementById('commentSheet').classList.remove('open');
+      closeSheet('comment');
     }
+
+    // シートの共通土台への登録（UI洗練 項目9本格）。開く時は openSheet、
+    // 閉じる時は自ページの close 関数から closeSheet を呼ぶ形に揃える
+    registerSheet('comment', {
+      show: () => {
+        document.getElementById('csOverlay').classList.add('open');
+        document.getElementById('commentSheet').classList.add('open');
+      },
+      hide: () => {
+        document.getElementById('csOverlay').classList.remove('open');
+        document.getElementById('commentSheet').classList.remove('open');
+      },
+      close: () => closeCommentSheet(),
+    });
 
     // 下スワイプで閉じる（UI洗練3: 5-軽）。開始領域はハンドルとタイトルのみ
     initSheetDragClose(

@@ -543,3 +543,101 @@ function initPullToRefresh(onRefresh) {
     }
   }, { passive: true });
 }
+
+// =====================
+//  シート／モーダルの共通土台（UI洗練 項目9本格）
+// =====================
+// 系統A（ボトムシート: overlay と sheet が兄弟要素で .open を付け外し）と
+// 系統B（下付きモーダル: overlay が sheet を内包し .hidden を付け外し）の
+// 開閉をここに一本化する土台。各ページは registerSheet(name, {show, hide, close})
+// で「表示切替」と「閉じる処理（状態リセット込みの自ページの close 関数）」を
+// 登録し、開く時は openSheet(name)、閉じる時は自ページの close 関数から
+// closeSheet(name) を呼ぶ。土台が担うのは次の4点だけ:
+//  - 開いているシートのスタック管理（Esc は最上位のものだけを閉じる）
+//  - Esc で閉じる（ページ側 close 関数を必ず経由し、状態リセットを欠かさない）
+//  - 閉じた時に、開く前にフォーカスがあった要素へフォーカスを戻す
+//  - 開いている間の背景スクロール固定（body / html への .sheet-open 付け外し）
+// backdrop クリックと下スワイプ閉じ（initSheetDragClose）は、従来どおり
+// ページ側 close 関数を呼ぶ配線のままで、その先がこの土台に揃う。
+//
+// <dialog> の showModal は採用しなかった。showModal のダイアログは
+// トップレイヤーに来るため、通常DOMにいるトースト（position:fixed /
+// z-index 9999）が backdrop の下に隠れる。Tavera ではコメント削除の
+// Undoトーストが「コメントシートを開いたまま」表示され、その場で
+// 押せなければならないため、トースト側をトップレイヤーへ移すような
+// 大工事は見送り、通常DOMのスタッキング（シート 200/201 ＜ PTR 999 ＜
+// トースト 9999）をそのまま保つ自前の土台に寄せた。
+const sheetConfigs = new Map();
+let openSheetNames = [];   // 開いた順の名前配列（末尾が最上位）
+const sheetReturnFocus = new Map();
+
+// スタック操作（純粋関数・単体テスト対象）
+function sheetStackAdd(stack, name) {
+  return stack.includes(name) ? stack.slice() : [...stack, name];
+}
+function sheetStackRemove(stack, name) {
+  return stack.filter(n => n !== name);
+}
+function sheetStackTop(stack) {
+  return stack.length ? stack[stack.length - 1] : null;
+}
+
+// registerSheet(name, { show, hide, close })
+// - show / hide: 表示切替だけを行う関数（クラスの付け外し）
+// - close: 状態リセット込みのページ側 close 関数。Esc からの閉鎖はこれを経由する
+function registerSheet(name, cfg) {
+  if (!name || !cfg || typeof cfg.show !== 'function' || typeof cfg.hide !== 'function') return false;
+  sheetConfigs.set(name, cfg);
+  return true;
+}
+
+function isSheetOpen(name) {
+  return openSheetNames.includes(name);
+}
+
+function syncSheetScrollLock() {
+  const locked = openSheetNames.length > 0;
+  document.documentElement.classList.toggle('sheet-open', locked);
+  if (document.body) document.body.classList.toggle('sheet-open', locked);
+}
+
+function openSheet(name) {
+  const cfg = sheetConfigs.get(name);
+  if (!cfg || isSheetOpen(name)) return false;
+  const active = document.activeElement;
+  sheetReturnFocus.set(name, active && active !== document.body ? active : null);
+  cfg.show();
+  openSheetNames = sheetStackAdd(openSheetNames, name);
+  syncSheetScrollLock();
+  return true;
+}
+
+function closeSheet(name) {
+  const cfg = sheetConfigs.get(name);
+  if (!cfg || !isSheetOpen(name)) return false;
+  cfg.hide();
+  openSheetNames = sheetStackRemove(openSheetNames, name);
+  syncSheetScrollLock();
+  const target = sheetReturnFocus.get(name);
+  sheetReturnFocus.delete(name);
+  if (target && document.contains(target) && typeof target.focus === 'function') {
+    target.focus();
+  }
+  return true;
+}
+
+// 「利用者の閉じる操作」の入口。ページ側 close 関数（状態リセット込み）を
+// 必ず経由させる。close が無い登録では土台の closeSheet で閉じる。
+function requestCloseSheet(name) {
+  const cfg = sheetConfigs.get(name);
+  if (!cfg || !isSheetOpen(name)) return false;
+  if (typeof cfg.close === 'function') { cfg.close(); return true; }
+  return closeSheet(name);
+}
+
+// Esc は最上位のシートだけを閉じる（登録が無いページでは何もしない）
+window.addEventListener('keydown', (e) => {
+  if (e.key !== 'Escape') return;
+  const top = sheetStackTop(openSheetNames);
+  if (top) requestCloseSheet(top);
+});
