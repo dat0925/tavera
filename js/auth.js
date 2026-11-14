@@ -149,7 +149,7 @@ function showToast(message, type = 'info') {
     zIndex: '9999',
     whiteSpace: 'nowrap',
     boxShadow: '0 4px 16px rgba(0,0,0,0.15)',
-    animation: 'fadeInUp 0.3s ease',
+    animation: 'toastIn 0.3s ease',
   });
 
   document.body.appendChild(toast);
@@ -194,7 +194,7 @@ function showToastWithAction(message, actionLabel, onAction, durationMs = UNDO_D
     fontWeight: '700',
     zIndex: '9999',
     boxShadow: '0 4px 16px rgba(0,0,0,0.15)',
-    animation: 'fadeInUp 0.3s ease',
+    animation: 'toastIn 0.3s ease',
     display: 'flex',
     alignItems: 'center',
     gap: '12px',
